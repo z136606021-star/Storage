@@ -7,39 +7,64 @@
 - **名称**：仓库管理系统（Storage Management System）
 - **所属平台**：项目管理平台 → 资源管理 → 仓库管理
 - **远端仓库**：https://github.com/z136606021-star/Storage.git
-- **当前阶段**：Git 工程初始化完成，等待子界面截图后进入 UI 实现
+- **当前阶段**：物料台账首版（UI + 列表 API）已实现
 
-## 子系统范围（待补充截图）
+## 技术栈
 
-仓库管理包含三个子界面，具体 UI 与交互待用户提供截图后补充：
+| 层级 | 技术 |
+|------|------|
+| 前端 | Vue 3、TypeScript、Vite、Ant Design Vue 4、Vue Router、Axios |
+| 后端 | Java 17+、Spring Boot 3.3、MyBatis Plus 3.5 |
+| 数据库 | MySQL 8 |
 
-| 子系统 | 状态 | 说明 |
-|--------|------|------|
-| 物料台账 | 待实现 | 截图待补充 |
-| 物料出入库 | 待实现 | 截图待补充 |
-| 安全库存管理 | 待实现 | 截图待补充 |
+## 子系统范围
+
+| 子系统 | 状态 | 路由 | 组件 | API |
+|--------|------|------|------|-----|
+| 物料台账 | UI + 列表 API 已实现 | `/warehouse/material-ledger` | `MaterialLedgerView.vue` | `GET /api/materials`、`GET /api/materials/filter-options` |
+| 物料出入库 | 待实现 | — | — | — |
+| 安全库存管理 | 待实现 | — | — | — |
+
+### 物料台账字段
+
+筛选：品类、统称、品牌、名称（关键字）、型号、Bin位。表格：序号、品类、统称、品牌、名称、型号、Bin位、库存数量、单价、备注、操作（查看）。导出、查看详情为首版占位。
 
 ## 仓库约定
 
 - **默认分支**：`main`
-- **提交规范**：建议使用 Conventional Commits（如 `feat:`、`fix:`、`chore:`）
-- **忽略文件**：见 [.gitignore](.gitignore)，提交前勿将 `node_modules`、`.env`、构建产物等纳入版本库
+- **提交规范**：Conventional Commits（`feat:`、`fix:`、`chore:`）
+- **忽略文件**：见 [.gitignore](.gitignore)
+- **环境变量**：参考 [.env.example](.env.example)，勿提交 `.env`
 
 ## 代理工作指引
 
-1. **更新本文件**：新增模块、路由、API、技术栈或目录结构时，更新对应章节
-2. **子系统实现**：收到截图后，在「子系统范围」表中补充路径、组件名、字段与交互说明
-3. **不提交敏感信息**：数据库连接串、API Key、`.env` 等仅放本地或密钥管理，不入库
-4. **保持 README 同步**：重大里程碑或启动方式变化时，同步更新 [README.md](README.md)
+1. **更新本文件**：新增模块、路由、API、技术栈或目录结构时同步更新
+2. **子系统实现**：新页面实现后更新「子系统范围」表
+3. **不提交敏感信息**：数据库密码、API Key 等不入库
+4. **保持 README 同步**：启动方式变化时更新 [README.md](README.md)
 
-## 目录结构（当前）
+## 目录结构
 
 ```
 Storage/
-├── .gitignore
-├── AGENTS.md      # 本文件 — 代理与协作者上下文
-├── README.md
-└── (待补充：前端/后端源码目录)
+├── frontend/                 # Vue3 + TS + Ant Design Vue 4
+│   └── src/
+│       ├── api/materialLedger.ts
+│       ├── components/layout/  # SideMenu, TabBar
+│       ├── layouts/AppLayout.vue
+│       ├── router/index.ts
+│       ├── types/materialLedger.ts
+│       └── views/material-ledger/MaterialLedgerView.vue
+├── backend/                  # Spring Boot 3 + MyBatis Plus
+│   └── src/main/java/com/storage/
+│       ├── controller/MaterialLedgerController.java
+│       ├── entity/MaterialLedger.java
+│       ├── mapper/MaterialLedgerMapper.java
+│       └── service/MaterialLedgerService.java
+├── docker-compose.yml        # MySQL 8 本地开发
+├── .env.example
+├── AGENTS.md
+└── README.md
 ```
 
 ## 变更日志
@@ -47,3 +72,4 @@ Storage/
 | 日期 | 变更 |
 |------|------|
 | 2026-06-23 | 初始化 Git 仓库、.gitignore、AGENTS.md、README.md；首次推送到 GitHub |
+| 2026-06-23 | 物料台账首版：前后端工程、MySQL 种子数据、完整壳层 UI、分页查询 API |

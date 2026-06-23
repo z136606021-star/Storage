@@ -16,6 +16,7 @@ ENV/
 dist/
 build/
 out/
+target/
 *.egg-info/
 .eggs/
 *.so
