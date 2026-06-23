@@ -88,28 +88,34 @@
 Storage/
 ├── frontend/                 # Vue3 + TS + Ant Design Vue 4
 │   └── src/
-│       ├── api/                # 按资源拆分的 API 客户端
+│       ├── api/
+│       │   ├── http.ts           # 共享 axios 实例与错误解析
+│       │   └── materialLedger.ts # 物料台账 API
 │       ├── components/
-│       │   ├── layout/         # SideMenu, TabBar（平台壳层）
-│       │   ├── common/         # 跨子系统通用组件（待抽取）
-│       │   └── warehouse/      # 仓库模块通用组件（待抽取）
+│       │   ├── layout/           # SideMenu, TabBar（平台壳层）
+│       │   ├── common/           # 跨子系统通用组件（待扩展）
+│       │   └── warehouse/        # 仓库模块组件（MaterialLedgerFormModal）
+│       ├── constants/filter.ts   # 筛选常量（ALL_OPTION）
 │       ├── layouts/AppLayout.vue
 │       ├── router/index.ts
-│       ├── types/materialLedger.ts
+│       ├── types/
+│       │   ├── common.ts         # PageResult 等通用类型
+│       │   └── materialLedger.ts
+│       ├── utils/                # download、format、selectOptions
 │       └── views/material-ledger/
-│           ├── MaterialLedgerView.vue
-│           └── MaterialLedgerFormModal.vue
+│           └── MaterialLedgerView.vue
 ├── backend/                  # Spring Boot 3 + MyBatis Plus
 │   └── src/main/java/com/storage/
 │       ├── controller/
+│       ├── converter/        # DTO ↔ Entity 转换
 │       ├── dto/
 │       ├── entity/
+│       ├── excel/            # Excel 列契约与 POI 工具
 │       ├── exception/        # 全局异常（可复用）
-│       ├── mapper/MaterialLedgerMapper.java
-│       └── service/
-│           ├── MaterialLedgerService.java
-│           ├── MaterialLedgerExportService.java
-│           └── MaterialLedgerImportService.java
+│       ├── mapper/
+│       ├── query/            # 查询条件构建
+│       ├── service/
+│       └── web/              # Excel 响应构建
 ├── docker-compose.yml        # MySQL 8 本地开发
 ├── .env.example
 ├── AGENTS.md
@@ -125,3 +131,4 @@ Storage/
 | 2026-06-23 | 物料台账二版：查看详情抽屉、按筛选条件导出 Excel、列表页 UI 优化 |
 | 2026-06-23 | 物料台账三版：CRUD、Excel 导入、批量导出/删除、筛选联动、种子数据精简 |
 | 2026-06-23 | 新增模块复用与可维护性门禁；main 合并物料台账 v2/v3 并同步至功能分支 |
+| 2026-06-23 | 复用基础层：前端 http/types/utils/constants、后端 converter/query/excel/web |

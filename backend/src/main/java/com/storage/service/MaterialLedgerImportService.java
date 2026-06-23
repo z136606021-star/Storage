@@ -1,13 +1,14 @@
 package com.storage.service;
 
+import com.storage.converter.MaterialLedgerConverter;
 import com.storage.dto.ImportResultVO;
 import com.storage.dto.MaterialSaveDTO;
 import com.storage.entity.MaterialLedger;
+import com.storage.excel.ExcelCellUtils;
+import com.storage.excel.MaterialLedgerExcelColumn;
 import com.storage.exception.ImportFormatException;
 import com.storage.mapper.MaterialLedgerMapper;
 import lombok.RequiredArgsConstructor;
-import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -25,9 +26,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class MaterialLedgerImportService {
 
-    private static final DataFormatter FORMATTER = new DataFormatter();
-
     private final MaterialLedgerMapper materialLedgerMapper;
+    private final MaterialLedgerConverter materialLedgerConverter;
 
     public ImportResultVO importExcel(MultipartFile file) throws IOException {
         if (file == null || file.isEmpty()) {
@@ -59,7 +59,8 @@ public class MaterialLedgerImportService {
                 try {
                     MaterialSaveDTO dto = parseRow(row);
                     validateDto(dto);
-                    materialLedgerMapper.insert(toEntity(dto));
+                    MaterialLedger entity = materialLedgerConverter.toNewEntity(dto);
+                    materialLedgerMapper.insert(entity);
                     result.setSuccessCount(result.getSuccessCount() + 1);
                 } catch (Exception ex) {
                     result.setFailCount(result.getFailCount() + 1);
@@ -74,14 +75,14 @@ public class MaterialLedgerImportService {
 
     private MaterialSaveDTO parseRow(Row row) {
         MaterialSaveDTO dto = new MaterialSaveDTO();
-        dto.setCategory(getCellString(row, 1));
-        dto.setGenericName(getCellString(row, 2));
-        dto.setBrand(getCellString(row, 3));
-        dto.setName(getCellString(row, 4));
-        dto.setModel(getCellString(row, 5));
-        dto.setBinLocation(getCellString(row, 6));
-        dto.setUnitPrice(parseUnitPrice(getCellString(row, 8)));
-        dto.setRemark(getCellString(row, 9));
+        dto.setCategory(ExcelCellUtils.getCellString(row, MaterialLedgerExcelColumn.CATEGORY.getIndex()));
+        dto.setGenericName(ExcelCellUtils.getCellString(row, MaterialLedgerExcelColumn.GENERIC_NAME.getIndex()));
+        dto.setBrand(ExcelCellUtils.getCellString(row, MaterialLedgerExcelColumn.BRAND.getIndex()));
+        dto.setName(ExcelCellUtils.getCellString(row, MaterialLedgerExcelColumn.NAME.getIndex()));
+        dto.setModel(ExcelCellUtils.getCellString(row, MaterialLedgerExcelColumn.MODEL.getIndex()));
+        dto.setBinLocation(ExcelCellUtils.getCellString(row, MaterialLedgerExcelColumn.BIN_LOCATION.getIndex()));
+        dto.setUnitPrice(parseUnitPrice(ExcelCellUtils.getCellString(row, MaterialLedgerExcelColumn.UNIT_PRICE.getIndex())));
+        dto.setRemark(ExcelCellUtils.getCellString(row, MaterialLedgerExcelColumn.REMARK.getIndex()));
         return dto;
     }
 
@@ -103,29 +104,6 @@ public class MaterialLedgerImportService {
         }
     }
 
-    private MaterialLedger toEntity(MaterialSaveDTO dto) {
-        MaterialLedger entity = new MaterialLedger();
-        entity.setCategory(dto.getCategory().trim());
-        entity.setGenericName(dto.getGenericName().trim());
-        entity.setBrand(trimToNull(dto.getBrand()));
-        entity.setName(dto.getName().trim());
-        entity.setModel(dto.getModel().trim());
-        entity.setBinLocation(dto.getBinLocation().trim());
-        entity.setStockQuantity(0);
-        entity.setUnitPrice(dto.getUnitPrice());
-        entity.setRemark(trimToNull(dto.getRemark()));
-        return entity;
-    }
-
-    private String getCellString(Row row, int column) {
-        Cell cell = row.getCell(column);
-        if (cell == null) {
-            return null;
-        }
-        String value = FORMATTER.formatCellValue(cell).trim();
-        return value.isEmpty() ? null : value;
-    }
-
     private BigDecimal parseUnitPrice(String value) {
         if (!StringUtils.hasText(value)) {
             return null;
@@ -138,18 +116,14 @@ public class MaterialLedgerImportService {
     }
 
     private boolean isEmptyRow(Row row) {
-        for (int i = 1; i <= 9; i++) {
-            if (StringUtils.hasText(getCellString(row, i))) {
+        for (MaterialLedgerExcelColumn column : MaterialLedgerExcelColumn.values()) {
+            if (column == MaterialLedgerExcelColumn.INDEX) {
+                continue;
+            }
+            if (StringUtils.hasText(ExcelCellUtils.getCellString(row, column.getIndex()))) {
                 return false;
             }
         }
         return true;
-    }
-
-    private String trimToNull(String value) {
-        if (!StringUtils.hasText(value)) {
-            return null;
-        }
-        return value.trim();
     }
 }

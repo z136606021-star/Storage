@@ -70,10 +70,11 @@ npm run dev
 - [x] 物料台账 CRUD（新增/编辑/删除，库存数量只读）
 - [x] 物料台账 Excel 导入与批量导出/批量删除
 - [x] 物料台账筛选联动（品类 → 统称 → 品牌 → 型号/Bin位）
+- [x] 公共复用基础层（前端 http/types/utils、后端 converter/query/excel/web）
 - [ ] 物料出入库、安全库存管理
 
 ## 远端仓库
 
 https://github.com/z136606021-star/Storage.git
 
-协作者与 AI 代理请参阅 [AGENTS.md](AGENTS.md)。
+协作者与 AI 代理请参阅 [AGENTS.md](AGENTS.md)。新增功能前须按 `AGENTS.md` 的「模块复用与可维护性门禁」检查并优先复用 `api/http.ts`、`types/common.ts`、`utils/`、`converter/`、`query/`、`excel/` 等公共层。

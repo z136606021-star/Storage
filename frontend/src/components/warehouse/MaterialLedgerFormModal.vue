@@ -2,14 +2,10 @@
 import { computed, reactive, ref, watch } from 'vue'
 import type { FormInstance } from 'ant-design-vue'
 import { message } from 'ant-design-vue'
-import {
-  createMaterialLedger,
-  getErrorMessage,
-  updateMaterialLedger,
-} from '@/api/materialLedger'
+import { getErrorMessage } from '@/api/http'
+import { createMaterialLedger, updateMaterialLedger } from '@/api/materialLedger'
 import type { MaterialLedger, MaterialSavePayload } from '@/types/materialLedger'
-
-const ALL_OPTION = '全部'
+import { toSelectOptions } from '@/utils/selectOptions'
 
 const props = defineProps<{
   open: boolean
@@ -47,19 +43,19 @@ const modalTitle = computed(() => (isEdit.value ? '编辑物料' : '新增物料
 const stockDisplay = computed(() => (isEdit.value ? String(props.record?.stockQuantity ?? 0) : '0'))
 
 const categorySelectOptions = computed(() =>
-  props.categoryOptions.filter((v) => v !== ALL_OPTION).map((v) => ({ label: v, value: v })),
+  toSelectOptions(props.categoryOptions, { excludeAll: true }),
 )
 const genericNameSelectOptions = computed(() =>
-  props.genericNameOptions.filter((v) => v !== ALL_OPTION).map((v) => ({ label: v, value: v })),
+  toSelectOptions(props.genericNameOptions, { excludeAll: true }),
 )
 const brandSelectOptions = computed(() =>
-  props.brandOptions.filter((v) => v !== ALL_OPTION).map((v) => ({ label: v, value: v })),
+  toSelectOptions(props.brandOptions, { excludeAll: true }),
 )
 const modelSelectOptions = computed(() =>
-  props.modelOptions.filter((v) => v !== ALL_OPTION).map((v) => ({ label: v, value: v })),
+  toSelectOptions(props.modelOptions, { excludeAll: true }),
 )
 const binLocationSelectOptions = computed(() =>
-  props.binLocationOptions.filter((v) => v !== ALL_OPTION).map((v) => ({ label: v, value: v })),
+  toSelectOptions(props.binLocationOptions, { excludeAll: true }),
 )
 
 const rules = {

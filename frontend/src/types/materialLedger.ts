@@ -1,3 +1,5 @@
+export type { PageResult } from '@/types/common'
+
 export interface MaterialLedger {
   id: number
   category: string
@@ -22,13 +24,6 @@ export interface MaterialSavePayload {
   binLocation: string
   unitPrice?: number | null
   remark?: string | null
-}
-
-export interface PageResult<T> {
-  records: T[]
-  total: number
-  current: number
-  size: number
 }
 
 export interface MaterialQuery {

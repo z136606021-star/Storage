@@ -12,22 +12,23 @@ import {
 } from '@ant-design/icons-vue'
 import { Modal, message } from 'ant-design-vue'
 import dayjs from 'dayjs'
+import { getErrorMessage } from '@/api/http'
 import {
   batchDeleteMaterialLedger,
   deleteMaterialLedger,
-  downloadBlob,
   downloadImportTemplate,
   exportMaterialLedger,
   fetchFilterOptions,
   fetchMaterialLedgerDetail,
   fetchMaterialLedgerPage,
-  getErrorMessage,
   importMaterialLedger,
 } from '@/api/materialLedger'
+import MaterialLedgerFormModal from '@/components/warehouse/MaterialLedgerFormModal.vue'
+import { ALL_OPTION } from '@/constants/filter'
 import type { FilterOptions, MaterialLedger } from '@/types/materialLedger'
-import MaterialLedgerFormModal from './MaterialLedgerFormModal.vue'
-
-const ALL_OPTION = '全部'
+import { downloadBlob } from '@/utils/download'
+import { displayValue, formatDateTime, formatUnitPrice } from '@/utils/format'
+import { toSelectOptions, withAllOption } from '@/utils/selectOptions'
 
 const defaultQuery = {
   category: ALL_OPTION,
@@ -68,11 +69,11 @@ const pagination = reactive({
 const hasSelection = computed(() => selectedRowKeys.value.length > 0)
 
 const filterOptions = computed(() => ({
-  category: [ALL_OPTION, ...filterOptionsRaw.value.categories],
-  genericName: [ALL_OPTION, ...filterOptionsRaw.value.genericNames],
-  brand: [ALL_OPTION, ...filterOptionsRaw.value.brands],
-  model: [ALL_OPTION, ...filterOptionsRaw.value.models],
-  binLocation: [ALL_OPTION, ...filterOptionsRaw.value.binLocations],
+  category: withAllOption(filterOptionsRaw.value.categories),
+  genericName: withAllOption(filterOptionsRaw.value.genericNames),
+  brand: withAllOption(filterOptionsRaw.value.brands),
+  model: withAllOption(filterOptionsRaw.value.models),
+  binLocation: withAllOption(filterOptionsRaw.value.binLocations),
 }))
 
 const columns = [
@@ -333,21 +334,6 @@ function handleDrawerClose() {
   detailRecord.value = null
 }
 
-function formatUnitPrice(value: number | null) {
-  return value == null ? '' : value.toFixed(2)
-}
-
-function formatDateTime(value?: string | null) {
-  return value ? dayjs(value).format('YYYY-MM-DD HH:mm:ss') : '-'
-}
-
-function displayValue(value: string | number | null | undefined) {
-  if (value === null || value === undefined || value === '') {
-    return '-'
-  }
-  return String(value)
-}
-
 function getRowIndex(index: number) {
   return (pagination.current - 1) * pagination.pageSize + index + 1
 }
@@ -371,7 +357,7 @@ onMounted(async () => {
             <a-form-item label="品类" class="filter-item">
               <a-select
                 v-model:value="queryForm.category"
-                :options="filterOptions.category.map((v) => ({ label: v, value: v }))"
+                :options="toSelectOptions(filterOptions.category)"
                 class="filter-control"
                 @change="handleCategoryChange"
               />
@@ -381,7 +367,7 @@ onMounted(async () => {
             <a-form-item label="统称" class="filter-item">
               <a-select
                 v-model:value="queryForm.genericName"
-                :options="filterOptions.genericName.map((v) => ({ label: v, value: v }))"
+                :options="toSelectOptions(filterOptions.genericName)"
                 class="filter-control"
                 @change="handleGenericNameChange"
               />
@@ -391,7 +377,7 @@ onMounted(async () => {
             <a-form-item label="品牌" class="filter-item">
               <a-select
                 v-model:value="queryForm.brand"
-                :options="filterOptions.brand.map((v) => ({ label: v, value: v }))"
+                :options="toSelectOptions(filterOptions.brand)"
                 class="filter-control"
                 @change="handleBrandChange"
               />
@@ -429,7 +415,7 @@ onMounted(async () => {
             <a-form-item label="型号" class="filter-item">
               <a-select
                 v-model:value="queryForm.model"
-                :options="filterOptions.model.map((v) => ({ label: v, value: v }))"
+                :options="toSelectOptions(filterOptions.model)"
                 class="filter-control"
               />
             </a-form-item>
@@ -438,7 +424,7 @@ onMounted(async () => {
             <a-form-item label="Bin位" class="filter-item">
               <a-select
                 v-model:value="queryForm.binLocation"
-                :options="filterOptions.binLocation.map((v) => ({ label: v, value: v }))"
+                :options="toSelectOptions(filterOptions.binLocation)"
                 class="filter-control"
               />
             </a-form-item>

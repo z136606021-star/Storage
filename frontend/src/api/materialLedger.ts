@@ -1,4 +1,5 @@
-import axios from 'axios'
+import { http } from '@/api/http'
+import type { PageResult } from '@/types/common'
 import type {
   FilterLinkageQuery,
   FilterOptions,
@@ -6,22 +7,9 @@ import type {
   MaterialLedger,
   MaterialQuery,
   MaterialSavePayload,
-  PageResult,
 } from '@/types/materialLedger'
 
-const http = axios.create({
-  baseURL: '/api',
-  timeout: 15000,
-})
-
 export type MaterialExportQuery = Omit<MaterialQuery, 'page' | 'pageSize'>
-
-function getErrorMessage(error: unknown, fallback: string) {
-  if (axios.isAxiosError(error) && error.response?.data?.message) {
-    return String(error.response.data.message)
-  }
-  return fallback
-}
 
 export async function fetchMaterialLedgerPage(
   query: MaterialQuery,
@@ -95,14 +83,3 @@ export async function importMaterialLedger(file: File): Promise<ImportResult> {
   })
   return data
 }
-
-export function downloadBlob(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  link.click()
-  URL.revokeObjectURL(url)
-}
-
-export { getErrorMessage }
