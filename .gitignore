@@ -1,0 +1,81 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+vendor/
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+.venv/
+venv/
+env/
+ENV/
+
+# Build outputs
+dist/
+build/
+out/
+*.egg-info/
+.eggs/
+*.so
+*.dll
+*.exe
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+secrets/
+
+# IDE & editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Testing & coverage
+coverage/
+.nyc_output/
+htmlcov/
+.pytest_cache/
+.tox/
+.coverage
+*.cover
+
+# Cache & temp
+.cache/
+.temp/
+tmp/
+*.tmp
+.parcel-cache/
+.turbo/
+.next/
+.nuxt/
+.svelte-kit/
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+
+# Cursor / local tooling (keep project rules, ignore local state)
+.cursor/projects/
