@@ -2,6 +2,8 @@ package com.storage.dto;
 
 import lombok.Data;
 
+import java.util.List;
+
 @Data
 public class MaterialQueryDTO {
 
@@ -16,6 +18,8 @@ public class MaterialQueryDTO {
     private String model;
 
     private String binLocation;
+
+    private List<Long> ids;
 
     private Integer page = 1;
 
