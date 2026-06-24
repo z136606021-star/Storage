@@ -1,0 +1,49 @@
+<script setup lang="ts">
+import { computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useAuth } from '@/composables/useAuth'
+
+const route = useRoute()
+const router = useRouter()
+const auth = useAuth()
+
+const activeTab = computed(() => (route.name === 'RoleManage' ? 'roles' : 'users'))
+
+const tabs = computed(() => {
+  const items: Array<{ key: string; label: string; name: string }> = [
+    { key: 'users', label: '用户管理', name: 'UserManage' },
+  ]
+  if (auth.hasPermission('system:role:read')) {
+    items.push({ key: 'roles', label: '角色管理', name: 'RoleManage' })
+  }
+  return items
+})
+
+function onTabChange(key: string) {
+  const tab = tabs.value.find((item) => item.key === key)
+  if (tab) {
+    router.push({ name: tab.name })
+  }
+}
+</script>
+
+<template>
+  <div class="system-layout">
+    <a-tabs :active-key="activeTab" @change="onTabChange">
+      <a-tab-pane v-for="tab in tabs" :key="tab.key" :tab="tab.label" />
+    </a-tabs>
+    <router-view />
+  </div>
+</template>
+
+<style scoped>
+.system-layout {
+  min-height: 100%;
+  background: #fff;
+}
+
+.system-layout :deep(.ant-tabs-nav) {
+  margin: 0;
+  padding: 0 16px;
+}
+</style>

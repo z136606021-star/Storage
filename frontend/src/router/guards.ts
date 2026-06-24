@@ -1,0 +1,49 @@
+import type { Router } from 'vue-router'
+import { useAuth } from '@/composables/useAuth'
+
+const LOGIN_PATH = '/login'
+
+function isPublicRoute(path: string): boolean {
+  return path === LOGIN_PATH || path.startsWith(`${LOGIN_PATH}?`)
+}
+
+function buildLoginRedirect(targetPath: string) {
+  return {
+    path: LOGIN_PATH,
+    query: targetPath && targetPath !== '/' && targetPath !== LOGIN_PATH
+      ? { redirect: targetPath }
+      : undefined,
+    replace: true,
+  }
+}
+
+export function setupAuthGuard(router: Router) {
+  router.beforeEach(async (to) => {
+    const auth = useAuth()
+    await auth.initialize()
+
+    if (isPublicRoute(to.path)) {
+      if (auth.isAuthenticated()) {
+        const redirect = typeof to.query.redirect === 'string' ? to.query.redirect : '/warehouse/material-ledger'
+        return redirect
+      }
+      return true
+    }
+
+    const needsAuth = to.matched.some((record) => record.meta.requiresAuth)
+    if ((needsAuth || !isPublicRoute(to.path)) && !auth.isAuthenticated()) {
+      return buildLoginRedirect(to.fullPath)
+    }
+
+    const requiredPermission = to.matched
+      .map((record) => record.meta.permission)
+      .filter((permission): permission is string => Boolean(permission))
+      .at(-1)
+
+    if (requiredPermission && !auth.hasPermission(requiredPermission)) {
+      return { path: '/warehouse/material-ledger', replace: true }
+    }
+
+    return true
+  })
+}

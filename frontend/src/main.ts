@@ -11,7 +11,11 @@ import './style.css'
 dayjs.locale('zh-cn')
 
 const app = createApp(App)
+
 app.use(router)
 app.use(Antd)
 app.provide('antdLocale', zhCN)
-app.mount('#app')
+
+router.isReady().then(() => {
+  app.mount('#app')
+})

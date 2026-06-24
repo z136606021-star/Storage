@@ -1,24 +1,24 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import AppLayout from '@/layouts/AppLayout.vue'
-import MaterialLedgerView from '@/views/material-ledger/MaterialLedgerView.vue'
+import { setupAuthGuard } from './guards'
+import { routes } from './routes'
+import { useAuth } from '@/composables/useAuth'
+import { useWorkbenchTabs } from '@/composables/useWorkbenchTabs'
 
 const router = createRouter({
   history: createWebHistory(),
-  routes: [
-    {
-      path: '/',
-      component: AppLayout,
-      redirect: '/warehouse/material-ledger',
-      children: [
-        {
-          path: 'warehouse/material-ledger',
-          name: 'MaterialLedger',
-          component: MaterialLedgerView,
-          meta: { title: '物料台账' },
-        },
-      ],
-    },
-  ],
+  routes,
+})
+
+setupAuthGuard(router)
+
+router.afterEach((to) => {
+  const auth = useAuth()
+  if (!auth.isAuthenticated()) {
+    return
+  }
+  const workbenchTabs = useWorkbenchTabs()
+  workbenchTabs.initPresets(auth.hasPermission)
+  workbenchTabs.syncTabFromRoute(to)
 })
 
 export default router

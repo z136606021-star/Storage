@@ -1,7 +1,79 @@
 CREATE DATABASE IF NOT EXISTS storage DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE storage;
 
-SET NAMES utf8mb4;DROP TABLE IF EXISTS material_ledger;
+SET NAMES utf8mb4;
+
+DROP TABLE IF EXISTS sys_file;
+DROP TABLE IF EXISTS sys_role_menu;
+DROP TABLE IF EXISTS sys_user_role;
+DROP TABLE IF EXISTS sys_menu;
+DROP TABLE IF EXISTS sys_role;
+DROP TABLE IF EXISTS sys_user;
+DROP TABLE IF EXISTS material_ledger;
+
+CREATE TABLE sys_user (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(64) NOT NULL COMMENT '登录账号（NTID）',
+    password_hash VARCHAR(128) NOT NULL COMMENT 'BCrypt 密码哈希',
+    display_name VARCHAR(64) NOT NULL COMMENT '显示名称',
+    email VARCHAR(128) NULL COMMENT '邮箱',
+    phone VARCHAR(32) NULL COMMENT '手机号',
+    status TINYINT NOT NULL DEFAULT 1 COMMENT '1启用 0禁用',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_username (username)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE sys_role (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    code VARCHAR(64) NOT NULL COMMENT '角色编码',
+    name VARCHAR(64) NOT NULL COMMENT '角色名称',
+    status TINYINT NOT NULL DEFAULT 1 COMMENT '1启用 0停用',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_code (code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE sys_user_role (
+    user_id BIGINT NOT NULL,
+    role_id BIGINT NOT NULL,
+    PRIMARY KEY (user_id, role_id),
+    CONSTRAINT fk_user_role_user FOREIGN KEY (user_id) REFERENCES sys_user (id) ON DELETE CASCADE,
+    CONSTRAINT fk_user_role_role FOREIGN KEY (role_id) REFERENCES sys_role (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE sys_menu (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    parent_id BIGINT NULL COMMENT '父菜单 ID',
+    menu_type VARCHAR(16) NOT NULL DEFAULT 'MENU' COMMENT 'CATALOG/MENU',
+    name VARCHAR(64) NOT NULL COMMENT '菜单名称',
+    permission VARCHAR(128) NULL COMMENT '权限标识',
+    path VARCHAR(128) NULL COMMENT '前端路由',
+    icon VARCHAR(64) NULL COMMENT 'Ant Design 图标名',
+    visible TINYINT NOT NULL DEFAULT 1 COMMENT '1显示 0隐藏',
+    sort_order INT NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_permission (permission)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE sys_role_menu (
+    role_id BIGINT NOT NULL,
+    menu_id BIGINT NOT NULL,
+    PRIMARY KEY (role_id, menu_id),
+    CONSTRAINT fk_role_menu_role FOREIGN KEY (role_id) REFERENCES sys_role (id) ON DELETE CASCADE,
+    CONSTRAINT fk_role_menu_menu FOREIGN KEY (menu_id) REFERENCES sys_menu (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE sys_file (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    object_key VARCHAR(255) NOT NULL COMMENT 'MinIO 对象键',
+    original_name VARCHAR(255) NOT NULL COMMENT '原始文件名',
+    content_type VARCHAR(128) NULL COMMENT 'MIME 类型',
+    size_bytes BIGINT NOT NULL DEFAULT 0 COMMENT '文件大小',
+    uploader_id BIGINT NULL COMMENT '上传用户 ID',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_object_key (object_key),
+    CONSTRAINT fk_file_uploader FOREIGN KEY (uploader_id) REFERENCES sys_user (id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE material_ledger (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -20,6 +92,69 @@ CREATE TABLE material_ledger (
     INDEX idx_generic_name (generic_name),
     INDEX idx_bin_location (bin_location)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- admin / admin123 (BCrypt cost 10)
+INSERT INTO sys_user (username, password_hash, display_name, status) VALUES
+('admin', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iwK8pJ5C', '系统管理员', 1);
+
+INSERT INTO sys_role (code, name) VALUES
+('ADMIN', '系统管理员'),
+('USER', '普通用户');
+
+INSERT INTO sys_user_role (user_id, role_id) VALUES (1, 1);
+
+INSERT INTO sys_menu (id, parent_id, menu_type, name, permission, path, icon, visible, sort_order) VALUES
+(2, NULL, 'MENU', '物料台账写', 'warehouse:material-ledger:write', NULL, NULL, 0, 2),
+(3, NULL, 'MENU', '文件上传', 'platform:file:upload', NULL, NULL, 0, 3),
+(10, NULL, 'MENU', '个人中心', 'platform:personal:read', '/platform/personal', 'HomeOutlined', 1, 1),
+(20, NULL, 'CATALOG', '项目管理中心', NULL, NULL, 'ProjectOutlined', 1, 2),
+(21, 20, 'MENU', '新建项目', 'platform:project:create', '/platform/project/create', NULL, 1, 10),
+(22, 20, 'MENU', '项目集', 'platform:project:set', '/platform/project/set', NULL, 1, 20),
+(23, NULL, 'MENU', '项目中心读', 'platform:project:read', '/platform/project', NULL, 0, 23),
+(100, NULL, 'CATALOG', '资源管理', NULL, NULL, 'DatabaseOutlined', 1, 10),
+(110, 100, 'CATALOG', '仓库管理', NULL, NULL, NULL, 1, 10),
+(111, 110, 'MENU', '物料台账', 'warehouse:material-ledger:read', '/warehouse/material-ledger', NULL, 1, 10),
+(112, 110, 'MENU', '物料出入库', 'warehouse:material-io:read', '/warehouse/material-io', NULL, 1, 20),
+(113, 110, 'MENU', '安全库存管理', 'warehouse:safety-stock:read', '/warehouse/safety-stock', NULL, 1, 30),
+(114, 110, 'CATALOG', '配置管理', NULL, NULL, NULL, 1, 40),
+(115, 114, 'MENU', 'Bin位管理', 'warehouse:bin:read', '/warehouse/config/bin', NULL, 1, 10),
+(116, 114, 'MENU', '物料清单管理', 'warehouse:bom:read', '/warehouse/config/bom', NULL, 1, 20),
+(120, 100, 'CATALOG', '采购管理', NULL, NULL, NULL, 1, 5),
+(121, 120, 'MENU', '采购管理', 'procurement:read', '/platform/procurement', NULL, 1, 10),
+(122, 120, 'MENU', '新增采购需求', 'procurement:create', '/platform/procurement/create', NULL, 1, 20),
+(123, 120, 'MENU', '我的采购需求', 'procurement:mine', '/platform/procurement/mine', NULL, 1, 30),
+(150, NULL, 'MENU', '设计指引', 'platform:design:read', '/platform/design', 'BulbOutlined', 1, 3),
+(160, NULL, 'CATALOG', '技能中心', NULL, NULL, 'ToolOutlined', 1, 4),
+(161, 160, 'MENU', '技能矩阵', 'skill:matrix:read', '/platform/skill/matrix', NULL, 1, 10),
+(162, 160, 'MENU', '人才画像', 'skill:talent:read', '/platform/skill/talent', NULL, 1, 20),
+(163, 160, 'MENU', '人才培训计划', 'skill:training:read', '/platform/skill/training', NULL, 1, 30),
+(170, NULL, 'MENU', '经验库', 'platform:experience:read', '/platform/experience', 'BookOutlined', 1, 5),
+(180, NULL, 'CATALOG', '财务中心', NULL, NULL, 'ShoppingOutlined', 1, 6),
+(181, 180, 'MENU', '业务分析看板', 'finance:dashboard:read', '/platform/finance/dashboard', NULL, 1, 10),
+(182, 180, 'MENU', '财务结算中心', 'finance:settlement:read', '/platform/finance/settlement', NULL, 1, 20),
+(183, 180, 'MENU', '成本分析中心', 'finance:cost:read', '/platform/finance/cost', NULL, 1, 30),
+(200, NULL, 'CATALOG', '系统管理', NULL, NULL, 'SettingOutlined', 1, 90),
+(201, 200, 'MENU', '用户管理', 'system:user:read', '/system/users', NULL, 1, 10),
+(202, 200, 'MENU', '角色管理', 'system:role:read', '/system/roles', NULL, 0, 20),
+(203, 200, 'MENU', '菜单管理', 'system:menu:read', '/system/menus', NULL, 0, 30),
+(204, 200, 'MENU', '客户管理', 'system:customer:read', '/system/customers', NULL, 1, 20),
+(214, NULL, 'MENU', '用户写', 'system:user:write', NULL, NULL, 0, 214),
+(224, NULL, 'MENU', '角色写', 'system:role:write', NULL, NULL, 0, 224),
+(234, NULL, 'MENU', '菜单写', 'system:menu:write', NULL, NULL, 0, 234),
+(244, NULL, 'MENU', '客户写', 'system:customer:write', NULL, NULL, 0, 244),
+(254, NULL, 'MENU', 'Bin位写', 'warehouse:bin:write', NULL, NULL, 0, 254),
+(255, NULL, 'MENU', '物料清单写', 'warehouse:bom:write', NULL, NULL, 0, 255);
+
+INSERT INTO sys_role_menu (role_id, menu_id) VALUES
+(1, 2), (1, 3),
+(1, 10), (1, 20), (1, 21), (1, 22), (1, 23),
+(1, 100), (1, 110), (1, 111), (1, 112), (1, 113), (1, 114), (1, 115), (1, 116),
+(1, 120), (1, 121), (1, 122), (1, 123),
+(1, 150), (1, 160), (1, 161), (1, 162), (1, 163),
+(1, 170), (1, 180), (1, 181), (1, 182), (1, 183),
+(1, 200), (1, 201), (1, 202), (1, 203), (1, 204),
+(1, 214), (1, 224), (1, 234), (1, 244), (1, 254), (1, 255),
+(2, 111);
 
 INSERT INTO material_ledger (category, generic_name, brand, name, model, bin_location, stock_quantity, unit_price, remark) VALUES
 ('气路配件', '气管接头', NULL, 'SL/L型节流阀', 'SL8-01', '1-1-1', 200, NULL, '机加工用'),
