@@ -1,0 +1,112 @@
+# Read-only dev environment health check (exit 0 = all pass, 1 = any fail)
+param(
+    [string]$RepoRoot = (Split-Path -Parent $PSScriptRoot),
+    [int]$BackendPort = 8080,
+    [int]$FrontendPort = 5173
+)
+
+$ErrorActionPreference = "Continue"
+
+. (Join-Path $PSScriptRoot 'worktree-db.ps1')
+
+Set-Location $RepoRoot
+$failures = 0
+
+function Write-CheckResult([string]$Name, [bool]$Ok, [string]$Detail) {
+    if ($Ok) {
+        Write-Host "[OK]   $Name - $Detail" -ForegroundColor Green
+    } else {
+        Write-Host "[FAIL] $Name - $Detail" -ForegroundColor Red
+        $script:failures++
+    }
+}
+
+function Test-PortInUse([int]$Port) {
+    $conn = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
+    return $null -ne $conn
+}
+
+function Test-ContainerRunning([string]$Name) {
+    $status = docker inspect -f '{{.State.Running}}' $Name 2>$null
+    return $status -eq 'true'
+}
+
+Write-Host "Storage dev health check"
+Write-Host "Project root: $RepoRoot"
+Write-Host ""
+
+try {
+    $profile = Get-CurrentBranchProfile -RepoRoot $RepoRoot
+    $normalizedRoot = (Resolve-Path -LiteralPath $RepoRoot).Path -replace '\\', '/'
+    $normalizedExpected = $profile.WorktreePath -replace '\\', '/'
+    $pathOk = $normalizedRoot -eq $normalizedExpected
+    Write-CheckResult 'branch' $true "branch=$($profile.Branch)"
+    Write-CheckResult 'worktree-path' $pathOk "expected=$normalizedExpected actual=$normalizedRoot"
+} catch {
+    Write-CheckResult 'branch' $false $_.Exception.Message
+    $profile = $null
+}
+
+$envPath = Join-Path $RepoRoot '.env'
+$envOk = $false
+if ($profile -and (Test-Path -LiteralPath $envPath)) {
+    Import-WorktreeEnvFile -RepoRoot $RepoRoot
+    $envOk = ($env:MYSQL_PORT -eq [string]$profile.MysqlPort) -and
+             ($env:STORAGE_MYSQL_CONTAINER -eq $profile.MysqlContainer)
+    Write-CheckResult '.env' $envOk "MYSQL_PORT=$($env:MYSQL_PORT) container=$($env:STORAGE_MYSQL_CONTAINER)"
+} else {
+    Write-CheckResult '.env' $false "missing or no profile; run sync-worktree-env.ps1"
+}
+
+if ($profile) {
+    $mysqlRunning = Test-ContainerRunning $profile.MysqlContainer
+    $minioRunning = Test-ContainerRunning $profile.MinioContainer
+    Write-CheckResult 'mysql-container' $mysqlRunning $profile.MysqlContainer
+    Write-CheckResult 'minio-container' $minioRunning $profile.MinioContainer
+
+    $legacyMysql = docker ps -a --filter "name=^/material-ledger-mysql$" --format "{{.Names}}" 2>$null
+    $legacyMinio = docker ps -a --filter "name=^/material-ledger-minio$" --format "{{.Names}}" 2>$null
+    $noLegacy = -not $legacyMysql -and -not $legacyMinio
+    if (-not $noLegacy) {
+        Write-CheckResult 'legacy-docker' $false "run cleanup-legacy-docker.ps1 (material-ledger-* still exists)"
+    } else {
+        Write-CheckResult 'legacy-docker' $true "no material-ledger-* containers"
+    }
+
+    if ($mysqlRunning) {
+        $sample = docker exec $profile.MysqlContainer mysql -ustorage -pstorage123 --default-character-set=utf8mb4 storage -N -e "SELECT CONCAT(category, '|', name) FROM material_ledger LIMIT 1;" 2>$null
+        $chineseOk = $LASTEXITCODE -eq 0 -and $sample -and ($sample -notmatch '\?')
+        Write-CheckResult 'mysql-chinese' $chineseOk "sample=$sample"
+    } else {
+        Write-CheckResult 'mysql-chinese' $false "mysql container not running"
+    }
+}
+
+$backendReady = $false
+if (Test-PortInUse $BackendPort) {
+    try {
+        Invoke-WebRequest -Uri "http://localhost:$BackendPort/api/auth/me" -UseBasicParsing -TimeoutSec 3 -ErrorAction Stop | Out-Null
+        $backendReady = $true
+    } catch {
+        $statusCode = $null
+        if ($_.Exception.Response) {
+            $statusCode = [int]$_.Exception.Response.StatusCode
+        }
+        if ($statusCode -eq 401 -or $statusCode -eq 403) {
+            $backendReady = $true
+        }
+    }
+}
+Write-CheckResult 'backend' $backendReady "http://localhost:$BackendPort"
+
+$frontendReady = Test-PortInUse $FrontendPort
+Write-CheckResult 'frontend' $frontendReady "http://localhost:$FrontendPort"
+
+Write-Host ""
+if ($failures -eq 0) {
+    Write-Host "All checks passed." -ForegroundColor Green
+    exit 0
+}
+
+Write-Host "$failures check(s) failed." -ForegroundColor Red
+exit 1

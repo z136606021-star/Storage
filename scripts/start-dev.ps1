@@ -13,6 +13,14 @@ $FrontendDir = Join-Path $Root "frontend"
 $BackendPort = 8080
 $FrontendPort = 5173
 
+. (Join-Path $PSScriptRoot 'worktree-db.ps1')
+Set-Location $Root
+$DbProfile = Get-CurrentBranchProfile -RepoRoot $Root
+Write-WorktreeEnvFile -Profile $DbProfile -RepoRoot $Root | Out-Null
+Import-WorktreeEnvFile -RepoRoot $Root
+$ComposeArgs = Get-DockerComposeArgs -RepoRoot $Root
+$MysqlPort = $DbProfile.MysqlPort
+
 function Test-PortInUse([int]$Port) {
     $conn = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
     return $null -ne $conn
@@ -212,12 +220,15 @@ function Resolve-PortConflict {
 
 Write-Host "Storage dev launcher"
 Write-Host "Project root: $Root"
+Write-Host "Branch:       $($DbProfile.Branch)"
+Write-Host "MySQL:        localhost:$MysqlPort ($($DbProfile.MysqlContainer))"
 Write-Host ""
 
 if ($WithDocker) {
     Write-Host "Starting Docker (MySQL + MinIO)..."
     Set-Location $Root
-    docker compose up -d
+    docker compose @ComposeArgs up -d
+    & (Join-Path $PSScriptRoot 'wait-mysql.ps1') -RequireSeedData -RepoRoot $Root
     Write-Host "Docker started."
     Write-Host ""
 }
@@ -227,15 +238,24 @@ Resolve-PortConflict -Port $BackendPort -ServiceName "backend" -IsExpectedProces
 Stop-StaleBackendLaunchers
 Resolve-PortConflict -Port $FrontendPort -ServiceName "frontend" -IsExpectedProcess ${function:Test-IsProjectFrontendProcess}
 
-if (-not (Test-PortInUse 3307)) {
-    Write-Warning "MySQL port 3307 is not listening. Start database first: docker compose up -d"
+if (-not (Test-PortInUse $MysqlPort)) {
+    Write-Warning "MySQL port $MysqlPort is not listening. Start database first: docker compose --env-file .env up -d"
 }
 Write-Host ""
 
 $backendCommand = @"
 Set-Location '$BackendDir'
 `$ErrorActionPreference = 'Continue'
-Write-Host 'Starting backend on http://localhost:$BackendPort ...' -ForegroundColor Cyan
+`$env:MYSQL_HOST = '$env:MYSQL_HOST'
+`$env:MYSQL_PORT = '$env:MYSQL_PORT'
+`$env:MYSQL_DB = '$env:MYSQL_DB'
+`$env:MYSQL_USER = '$env:MYSQL_USER'
+`$env:MYSQL_PASSWORD = '$env:MYSQL_PASSWORD'
+`$env:MINIO_ENDPOINT = '$env:MINIO_ENDPOINT'
+`$env:MINIO_ACCESS_KEY = '$env:MINIO_ACCESS_KEY'
+`$env:MINIO_SECRET_KEY = '$env:MINIO_SECRET_KEY'
+`$env:MINIO_BUCKET = '$env:MINIO_BUCKET'
+Write-Host 'Starting backend on http://localhost:$BackendPort (MySQL localhost:$MysqlPort) ...' -ForegroundColor Cyan
 mvn spring-boot:run
 if (`$LASTEXITCODE -ne 0) {
     Write-Host ''
@@ -259,7 +279,7 @@ Write-Host "Launching backend..."
 Start-Process powershell -ArgumentList "-NoExit", "-NoProfile", "-Command", $backendCommand
 
 if (-not (Wait-BackendReady -Port $BackendPort)) {
-    throw "Backend did not become ready within 120s. Open the backend PowerShell window for errors (common: MySQL not running on 3307)."
+    throw "Backend did not become ready within 120s. Open the backend PowerShell window for errors (common: MySQL not running on $MysqlPort)."
 }
 
 Write-Host "Launching frontend..."

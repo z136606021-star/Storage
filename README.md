@@ -11,33 +11,84 @@
 
 ## 快速启动
 
-### 1. 启动 MySQL 与 MinIO
+### 推荐：一键启动（Windows，第八期 DevX）
+
+需已安装 Docker、Java 17+、Maven、Node.js 18+。在项目根目录：
+
+```powershell
+.\scripts\dev-up.ps1
+```
+
+或双击 [dev-up.cmd](dev-up.cmd)。将自动：**sync 分支 .env → 启动 Docker → 等待 MySQL 就绪 → 启动前后端**。
+
+可选参数：
+
+- `-ResetDb`：先重置当前 worktree 数据库卷再启动
+- `-SkipDocker`：跳过 Docker（数据库已运行时）
+- `-Install`：强制执行 `npm install`
+
+环境自检：
+
+```powershell
+.\scripts\health-check.ps1
+```
+
+遇旧版 `material-ledger-*` 容器冲突时：
+
+```powershell
+.\scripts\cleanup-legacy-docker.ps1
+```
+
+### 分步启动（进阶）
+
+#### 1. 启动 MySQL 与 MinIO
 
 需已安装 Docker。在项目根目录执行：
 
-```bash
-docker compose up -d
+```powershell
+.\scripts\sync-worktree-env.ps1
+docker compose --env-file .env up -d
 ```
+
+`sync-worktree-env.ps1` 会根据**当前 git 分支**生成本地 `.env`（不入库），为各 worktree 分配独立端口、容器名与数据卷。
 
 将自动创建 `storage` 数据库并导入 [backend/src/main/resources/db/schema.sql](backend/src/main/resources/db/schema.sql) 中的表结构与种子数据。
 
-**Git worktree 说明**：本目录 MySQL 使用 **3307** 端口（容器名 `material-ledger-mysql`），MinIO API **9000**、控制台 **9001**，与主仓库互不干扰。并行 worktree：`E:/Storage`（main）、`E:/Storage-worktrees/material-io`、`safety-stock`、`config-mgmt`。
+**Git worktree 端口分配**（逻辑库名均为 `storage`，隔离靠端口 + 独立 Docker 卷）：
 
-若修改了种子数据或表结构（如鉴权表），需重建数据库卷后重新导入：
+| 分支 | Worktree 路径 | MySQL | MinIO API | MinIO 控制台 |
+|------|---------------|-------|-----------|--------------|
+| `main` | `E:/Storage` | **3307** | 9000 | 9001 |
+| `feat/material-ledger` | `E:/Storage-worktrees/material-ledger` | **3308** | 9010 | 9011 |
+| `feat/material-io` | `E:/Storage-worktrees/material-io` | **3309** | 9020 | 9021 |
+| `feat/safety-stock` | `E:/Storage-worktrees/safety-stock` | **3310** | 9030 | 9031 |
+| `feat/config-mgmt` | `E:/Storage-worktrees/config-mgmt` | **3311** | 9040 | 9041 |
 
-```bash
-docker compose down -v
-docker compose up -d
+切换 worktree 或分支后务必先执行 `sync-worktree-env.ps1`，再 `docker compose --env-file .env up -d`。详见 [AGENTS.md](AGENTS.md)「Worktree 数据库隔离」。
+
+若修改了种子数据或表结构（如鉴权表），需重建**当前 worktree** 的数据库卷后重新导入：
+
+```powershell
+.\scripts\reset-db.ps1
+```
+
+或手动：
+
+```powershell
+docker compose --env-file .env down -v
+docker compose --env-file .env up -d
 ```
 
 已有物料数据、仅需补齐鉴权/系统管理表时，后端启动时会自动执行 `db/migration-*.sql`（`CREATE/ALTER IF NOT EXISTS` + `INSERT IGNORE` + 中文数据修复）。迁移脚本须为 **UTF-8** 编码；`application.yml` 已配置 `spring.sql.init.encoding=UTF-8`。
 
 Windows 也可执行 [scripts/reset-db.ps1](scripts/reset-db.ps1)。
 
-默认连接信息见 [.env.example](.env.example)：
+默认连接信息见 [.env.example](.env.example)（main 分支示例）：
 
 - MySQL: `localhost:3307` / `storage` / `storage` / `storage123`
 - MinIO API: `http://localhost:9000`（控制台 `http://localhost:9001`，`minioadmin` / `minioadmin123`）
+
+其他 worktree 端口见上表；以 `.\scripts\sync-worktree-env.ps1` 生成的 `.env` 为准。
 
 ### 2. 启动后端
 
@@ -72,9 +123,9 @@ npm run dev
 
 **若仍直接进入物料台账而非登录页**：重新运行 `start-dev` 即可（脚本会自动结束占用 5173 的旧 Vite 进程）。
 
-### 一键启动前后端（Windows）
+### 一键启动前后端（仅应用，Docker 已运行）
 
-双击项目根目录 [start-dev.cmd](start-dev.cmd)，或在 PowerShell 中执行：
+双击 [start-dev.cmd](start-dev.cmd)，或在 PowerShell 中执行：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\start-dev.ps1
@@ -87,7 +138,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\start-dev.ps1
 可选参数：
 
 - `-Install`：强制执行 `npm install`
-- `-WithDocker`：同时执行 `docker compose up -d` 启动 MySQL 与 MinIO
+- `-WithDocker`：同时执行 `docker compose --env-file .env up -d` 并等待 MySQL 就绪
 - `-NoKill`：端口被占用时仅警告，不自动结束进程
 
 ### 手动测试文件上传（MinIO）
@@ -110,6 +161,7 @@ curl -X POST http://localhost:8080/api/files/upload \
 - [x] MinIO 对象存储基础设施 + `POST /api/files/upload`
 - [x] **第六期平台壳层**：DB 导航种子（个人中心/项目/采购/设计/技能/经验/财务 + 仓库 4 项含配置管理）、占位路由、`ComingSoonPage` 复用组件
 - [x] **第七期壳层 UI 补全**：动态 TabBar（ADMIN 预置个人中心/项目中心）、壳层 `/platform/*` 路由、侧栏点击无 toast
+- [x] **第八期 DevX**：`dev-up` 一键环境、`health-check` 自检、`cleanup-legacy-docker`、MySQL 就绪等待、`material_ledger` 中文修复迁移
 - [x] 完整平台壳层（侧栏动态导航 + 顶部可关闭页签 + 退出登录）
 - [x] 物料台账列表页（筛选、分页、行选择）
 - [x] 后端分页查询 API 与筛选选项 API

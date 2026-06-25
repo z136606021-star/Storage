@@ -8,7 +8,7 @@
 - **上层平台**：项目生命周期管理系统（项目管理平台）
 - **所属模块**：项目管理平台 → 资源管理 → 仓库管理
 - **远端仓库**：https://github.com/z136606021-star/Storage.git
-- **当前阶段**：物料台账三版 + 鉴权第二期 + 系统管理第四期 + 登录页第五期 + 第六期平台壳层 UI + **第七期壳层 UI 补全**（动态 TabBar、壳层占位路由、侧栏默认展开）
+- **当前阶段**：物料台账三版 + 鉴权第二期 + 系统管理第四期 + 登录页第五期 + 第六期平台壳层 UI + 第七期壳层 UI 补全 + Worktree 数据库隔离 + **第八期 DevX**（`dev-up`、`health-check`、遗留 Docker 清理）
 
 ## 技术栈
 
@@ -121,8 +121,74 @@
 
 1. **先说明复用结论**：开始编码前，用一两句话说明「复用了哪些现有模块」或「为何需要新建模块」。
 2. **新建公共模块时同步文档**：在「目录结构」与本文件记录其用途、边界、调用方。
-3. **Worktree 并行开发**：公共能力优先合入 `main`，各功能分支通过 `git merge origin/main` 同步，不在多个分支各自维护一份相同公共代码。当前 worktree：`main`（`E:/Storage`）、`feat/material-ledger`、`feat/material-io`、`feat/safety-stock`、`feat/config-mgmt`（`E:/Storage-worktrees/config-mgmt`）。
+3. **Worktree 并行开发**：公共能力优先合入 `main`，各功能分支通过 `git merge origin/main` 同步，不在多个分支各自维护一份相同公共代码。当前 worktree：`main`（`E:/Storage`）、`feat/material-ledger`（`E:/Storage-worktrees/material-ledger`）、`feat/material-io`、`feat/safety-stock`、`feat/config-mgmt`（`E:/Storage-worktrees/config-mgmt`）。**切换 worktree 或分支后必须先执行 `scripts/sync-worktree-env.ps1`**，确认 MySQL 端口与当前分支一致后再启 Docker / 后端。
 4. **重构优先于堆叠**：发现重复实现时，优先抽取再扩展，而非再写第三份副本。
+
+### Worktree 数据库隔离
+
+各 worktree 拥有**独立的 MySQL / MinIO 端口、容器名与 Docker 数据卷**；逻辑库名均为 `storage`，隔离靠端口 + 卷。注册表 SSOT：[`scripts/worktree-db.ps1`](scripts/worktree-db.ps1)。
+
+| 分支 | Worktree | MySQL | MinIO API | Compose 项目 |
+|------|----------|-------|-----------|--------------|
+| `main` | `E:/Storage` | 3307 | 9000 | `storage-main` |
+| `feat/material-ledger` | `E:/Storage-worktrees/material-ledger` | 3308 | 9010 | `storage-material-ledger` |
+| `feat/material-io` | `E:/Storage-worktrees/material-io` | 3309 | 9020 | `storage-material-io` |
+| `feat/safety-stock` | `E:/Storage-worktrees/safety-stock` | 3310 | 9030 | `storage-safety-stock` |
+| `feat/config-mgmt` | `E:/Storage-worktrees/config-mgmt` | 3311 | 9040 | `storage-config-mgmt` |
+
+#### 日常流程
+
+```powershell
+cd E:\Storage-worktrees\material-io
+git checkout feat/material-io
+.\scripts\dev-up.ps1                      # 推荐：一键 sync + docker + 前后端
+# 或分步：
+.\scripts\sync-worktree-env.ps1
+docker compose --env-file .env up -d
+.\scripts\start-dev.ps1
+```
+
+`start-dev.ps1` / `reset-db.ps1` 启动时会自动 sync；手动改分支后建议显式执行一次 `sync-worktree-env.ps1`。
+
+#### 隔离原则
+
+- **代码在 Git 里合并，数据库永不合并**；每个 worktree 对应独立 Docker 卷，互不可见。
+- **在哪个分支写代码，就用哪个分支的 `.env` 与端口**；禁止用 main 的 3307 卷测试 feature 分支代码。
+- **禁止**在未确认目录/分支时对 `docker compose down -v`（会删错卷）。
+- **禁止**把 A 分支 mysqldump 导入 B 分支端口（除非明确在做数据迁移）。
+- `.env` 不入库；端口分配只改 `worktree-db.ps1` 一处。
+
+#### Git 合并时（不能弄混）
+
+| 场景 | 正确做法 |
+|------|----------|
+| feature 新增 `migration-*.sql` | 脚本保持幂等（`IF NOT EXISTS` / `INSERT IGNORE` / UPDATE 修复中文）；合并后各 worktree **各自重启后端**，迁移只作用于**本卷** |
+| 修改 `schema.sql` 种子 | 只影响**新初始化**的空卷；已有卷靠 migration 或 `reset-db.ps1` |
+| `main` 合并进 feature | 先 `git merge`，再 `sync-worktree-env`，再启后端；不要用 main 的 Docker 卷测 feature |
+| PR / 代理说明 | 若变更 DB 结构，注明「各 worktree 需重启后端；是否需 reset-db 由开发者自判」 |
+| 代理执行 | 在 feature worktree 开发时连接该分支注册端口；合入 main 时在 **main 目录**验证，不跨端口读库 |
+
+#### 一次性迁移说明
+
+从旧版共用 `material-ledger-*` 容器 / `storage_mysql_data` 卷迁移时：运行 `scripts/cleanup-legacy-docker.ps1`，再执行 `sync-worktree-env` + `docker compose --env-file .env up -d` 创建 `storage-{slug}_*` 新卷。若需保留 main 现有数据，迁移前先 `mysqldump` 备份再导入新 `storage-main-mysql` 容器。
+
+### 第八期 DevX
+
+日常开发优先使用 [`scripts/dev-up.ps1`](scripts/dev-up.ps1) / [`dev-up.cmd`](dev-up.cmd)（sync + Docker + wait MySQL + start-dev）。
+
+| 脚本 | 用途 |
+|------|------|
+| `dev-up.ps1` | 一键启动完整开发环境 |
+| `health-check.ps1` | 只读自检（分支、.env、容器、中文、前后端）；退出码 0/1 |
+| `cleanup-legacy-docker.ps1` | 清理第七期前 `material-ledger-*` 遗留容器 |
+| `wait-mysql.ps1` | 轮询 MySQL 端口与 `SELECT 1`，供 dev-up/reset-db 复用 |
+| `sync-worktree-env.ps1` | 按分支生成本地 `.env` |
+
+**代理执行要求（DevX）**：
+
+- 切换 worktree 或启动开发环境前，建议先跑 `health-check.ps1`；失败时先排查，**不要**擅自 `docker compose down -v`。
+- 物料台账中文乱码：重启后端触发 `migration-fix-chinese-data.sql`（含 `material_ledger` 幂等 UPDATE）；仍异常再用 `reset-db.ps1`。
+- 遇端口占用且存在 `material-ledger-*`：先 `cleanup-legacy-docker.ps1`，再 `dev-up`。
 
 ## 目录结构
 
@@ -181,7 +247,17 @@ Storage/
 │       ├── query/            # 查询条件构建
 │       ├── service/
 │       └── web/              # Excel 响应构建
-├── docker-compose.yml        # MySQL 8 + MinIO 本地开发
+├── docker-compose.yml        # MySQL 8 + MinIO（端口/卷由 .env 参数化，含 healthcheck）
+├── dev-up.cmd                # 一键环境 + 前后端（第八期推荐入口）
+├── scripts/
+│   ├── worktree-db.ps1       # Worktree 分支→端口/容器/卷注册表（SSOT）
+│   ├── sync-worktree-env.ps1 # 按当前分支生成本地 .env
+│   ├── dev-up.ps1            # sync + docker + wait-mysql + start-dev
+│   ├── health-check.ps1      # 开发环境只读自检
+│   ├── cleanup-legacy-docker.ps1 # 清理 material-ledger-* 遗留容器
+│   ├── wait-mysql.ps1        # MySQL 就绪轮询
+│   ├── start-dev.ps1         # 启动前后端（自动 sync + 注入 DB 环境变量）
+│   └── reset-db.ps1          # 重置当前 worktree 的 Docker 卷
 ├── .env.example
 ├── AGENTS.md
 └── README.md
@@ -205,3 +281,5 @@ Storage/
 | 2026-06-24 | 登录页第五期：左栏科技插画、localStorage 记住账号、URL Tab 同步、注册 3-32/密码≥6 校验、登录交互优化 |
 | 2026-06-24 | 第六期平台壳层 UI：`migration-phase6-platform-shell.sql` 完整导航种子、仓库 4 项（配置管理含 Bin位/物料清单）、占位路由与 `ComingSoonPage`、新建 `feat/config-mgmt` worktree |
 | 2026-06-24 | 第七期壳层 UI 补全：动态 TabBar（`useWorkbenchTabs`）、壳层 `/platform/*` 占位路由、`migration-phase7-ui-shell-paths.sql`、侧栏默认展开 |
+| 2026-06-25 | Worktree 数据库隔离：`worktree-db.ps1` 五分支独立端口/卷、`sync-worktree-env.ps1`、参数化 `docker-compose.yml`、AGENTS 合并规范 |
+| 2026-06-25 | 第八期 DevX：`dev-up`、`health-check`、`cleanup-legacy-docker`、`wait-mysql`、`material_ledger` 中文修复、MySQL healthcheck |
