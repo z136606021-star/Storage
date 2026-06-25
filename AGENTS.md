@@ -110,19 +110,75 @@
 - **后端 Service**：分页、异常处理、导入导出、DTO 转换优先抽共享 helper 或基类，禁止每个 Controller 复制相同样板代码。
 - **数据库**：相同业务含义只用一套字段名（如 `generic_name`、`bin_location`）；状态/类型优先字典表或统一枚举，避免子系统各搞一套。
 
+### 仓库管理同类 CRUD 复用标准
+
+仓库域多个子模块（物料台账、出入库、安全库存、Bin位、物料清单）及系统管理中的用户/角色列表，本质均为**筛选 + 分页表格 + 弹窗/抽屉 + 导入导出**的增删改查，差异主要在表结构、字段与 API，应配置化或引用公共组件，禁止各写一整份 view。
+
+**参考实现**（实现前必须打开对比）：
+
+| 优先级 | 文件 | 说明 |
+|--------|------|------|
+| 主参考 | [`MaterialLedgerView.vue`](frontend/src/views/material-ledger/MaterialLedgerView.vue) | 仓库域完整 CRUD + 筛选联动 + 导入导出 |
+| 次参考 | [`UserManageView.vue`](frontend/src/views/system/UserManageView.vue) | 系统管理同类列表页模式 |
+
+**实现前强制步骤**：
+
+1. 对比至少两个已有实现（优先物料台账 + 与目标最接近的 view）。
+2. 列出可复用层：`http` / `types` / `utils` / 后端 `query`+`excel`+`converter` / 前端筛选区+表格+弹窗模式。
+3. 在 PR 或代理说明中写明「复用结论」：引用哪些公共模块，或为何差异不可避免。
+
+**20% 差异门禁**（跨模块整体红线，与下文「30 行单次复制」并存，任一触发都须先抽象）：
+
+| 维度 | 一致部分（应复用） | 允许差异部分（计入差异） |
+|------|-------------------|-------------------------|
+| 页面骨架 | 筛选区、工具栏、分页表、空态/加载、确认删除 | — |
+| 数据流 | 分页查询、`buildQueryParams`、`handleTableChange` | — |
+| 导入导出 | `downloadBlob`、模板下载、按筛选导出 | 列定义、Excel 契约 |
+| 业务 | — | 字段、校验规则、联动筛选、权限码 |
+
+若新页面与参考实现在**骨架 + 数据流**上预计重复代码占比 **< 80%**（即不一致 **> 20%**），复用性与可控性几乎为零，**必须先抽象再写业务**，禁止再复制一整份 view。推荐落点（实现时再建，合入前更新目录结构）：
+
+- `frontend/src/composables/usePaginatedCrudList.ts` — 分页、筛选、加载、删除确认等通用逻辑
+- `frontend/src/components/common/CrudListPage.vue` — 筛选/表格/工具栏插槽 + props 配置列与 API
+- 各 view 只保留：列配置、表单字段、资源专属 API 绑定
+
+```mermaid
+flowchart TD
+  ref[对比 MaterialLedgerView 等参考实现]
+  gate{"骨架+数据流重复 >= 80%?"}
+  abstract[先抽 composable / CrudListPage]
+  extend[view 仅配置字段与 API]
+  ref --> gate
+  gate -->|是| extend
+  gate -->|"否 差异>20%"| abstract --> extend
+```
+
 ### 禁止事项
 
 - 禁止在未检查现有代码的情况下新建功能相近的组件、Service、DTO 或 API 文件。
 - 禁止把通用逻辑长期留在某个子系统 view 或 Controller 内。
 - 禁止为单个页面硬编码本应从 `filter-options` 或字典接口获取的下拉数据。
 - 禁止复制粘贴超过 30 行且结构相同的代码而不抽象；若确不抽象，须在 PR/说明中写明理由。
+- 禁止仓库域 CRUD 在**骨架 + 数据流**上与参考实现差异 **> 20%** 仍不复用公共层；禁止在未对比 `MaterialLedgerView` 的情况下从零生成完整列表页。
+- 禁止代理一次性向多个 view 提交数百行重复模板而不抽公共层；禁止把「能跑」当作合入标准。
 
 ### 代理执行要求
 
-1. **先说明复用结论**：开始编码前，用一两句话说明「复用了哪些现有模块」或「为何需要新建模块」。
+1. **先说明复用结论**：开始编码前，用一两句话说明「复用了哪些现有模块」或「为何需要新建模块」；**仓库域 CRUD 须对照 `MaterialLedgerView` 并满足 20% 差异门禁**。
 2. **新建公共模块时同步文档**：在「目录结构」与本文件记录其用途、边界、调用方。
 3. **Worktree 并行开发**：公共能力优先合入 `main`，各功能分支通过 `git merge origin/main` 同步，不在多个分支各自维护一份相同公共代码。当前 worktree：`main`（`E:/Storage`）、`feat/material-ledger`（`E:/Storage-worktrees/material-ledger`）、`feat/material-io`、`feat/safety-stock`、`feat/config-mgmt`（`E:/Storage-worktrees/config-mgmt`）。**切换 worktree 或分支后必须先执行 `scripts/sync-worktree-env.ps1`**，确认 MySQL 端口与当前分支一致后再启 Docker / 后端。
 4. **重构优先于堆叠**：发现重复实现时，优先抽取再扩展，而非再写第三份副本。
+
+### 协作与 AI 使用原则
+
+适用于维护者与 Cursor Agent，强调**补全式、可审查**开发，避免黑盒式整包生成。
+
+- **补全式优先**：采用 Cursor/Copilot 式「边写边看」——小步修改、即时审阅 diff，而非一次性生成整个子系统且不知写了什么。
+- **可控性要求**：
+  - 编码前说明复用结论与**拟改文件清单**；禁止未经确认跨多文件大块生成。
+  - 单次变更聚焦一个子模块或一层（如先 API/types，再 composable，再 view）；避免单 PR 同时铺开多个仓库 CRUD 页。
+  - 维护者须在 IDE 中**逐文件审查** diff 后再合并；不清楚内容的代码不得合入。
+- **合入标准**：仓库域 CRUD 须**可维护、可对比、差异可解释**；与参考实现差异须有文档说明，不得仅追求「能跑」。
 
 ### Worktree 数据库隔离
 
@@ -204,10 +260,11 @@ Storage/
 │       │   └── materialLedger.ts # 物料台账 API
 │       ├── composables/
 │       │   ├── useAuth.ts        # 登录态 composable（hasPermission）
-│       │   └── useWorkbenchTabs.ts # 顶部 Tab 状态
+│       │   ├── useWorkbenchTabs.ts # 顶部 Tab 状态
+│       │   └── usePaginatedCrudList.ts # （规划）分页 CRUD 列表通用逻辑
 │       ├── components/
 │       │   ├── layout/           # SideMenu（动态菜单）、TabBar
-│       │   ├── common/           # ComingSoonPage 占位页
+│       │   ├── common/           # ComingSoonPage；CrudListPage.vue（规划）
 │       │   ├── system/           # RoleManagePanel
 │       │   └── warehouse/        # MaterialLedgerFormModal
 │       ├── constants/
@@ -283,3 +340,4 @@ Storage/
 | 2026-06-24 | 第七期壳层 UI 补全：动态 TabBar（`useWorkbenchTabs`）、壳层 `/platform/*` 占位路由、`migration-phase7-ui-shell-paths.sql`、侧栏默认展开 |
 | 2026-06-25 | Worktree 数据库隔离：`worktree-db.ps1` 五分支独立端口/卷、`sync-worktree-env.ps1`、参数化 `docker-compose.yml`、AGENTS 合并规范 |
 | 2026-06-25 | 第八期 DevX：`dev-up`、`health-check`、`cleanup-legacy-docker`、`wait-mysql`、`material_ledger` 中文修复、MySQL healthcheck |
+| 2026-06-25 | AGENTS：仓库同类 CRUD 20% 复用门禁与协作式 AI（补全式、可审查）原则 |
