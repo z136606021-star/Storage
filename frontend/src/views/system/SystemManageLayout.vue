@@ -7,7 +7,15 @@ const route = useRoute()
 const router = useRouter()
 const auth = useAuth()
 
-const activeTab = computed(() => (route.name === 'RoleManage' ? 'roles' : 'users'))
+const activeTab = computed(() => {
+  if (route.name === 'RoleManage') {
+    return 'roles'
+  }
+  if (route.name === 'MenuManage') {
+    return 'menus'
+  }
+  return 'users'
+})
 
 const tabs = computed(() => {
   const items: Array<{ key: string; label: string; name: string }> = [
@@ -15,6 +23,9 @@ const tabs = computed(() => {
   ]
   if (auth.hasPermission('system:role:read')) {
     items.push({ key: 'roles', label: '角色管理', name: 'RoleManage' })
+  }
+  if (auth.hasPermission('system:menu:read')) {
+    items.push({ key: 'menus', label: '菜单管理', name: 'MenuManage' })
   }
   return items
 })

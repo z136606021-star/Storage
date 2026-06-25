@@ -8,7 +8,7 @@
 - **上层平台**：项目生命周期管理系统（项目管理平台）
 - **所属模块**：项目管理平台 → 资源管理 → 仓库管理
 - **远端仓库**：https://github.com/z136606021-star/Storage.git
-- **当前阶段**：物料台账三版 + 鉴权第二期 + 系统管理第四期 + 登录页第五期 + 第六期平台壳层 UI + 第七期壳层 UI 补全 + Worktree 数据库隔离 + **第八期 DevX**（`dev-up`、`health-check`、遗留 Docker 清理）
+- **当前阶段**：物料台账三版 + 鉴权第二期 + 系统管理第四期 + 登录页第五期 + 第六期平台壳层 UI + 第七期壳层 UI 补全 + Worktree 数据库隔离 + 第八期 DevX + **第九期系统管理 RBAC 补全**（菜单管理 Tab、用户多角色）
 
 ## 技术栈
 
@@ -50,7 +50,7 @@
 | 子系统 | 状态 | 路由 | 组件 | API |
 |--------|------|------|------|-----|
 | 登录页 | Shiro Session 鉴权 + 开放注册 + **第五期 UI/UX 优化** | `/login`、`/login?tab=register` | `LoginView.vue`、`utils/loginRemember.ts` | `POST /api/auth/login`、`POST /api/auth/register`、`POST /api/auth/logout`、`GET /api/auth/me` |
-| 系统管理 | 用户管理（含角色子 Tab）+ 客户占位 + Excel 导入导出已实现；菜单管理 UI 已移除 | `/system/users`、`/system/users/roles`、`/system/customers` | `SystemManageLayout.vue`、`UserManageView.vue`、`RoleManagePanel.vue`、`CustomerManageView.vue` | 用户：`GET/POST/PUT/DELETE /api/system/users`、`GET .../permissions`、`GET .../export`、`POST .../import`；角色：`GET/POST/PUT/DELETE /api/system/roles`、`GET .../export`、`POST .../import`；菜单树 API 保留供角色授权：`GET /api/system/menus/tree`；导航：`GET /api/menus/nav-tree` |
+| 系统管理 | 用户管理（含角色/菜单子 Tab、多角色、授权只读面板）+ 客户占位 + Excel 导入导出已实现 | `/system/users`、`/system/users/roles`、`/system/users/menus`、`/system/customers` | `SystemManageLayout.vue`、`UserManageView.vue`、`RoleManagePanel.vue`、`MenuManagePanel.vue`、`CustomerManageView.vue` | 用户：`GET/POST/PUT/DELETE /api/system/users`、`GET .../permissions`、`GET .../export`、`POST .../import`；角色：`GET/POST/PUT/DELETE /api/system/roles`、`GET .../export`、`POST .../import`；菜单：`GET /api/system/menus/tree`、`POST/PUT/DELETE /api/system/menus`；导航：`GET /api/menus/nav-tree` |
 | 文件上传（MinIO） | 基础设施 + 通用上传 API 已实现 | — | — | `POST /api/files/upload` |
 | 物料台账 | CRUD + 导入 + 批量操作 + 筛选联动已实现 | `/warehouse/material-ledger` | `MaterialLedgerView.vue`、`MaterialLedgerFormModal.vue` | `GET/POST/PUT/DELETE /api/materials`、`DELETE /api/materials/batch`、`GET /api/materials/filter-options`、`GET /api/materials/{id}`、`GET /api/materials/export`、`GET /api/materials/import-template`、`POST /api/materials/import` |
 | 物料出入库 | **占位页**（业务待实现） | `/warehouse/material-io` | `MaterialIoPlaceholderView.vue` | — |
@@ -265,7 +265,7 @@ Storage/
 │       ├── components/
 │       │   ├── layout/           # SideMenu（动态菜单）、TabBar
 │       │   ├── common/           # ComingSoonPage；CrudListPage.vue（规划）
-│       │   ├── system/           # RoleManagePanel
+│       │   ├── system/           # RoleManagePanel、MenuManagePanel
 │       │   └── warehouse/        # MaterialLedgerFormModal
 │       ├── constants/
 │       │   ├── filter.ts         # 筛选常量（ALL_OPTION）
@@ -341,3 +341,4 @@ Storage/
 | 2026-06-25 | Worktree 数据库隔离：`worktree-db.ps1` 五分支独立端口/卷、`sync-worktree-env.ps1`、参数化 `docker-compose.yml`、AGENTS 合并规范 |
 | 2026-06-25 | 第八期 DevX：`dev-up`、`health-check`、`cleanup-legacy-docker`、`wait-mysql`、`material_ledger` 中文修复、MySQL healthcheck |
 | 2026-06-25 | AGENTS：仓库同类 CRUD 20% 复用门禁与协作式 AI（补全式、可审查）原则 |
+| 2026-06-25 | 第九期系统管理 RBAC 补全：恢复菜单管理 Tab（`/system/users/menus`）、`MenuManagePanel` CRUD、用户表单多角色分配 |

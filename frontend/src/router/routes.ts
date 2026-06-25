@@ -19,6 +19,8 @@ import UserManageView from '@/views/system/UserManageView.vue'
 
 import RoleManagePanel from '@/components/system/RoleManagePanel.vue'
 
+import MenuManagePanel from '@/components/system/MenuManagePanel.vue'
+
 import CustomerManageView from '@/views/system/CustomerManageView.vue'
 
 import { SHELL_ROUTE_REGISTRY } from '@/constants/shellRouteRegistry'
@@ -166,6 +168,18 @@ export const routes: RouteRecordRaw[] = [
 
           },
 
+          {
+
+            path: 'menus',
+
+            name: 'MenuManage',
+
+            component: MenuManagePanel,
+
+            meta: { title: '菜单管理', requiresAuth: true, permission: 'system:menu:read' },
+
+          },
+
         ],
 
       },
@@ -175,6 +189,14 @@ export const routes: RouteRecordRaw[] = [
         path: 'system/roles',
 
         redirect: '/system/users/roles',
+
+      },
+
+      {
+
+        path: 'system/menus',
+
+        redirect: '/system/users/menus',
 
       },
 

@@ -65,7 +65,7 @@ const formState = reactive({
   email: '',
   phone: '',
   status: 1,
-  roleId: undefined as number | undefined,
+  roleIds: [] as number[],
   newPassword: '',
 })
 
@@ -90,8 +90,8 @@ function mapMenuTree(menus: SysMenu[]): Array<{ title: string; key: number; chil
 }
 
 function buildSavePayload(): SysUserSave {
-  if (!formState.roleId) {
-    throw new Error('请选择角色')
+  if (!formState.roleIds.length) {
+    throw new Error('请至少选择一个角色')
   }
   return {
     username: formState.username,
@@ -99,7 +99,7 @@ function buildSavePayload(): SysUserSave {
     email: formState.email || undefined,
     phone: formState.phone || undefined,
     status: formState.status,
-    roleIds: [formState.roleId],
+    roleIds: [...formState.roleIds],
     password: formState.newPassword || undefined,
   }
 }
@@ -162,7 +162,7 @@ function resetForm() {
   formState.email = ''
   formState.phone = ''
   formState.status = 1
-  formState.roleId = undefined
+  formState.roleIds = []
   formState.newPassword = ''
   editingId.value = null
 }
@@ -179,7 +179,7 @@ function openEdit(record: SysUser) {
   formState.email = record.email || ''
   formState.phone = record.phone || ''
   formState.status = record.status
-  formState.roleId = record.roleIds[0]
+  formState.roleIds = [...record.roleIds]
   formState.newPassword = ''
   modalOpen.value = true
 }
@@ -442,7 +442,12 @@ onMounted(async () => {
           <a-input v-model:value="formState.phone" />
         </a-form-item>
         <a-form-item label="角色" required>
-          <a-select v-model:value="formState.roleId" placeholder="请选择角色" style="width: 100%">
+          <a-select
+            v-model:value="formState.roleIds"
+            mode="multiple"
+            placeholder="请选择角色"
+            style="width: 100%"
+          >
             <a-select-option v-for="role in roleOptions" :key="role.id" :value="role.id">
               {{ role.name }}（{{ role.code }}）
             </a-select-option>

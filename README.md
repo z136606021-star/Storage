@@ -157,7 +157,7 @@ curl -X POST http://localhost:8080/api/files/upload \
 
 - [x] 登录页 + Shiro Session 登录/登出/当前用户 + **开放注册** + **第五期优化**（左栏插画、记住账号、URL Tab、注册校验、交互打磨）
 - [x] 路由守卫与 API 401 拦截（Cookie 会话）+ **路由 permission 校验**
-- [x] **系统管理**：用户管理（含角色子 Tab、授权只读面板、Excel 导入导出）+ **客户管理占位** + SideMenu 动态导航（侧栏：用户管理、客户管理）
+- [x] **系统管理**：用户管理（含角色/菜单子 Tab、多角色分配、授权只读面板、Excel 导入导出）+ **菜单管理 Tab（CRUD）** + **客户管理占位** + SideMenu 动态导航（侧栏：用户管理、客户管理）
 - [x] MinIO 对象存储基础设施 + `POST /api/files/upload`
 - [x] **第六期平台壳层**：DB 导航种子（个人中心/项目/采购/设计/技能/经验/财务 + 仓库 4 项含配置管理）、占位路由、`ComingSoonPage` 复用组件
 - [x] **第七期壳层 UI 补全**：动态 TabBar（ADMIN 预置个人中心/项目中心）、壳层 `/platform/*` 路由、侧栏点击无 toast
