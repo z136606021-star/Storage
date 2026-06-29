@@ -15,3 +15,9 @@ export interface LoginRequest {
   password: string
   rememberMe?: boolean
 }
+
+export interface ForgotPasswordRequest {
+  username: string
+  email: string
+  newPassword: string
+}

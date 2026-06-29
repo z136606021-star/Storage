@@ -1,6 +1,6 @@
 import { http } from '@/api/http'
 import type { PageResult } from '@/types/common'
-import type { ImportResult } from '@/types/materialLedger'
+import type { ImportResult } from '@/types/common'
 import type { SysUser, SysUserQuery, SysUserSave, UserPermissions } from '@/types/system'
 
 export type SysUserExportQuery = Omit<SysUserQuery, 'page' | 'pageSize'>

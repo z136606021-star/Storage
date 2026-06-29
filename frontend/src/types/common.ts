@@ -4,3 +4,9 @@ export interface PageResult<T> {
   current: number
   size: number
 }
+
+export interface ImportResult {
+  successCount: number
+  failCount: number
+  errors: Array<{ row: number; message: string }>
+}

@@ -2,6 +2,7 @@ package com.storage.service;
 
 import com.storage.dto.AuthSessionVO;
 import com.storage.dto.AuthUserVO;
+import com.storage.dto.ForgotPasswordDTO;
 import com.storage.dto.LoginRequestDTO;
 import com.storage.dto.RegisterRequestDTO;
 import com.storage.entity.SysRole;
@@ -19,6 +20,7 @@ import org.apache.shiro.subject.Subject;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.util.List;
 
@@ -69,6 +71,13 @@ public class AuthService {
         user.setUsername(request.getUsername());
         user.setDisplayName(request.getDisplayName());
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        if (StringUtils.hasText(request.getEmail())) {
+            String email = request.getEmail().trim();
+            if (!email.matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")) {
+                throw new BusinessException("邮箱格式不正确");
+            }
+            user.setEmail(email);
+        }
         user.setStatus(1);
         sysUserMapper.insert(user);
         sysMenuMapper.insertUserRole(user.getId(), userRole.getId());
@@ -92,6 +101,22 @@ public class AuthService {
         if (subject.isAuthenticated()) {
             subject.logout();
         }
+    }
+
+    @Transactional
+    public void forgotPassword(ForgotPasswordDTO request) {
+        SysUser user = sysUserMapper.selectByUsername(request.getUsername().trim());
+        if (user == null || user.getStatus() == null || user.getStatus() != 1) {
+            throw new BusinessException("账号或邮箱不正确");
+        }
+        if (!StringUtils.hasText(user.getEmail())) {
+            throw new BusinessException("该账号未绑定邮箱，请联系管理员在用户管理中重置密码");
+        }
+        if (!user.getEmail().trim().equalsIgnoreCase(request.getEmail().trim())) {
+            throw new BusinessException("账号或邮箱不正确");
+        }
+        user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        sysUserMapper.updateById(user);
     }
 
     public AuthSessionVO currentSession() {

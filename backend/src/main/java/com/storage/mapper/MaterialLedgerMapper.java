@@ -2,11 +2,15 @@ package com.storage.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.storage.entity.MaterialLedger;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
 import java.util.List;
 
 public interface MaterialLedgerMapper extends BaseMapper<MaterialLedger> {
+
+    @Select("SELECT * FROM material_ledger WHERE id = #{id} FOR UPDATE")
+    MaterialLedger selectByIdForUpdate(@Param("id") Long id);
 
     @Select("SELECT DISTINCT category FROM material_ledger WHERE category IS NOT NULL AND category <> '' ORDER BY category")
     List<String> selectDistinctCategories();

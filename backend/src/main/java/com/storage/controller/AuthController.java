@@ -1,6 +1,7 @@
 package com.storage.controller;
 
 import com.storage.dto.AuthSessionVO;
+import com.storage.dto.ForgotPasswordDTO;
 import com.storage.dto.LoginRequestDTO;
 import com.storage.dto.RegisterRequestDTO;
 import com.storage.service.AuthService;
@@ -29,6 +30,12 @@ public class AuthController {
     @PostMapping("/register")
     public AuthSessionVO register(@Valid @RequestBody RegisterRequestDTO request) {
         return authService.register(request);
+    }
+
+    @PostMapping("/forgot-password")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void forgotPassword(@Valid @RequestBody ForgotPasswordDTO request) {
+        authService.forgotPassword(request);
     }
 
     @PostMapping("/logout")

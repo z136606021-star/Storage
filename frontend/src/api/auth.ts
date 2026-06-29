@@ -1,5 +1,5 @@
 import { http } from '@/api/http'
-import type { AuthSession, LoginRequest } from '@/types/auth'
+import type { AuthSession, ForgotPasswordRequest, LoginRequest } from '@/types/auth'
 import type { RegisterRequest } from '@/types/system'
 
 export function login(data: LoginRequest) {
@@ -16,4 +16,8 @@ export function logout() {
 
 export function fetchMe() {
   return http.get<AuthSession>('/auth/me')
+}
+
+export function forgotPassword(data: ForgotPasswordRequest) {
+  return http.post<void>('/auth/forgot-password', data)
 }

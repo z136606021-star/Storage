@@ -153,11 +153,13 @@ curl -X POST http://localhost:8080/api/files/upload \
 
 先调用 `POST /api/auth/login` 获取 Session Cookie，再携带 Cookie 上传。MinIO 控制台：`http://localhost:9001`（`minioadmin` / `minioadmin123`）。
 
+物料清单图片可在 **配置管理 → 物料清单** 新增/编辑弹窗中上传（JPG/PNG/WebP/GIF，≤5MB）；保存后列表与详情展示缩略图。Excel 导入导出不含图片列。
+
 ## 当前功能
 
 - [x] 登录页 + Shiro Session 登录/登出/当前用户 + **开放注册** + **第五期优化**（左栏插画、记住账号、URL Tab、注册校验、交互打磨）
 - [x] 路由守卫与 API 401 拦截（Cookie 会话）+ **路由 permission 校验**
-- [x] **系统管理**：用户管理（含角色/菜单子 Tab、多角色分配、授权只读面板、Excel 导入导出）+ **菜单管理 Tab（CRUD）** + **客户管理占位** + SideMenu 动态导航（侧栏：用户管理、客户管理）
+- [x] **系统管理**：用户管理（含角色/菜单子 Tab、多角色分配、授权只读面板、Excel 导入导出）+ **菜单管理 Tab（CRUD）** + **客户管理 CRUD**（Excel 导入导出）+ SideMenu 动态导航（侧栏：用户管理、客户管理）
 - [x] MinIO 对象存储基础设施 + `POST /api/files/upload`
 - [x] **第六期平台壳层**：DB 导航种子（个人中心/项目/采购/设计/技能/经验/财务 + 仓库 4 项含配置管理）、占位路由、`ComingSoonPage` 复用组件
 - [x] **第七期壳层 UI 补全**：动态 TabBar（ADMIN 预置个人中心/项目中心）、壳层 `/platform/*` 路由、侧栏点击无 toast
@@ -169,10 +171,31 @@ curl -X POST http://localhost:8080/api/files/upload \
 - [x] 物料台账导出 Excel（按当前筛选条件导出全部结果）
 - [x] 物料台账 CRUD（新增/编辑/删除，库存数量只读）
 - [x] 物料台账 Excel 导入与批量导出/批量删除
-- [x] 物料台账筛选联动（品类 → 统称 → 品牌 → 型号/Bin位）
+- [x] 物料台账筛选联动（品类 → 统称 → 品牌 → 型号；Bin 位来自 Bin 主数据）
 - [x] 公共复用基础层（前端 http/types/utils、后端 converter/query/excel/web）
-- [ ] 客户管理业务 CRUD、忘记密码
-- [ ] 物料出入库、安全库存管理、Bin位管理、物料清单管理（业务 CRUD，当前为占位页）
+- [x] **第十一期 11.1 Bin位管理**：CRUD + Excel + 台账 Bin 下拉/保存校验（`warehouse_bin` 主数据）
+- [x] **第十一期 11.2 物料清单管理**：CRUD + 品类联动筛选 + Excel（`warehouse_bom` 主数据）
+- [x] **第十一期 11.3 台账 ↔ 物料清单关联**：表单「从清单选择」、四元组严格校验、`GET /api/materials/bom-catalog`、清单删除引用保护
+- [x] **第十一期 11.4 物料清单 MinIO 图片**：`image_object_key` 持久化、表单上传/预览/清除、列表与详情缩略图
+- [x] 客户管理业务 CRUD、忘记密码
+- [x] **第十三期物料出入库**：`material_io_record` 流水、批量入库/出库、台账选择器、库存联动、Excel 导入导出（`warehouse:material-io:write`）
+- [x] **第十四期物料出入库完善**：筛选联动修复、Excel 原子导入、台账选择器联动筛选、批量表单库存列、台账删除 IO 引用保护、只读用户可下载模板
+- [x] **第十五期物料出入库优化**：后端集成测试、可用库存 UI、台账↔出入库追溯、编辑禁改类型、出库选择器增强
+- [x] **第十六期物料出入库复用与契约**：`useWarehouseMaterialFilters`/`WarehouseMaterialFilterPanel`、深链 composable、IO↔台账互跳、后端 ioType/重复物料不变量
+- [x] **第十七期追溯闭环与测试**：台账 `?materialLedgerId=` 打开详情、`importBatch` 重复拦截、H2 集成测试扩展
+- [x] **第十八期追溯体验与复用深化**：深链新增预填、IO↔台账读权限对称、编辑禁改物料、列/query 复用、`useMaterialLedgerList`、`MaterialIoDetailDescriptions`
+- [x] **第十九期流水深链与质量基建**：`?id=` 打开出入库详情、`MaterialStockMutationService`、Vitest + `useMaterialIoStock` 单测
+- [x] **第二十期列表复用与深链闭环**：`useMaterialIoList`、深链列表定位与 URL 同步、Excel 导入出库超库存行级报错、深链/库存单测扩展
+- [x] **第二十一期追溯快捷与契约瘦身**：上下文条新增入库/出库、`useCrudRouteDetail`、`MaterialIoUpdateDTO`、详情复制链接
+- [x] **第二十三期出入库业务语义补全**：`purpose` 用途枚举、出库必填、列表筛选/Excel；`GET /api/material-io/safety-hints` 出库预警；新增补录 `operatedAt`；`useMaterialIoSafetyHint`
+- [x] **第二十四期出入库 UI 优化**：`MaterialIoFilterPanel`、`MaterialIoContextBar`、工具栏「更多」、新增弹窗条件列与预警列、安全确认 checkbox
+- [x] **第二十五期库存统计与项目关联**：`GET /api/warehouse-stats/overview`、`InventoryStatsView`、`project_ref` 项目编号、出入库工具栏新增下拉
+- [x] **第二十六期客户管理与忘记密码**：`sys_customer` CRUD/Excel、`CustomerManageView`、`POST /api/auth/forgot-password`、登录页 `?tab=forgot`
+- [x] **第二十二期安全库存管理**：`safety_stock` 表、预警黄行、导出/编辑 upsert、`SafetyStockView`、`warehouse:safety-stock:write`
+
+后端测试：`cd backend && mvn test "-Dspring.profiles.active=test"`
+
+前端测试：`cd frontend && npm run test`
 
 ## 远端仓库
 

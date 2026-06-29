@@ -33,6 +33,36 @@ public class GlobalExceptionHandler {
                 .body(Map.of("message", ex.getMessage()));
     }
 
+    @ExceptionHandler(WarehouseBinNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleWarehouseBinNotFound(WarehouseBinNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(WarehouseBomNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleWarehouseBomNotFound(WarehouseBomNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(MaterialIoNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleMaterialIoNotFound(MaterialIoNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(SafetyStockNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleSafetyStockNotFound(SafetyStockNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(SysCustomerNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleSysCustomerNotFound(SysCustomerNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("message", ex.getMessage()));
+    }
+
     @ExceptionHandler(ImportFormatException.class)
     public ResponseEntity<Map<String, String>> handleImportFormat(ImportFormatException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)

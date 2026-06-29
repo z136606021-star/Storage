@@ -12,6 +12,7 @@ import io.minio.PutObjectArgs;
 import io.minio.http.Method;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.InputStream;
@@ -60,8 +61,15 @@ public class FileStorageService {
                 .originalName(originalName)
                 .contentType(file.getContentType())
                 .sizeBytes(file.getSize())
-                .url(buildPresignedUrl(objectKey))
+                .url(resolvePresignedUrl(objectKey))
                 .build();
+    }
+
+    public String resolvePresignedUrl(String objectKey) {
+        if (!StringUtils.hasText(objectKey)) {
+            return null;
+        }
+        return buildPresignedUrl(objectKey.trim());
     }
 
     private String buildObjectKey(String originalName) {

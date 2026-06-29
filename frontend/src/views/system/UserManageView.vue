@@ -1,14 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import type { TablePaginationConfig } from 'ant-design-vue'
-import { Modal, message } from 'ant-design-vue'
-import {
-  DownloadOutlined,
-  PlusOutlined,
-  ReloadOutlined,
-  SearchOutlined,
-  UploadOutlined,
-} from '@ant-design/icons-vue'
+import { ReloadOutlined, SearchOutlined } from '@ant-design/icons-vue'
+import { message } from 'ant-design-vue'
 import { getErrorMessage } from '@/api/http'
 import {
   createUser,
@@ -22,18 +15,16 @@ import {
   updateUser,
 } from '@/api/system/user'
 import { fetchRoles } from '@/api/system/role'
-import { useAuth } from '@/composables/useAuth'
+import CrudListPage from '@/components/common/CrudListPage.vue'
+import { useWritePermission } from '@/composables/useWritePermission'
+import { useExcelImportExport } from '@/composables/useExcelImportExport'
+import { usePaginatedCrudList } from '@/composables/usePaginatedCrudList'
 import type { SysMenu, SysRole, SysUser, SysUserSave } from '@/types/system'
-import { downloadBlob } from '@/utils/download'
+import { confirmDelete } from '@/utils/confirmDelete'
 import { displayValue } from '@/utils/format'
 
-const auth = useAuth()
-const canWrite = () => auth.hasPermission('system:user:write')
+const { canWrite } = useWritePermission('system:user:write')
 
-const loading = ref(false)
-const exporting = ref(false)
-const importing = ref(false)
-const dataSource = ref<SysUser[]>([])
 const roleOptions = ref<SysRole[]>([])
 const modalOpen = ref(false)
 const drawerOpen = ref(false)
@@ -51,13 +42,50 @@ const queryForm = reactive({
   roleId: undefined as number | undefined,
 })
 
-const pagination = reactive<TablePaginationConfig>({
-  current: 1,
-  pageSize: 10,
-  total: 0,
-  showSizeChanger: true,
-  showTotal: (total: number) => `共 ${total} 条`,
+function buildQueryParams() {
+  return {
+    username: queryForm.username || undefined,
+    displayName: queryForm.displayName || undefined,
+    email: queryForm.email || undefined,
+    roleId: queryForm.roleId,
+  }
+}
+
+const {
+  loading,
+  dataSource,
+  pagination,
+  loadData,
+  handleResetQuery,
+  handleTableChange,
+} = usePaginatedCrudList<SysUser, ReturnType<typeof buildQueryParams>>({
+  fetchPage: async (params) => {
+    const { data } = await fetchUserPage(params)
+    return data
+  },
+  buildQueryParams,
+  loadErrorMessage: '加载用户列表失败',
+  paginationDefaults: { showSizeChanger: true },
+  onAfterLoad: (records) => {
+    if (selectedUserId.value && !records.some((item) => item.id === selectedUserId.value)) {
+      selectedUserId.value = records[0]?.id ?? null
+    }
+  },
 })
+
+const { exporting, importing, handleExport, handleImport, handleDownloadTemplate } =
+  useExcelImportExport({
+    exportFn: exportUsers,
+    importFn: importUsers,
+    templateFn: downloadUserImportTemplate,
+    buildExportParams: buildQueryParams,
+    getExportFilename: () => '用户列表.xlsx',
+    getTemplateFilename: () => '用户导入模板.xlsx',
+    exportErrorMessage: '导出失败',
+    templateErrorMessage: '下载模板失败',
+    importErrorMessage: '导入失败',
+    onAfterImport: loadData,
+  })
 
 const formState = reactive({
   username: '',
@@ -109,31 +137,6 @@ async function loadRoles() {
   roleOptions.value = data.filter((role) => role.status === 1)
 }
 
-async function loadData() {
-  loading.value = true
-  try {
-    const { data } = await fetchUserPage({
-      page: pagination.current,
-      pageSize: pagination.pageSize,
-      username: queryForm.username || undefined,
-      displayName: queryForm.displayName || undefined,
-      email: queryForm.email || undefined,
-      roleId: queryForm.roleId,
-    })
-    dataSource.value = data.records
-    pagination.total = data.total
-    pagination.current = data.current
-    pagination.pageSize = data.size
-    if (selectedUserId.value && !data.records.some((item) => item.id === selectedUserId.value)) {
-      selectedUserId.value = data.records[0]?.id ?? null
-    }
-  } catch (error) {
-    message.error(getErrorMessage(error, '加载用户列表失败'))
-  } finally {
-    loading.value = false
-  }
-}
-
 async function loadPermissions(userId: number) {
   permissionLoading.value = true
   try {
@@ -152,7 +155,7 @@ function resetQuery() {
   queryForm.displayName = ''
   queryForm.email = ''
   queryForm.roleId = undefined
-  pagination.current = 1
+  handleResetQuery()
   loadData()
 }
 
@@ -215,69 +218,21 @@ async function handleSubmit() {
 }
 
 function handleDelete(record: SysUser) {
-  Modal.confirm({
+  confirmDelete({
     title: '删除用户',
     content: `确定删除用户「${record.displayName}」吗？`,
-    okType: 'danger',
-    onOk: async () => {
+    successMessage: '用户已删除',
+    errorMessage: '删除失败',
+    onDelete: async () => {
       await deleteUser(record.id)
-      message.success('用户已删除')
+    },
+    onSuccess: async () => {
       if (selectedUserId.value === record.id) {
         selectedUserId.value = null
       }
       await loadData()
     },
   })
-}
-
-async function handleExport() {
-  exporting.value = true
-  try {
-    const blob = await exportUsers({
-      username: queryForm.username || undefined,
-      displayName: queryForm.displayName || undefined,
-      email: queryForm.email || undefined,
-      roleId: queryForm.roleId,
-    })
-    downloadBlob(blob, '用户列表.xlsx')
-  } catch (error) {
-    message.error(getErrorMessage(error, '导出失败'))
-  } finally {
-    exporting.value = false
-  }
-}
-
-async function handleDownloadTemplate() {
-  try {
-    const blob = await downloadUserImportTemplate()
-    downloadBlob(blob, '用户导入模板.xlsx')
-  } catch (error) {
-    message.error(getErrorMessage(error, '下载模板失败'))
-  }
-}
-
-async function handleImport(file: File) {
-  importing.value = true
-  try {
-    const result = await importUsers(file)
-    if (result.failCount > 0) {
-      message.warning(`导入完成：成功 ${result.successCount} 条，失败 ${result.failCount} 条`)
-    } else {
-      message.success(`导入成功 ${result.successCount} 条`)
-    }
-    await loadData()
-  } catch (error) {
-    message.error(getErrorMessage(error, '导入失败'))
-  } finally {
-    importing.value = false
-  }
-  return false
-}
-
-function handleTableChange(page: TablePaginationConfig) {
-  pagination.current = page.current
-  pagination.pageSize = page.pageSize
-  loadData()
 }
 
 function customRow(record: SysUser) {
@@ -309,67 +264,60 @@ onMounted(async () => {
   <div class="page">
     <div class="page-body">
       <div class="main-panel">
-        <div class="toolbar">
-          <a-form layout="inline" :model="queryForm">
-            <a-form-item label="NTID">
-              <a-input v-model:value="queryForm.username" allow-clear placeholder="NTID" />
-            </a-form-item>
-            <a-form-item label="用户名称">
-              <a-input v-model:value="queryForm.displayName" allow-clear placeholder="用户名称" />
-            </a-form-item>
-            <a-form-item label="邮箱">
-              <a-input v-model:value="queryForm.email" allow-clear placeholder="邮箱" />
-            </a-form-item>
-            <a-form-item label="角色">
-              <a-select
-                v-model:value="queryForm.roleId"
-                allow-clear
-                placeholder="全部"
-                style="width: 140px"
-              >
-                <a-select-option v-for="role in roleOptions" :key="role.id" :value="role.id">
-                  {{ role.name }}
-                </a-select-option>
-              </a-select>
-            </a-form-item>
-            <a-form-item>
-              <a-space>
-                <a-button type="primary" @click="loadData"><SearchOutlined />查询</a-button>
-                <a-button @click="resetQuery"><ReloadOutlined />重置</a-button>
-              </a-space>
-            </a-form-item>
-          </a-form>
-        </div>
-
-        <div class="action-bar">
-          <a-space>
-            <a-button v-if="canWrite()" type="primary" class="btn-add" @click="openCreate">
-              <PlusOutlined />新增
-            </a-button>
-            <a-button type="primary" :loading="exporting" @click="handleExport">
-              <DownloadOutlined />导出
-            </a-button>
-            <template v-if="canWrite()">
-              <a-upload :show-upload-list="false" :before-upload="handleImport" accept=".xlsx,.xls">
-                <a-button type="primary" :loading="importing">
-                  <UploadOutlined />导入
-                </a-button>
-              </a-upload>
-              <a-button type="link" @click="handleDownloadTemplate">下载模板</a-button>
-            </template>
-          </a-space>
-        </div>
-
-        <a-table
-          row-key="id"
+        <CrudListPage
+          filter-layout="none"
+          :table-in-card="false"
           :columns="columns"
-          :data-source="dataSource"
           :loading="loading"
+          :data-source="dataSource"
           :pagination="pagination"
           :custom-row="customRow"
           :scroll="{ x: 1000 }"
+          :size="'middle'"
+          :bordered="false"
+          toolbar-create-green
+          toolbar-export-icon="download"
+          :toolbar-can-write="canWrite"
+          :toolbar-importing="importing"
+          :toolbar-exporting="exporting"
           @change="handleTableChange"
+          @toolbar-create="openCreate"
+          @toolbar-export="handleExport"
+          @toolbar-import="handleImport"
+          @toolbar-download-template="handleDownloadTemplate"
         >
+          <template #filters>
+            <a-form layout="inline" :model="queryForm">
+              <a-form-item label="NTID">
+                <a-input v-model:value="queryForm.username" allow-clear placeholder="NTID" />
+              </a-form-item>
+              <a-form-item label="用户名称">
+                <a-input v-model:value="queryForm.displayName" allow-clear placeholder="用户名称" />
+              </a-form-item>
+              <a-form-item label="邮箱">
+                <a-input v-model:value="queryForm.email" allow-clear placeholder="邮箱" />
+              </a-form-item>
+              <a-form-item label="角色">
+                <a-select
+                  v-model:value="queryForm.roleId"
+                  allow-clear
+                  placeholder="全部"
+                  style="width: 140px"
+                >
+                  <a-select-option v-for="role in roleOptions" :key="role.id" :value="role.id">
+                    {{ role.name }}
+                  </a-select-option>
+                </a-select>
+              </a-form-item>
+              <a-form-item>
+                <a-space>
+                  <a-button type="primary" @click="loadData"><SearchOutlined />查询</a-button>
+                  <a-button @click="resetQuery"><ReloadOutlined />重置</a-button>
+                </a-space>
+              </a-form-item>
+            </a-form>
+          </template>
+
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'roles'">
               {{ (record as SysUser).roleNames?.join('、') || (record as SysUser).roleCodes?.join('、') || '-' }}
@@ -383,7 +331,7 @@ onMounted(async () => {
               <a-space>
                 <a-button type="link" size="small" @click.stop="openView(record as SysUser)">查看</a-button>
                 <a-button
-                  v-if="canWrite()"
+                  v-if="canWrite"
                   type="link"
                   size="small"
                   @click.stop="openEdit(record as SysUser)"
@@ -391,7 +339,7 @@ onMounted(async () => {
                   编辑
                 </a-button>
                 <a-button
-                  v-if="canWrite()"
+                  v-if="canWrite"
                   type="link"
                   size="small"
                   danger
@@ -402,7 +350,7 @@ onMounted(async () => {
               </a-space>
             </template>
           </template>
-        </a-table>
+        </CrudListPage>
       </div>
 
       <div class="auth-panel">
@@ -515,24 +463,6 @@ onMounted(async () => {
 .auth-empty {
   color: #999;
   font-size: 13px;
-}
-
-.toolbar {
-  margin-bottom: 12px;
-}
-
-.action-bar {
-  margin-bottom: 12px;
-}
-
-.btn-add {
-  background: #52c41a;
-  border-color: #52c41a;
-}
-
-.btn-add:hover {
-  background: #73d13d;
-  border-color: #73d13d;
 }
 
 :deep(.row-selected) {

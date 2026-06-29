@@ -8,7 +8,7 @@
 - **上层平台**：项目生命周期管理系统（项目管理平台）
 - **所属模块**：项目管理平台 → 资源管理 → 仓库管理
 - **远端仓库**：https://github.com/z136606021-star/Storage.git
-- **当前阶段**：物料台账三版 + 鉴权第二期 + 系统管理第四期 + 登录页第五期 + 第六期平台壳层 UI + 第七期壳层 UI 补全 + Worktree 数据库隔离 + 第八期 DevX + **第九期系统管理 RBAC 补全**（菜单管理 Tab、用户多角色）
+- **当前阶段**：… + **第二十五期库存统计与项目关联** + **第二十六期客户管理与忘记密码**
 
 ## 技术栈
 
@@ -28,7 +28,7 @@
 | 个人中心 | 快捷导航、项目进度统计、待办事项、特别注意事项、工作安排 | 暂不实现；仅在平台壳层导航中保留扩展入口 |
 | 项目管理 | 新建项目、项目评估阶段、项目启动阶段、项目规划阶段、项目执行阶段、过程监控阶段、项目收尾阶段 | 暂不实现；仓库模块只消费项目/BOM/采购等上游结果，不承载项目流程编排 |
 | 资源管理 | 采购管理、仓库管理、设计指引、技能中心、经验库、财务结算中心 | 当前只实现仓库管理；采购、设计、技能、经验、财务结算均作为后续独立子模块 |
-| 系统管理 | 角色管理、用户管理、客户管理 | 用户/角色管理已实现；**客户管理占位页**已实现，业务 CRUD 待实现 |
+| 系统管理 | 角色管理、用户管理、客户管理 | 用户/角色/菜单管理已实现；**客户管理 CRUD**（Excel 导入导出）已实现 |
 
 ### 项目生命周期主流程
 
@@ -49,27 +49,33 @@
 
 | 子系统 | 状态 | 路由 | 组件 | API |
 |--------|------|------|------|-----|
-| 登录页 | Shiro Session 鉴权 + 开放注册 + **第五期 UI/UX 优化** | `/login`、`/login?tab=register` | `LoginView.vue`、`utils/loginRemember.ts` | `POST /api/auth/login`、`POST /api/auth/register`、`POST /api/auth/logout`、`GET /api/auth/me` |
-| 系统管理 | 用户管理（含角色/菜单子 Tab、多角色、授权只读面板）+ 客户占位 + Excel 导入导出已实现 | `/system/users`、`/system/users/roles`、`/system/users/menus`、`/system/customers` | `SystemManageLayout.vue`、`UserManageView.vue`、`RoleManagePanel.vue`、`MenuManagePanel.vue`、`CustomerManageView.vue` | 用户：`GET/POST/PUT/DELETE /api/system/users`、`GET .../permissions`、`GET .../export`、`POST .../import`；角色：`GET/POST/PUT/DELETE /api/system/roles`、`GET .../export`、`POST .../import`；菜单：`GET /api/system/menus/tree`、`POST/PUT/DELETE /api/system/menus`；导航：`GET /api/menus/nav-tree` |
-| 文件上传（MinIO） | 基础设施 + 通用上传 API 已实现 | — | — | `POST /api/files/upload` |
-| 物料台账 | CRUD + 导入 + 批量操作 + 筛选联动已实现 | `/warehouse/material-ledger` | `MaterialLedgerView.vue`、`MaterialLedgerFormModal.vue` | `GET/POST/PUT/DELETE /api/materials`、`DELETE /api/materials/batch`、`GET /api/materials/filter-options`、`GET /api/materials/{id}`、`GET /api/materials/export`、`GET /api/materials/import-template`、`POST /api/materials/import` |
-| 物料出入库 | **占位页**（业务待实现） | `/warehouse/material-io` | `MaterialIoPlaceholderView.vue` | — |
-| 安全库存管理 | **占位页**（业务待实现） | `/warehouse/safety-stock` | `SafetyStockPlaceholderView.vue` | — |
-| 配置管理 | **占位页**（Bin位 / 物料清单业务待实现） | `/warehouse/config/bin`、`/warehouse/config/bom` | `BinManagePlaceholderView.vue`、`BomManagePlaceholderView.vue` | — |
+| 登录页 | Shiro Session 鉴权 + 开放注册 + **忘记密码**（账号+邮箱校验重置）+ **第五期 UI/UX 优化** | `/login`、`/login?tab=register`、`/login?tab=forgot` | `LoginView.vue`、`utils/loginRemember.ts` | `POST /api/auth/login`、`POST /api/auth/register`、`POST /api/auth/forgot-password`、`POST /api/auth/logout`、`GET /api/auth/me` |
+| 系统管理 | 用户管理（含角色/菜单子 Tab、多角色、授权只读面板）+ **客户管理 CRUD**（Excel 导入导出）+ Excel 导入导出已实现 | `/system/users`、`/system/users/roles`、`/system/users/menus`、`/system/customers` | `SystemManageLayout.vue`、`UserManageView.vue`、`RoleManagePanel.vue`、`MenuManagePanel.vue`、`CustomerManageView.vue`、`CustomerFormModal.vue` | 用户：`GET/POST/PUT/DELETE /api/system/users`、…；**客户**：`GET/POST/PUT/DELETE /api/system/customers`、`DELETE .../batch`、`GET .../export`、`POST .../import`；角色/菜单同前 |
+| 文件上传（MinIO） | 基础设施 + 通用上传 API；**物料清单图片已接入** | — | — | `POST /api/files/upload`（`platform:file:upload` 或 `warehouse:bom:write`） |
+| 物料台账 | CRUD + 导入 + 批量操作 + 筛选联动 + **Bin/清单主数据校验** + **从清单选择** + **写权限门禁**（`warehouse:material-ledger:write`）+ **出入库流水删除保护** + **详情跳转出入库** + **只读模板下载** + **`?materialLedgerId=` 深链打开详情** | `/warehouse/material-ledger` | `MaterialLedgerView.vue`、`MaterialLedgerFormModal.vue` | `GET/POST/PUT/DELETE /api/materials`、`DELETE /api/materials/batch`、`GET /api/materials/filter-options`、`GET /api/materials/bin-codes`、`GET /api/materials/bom-catalog`、`GET /api/materials/{id}`、`GET /api/materials/export`、`GET /api/materials/import-template`、`POST /api/materials/import` |
+| 物料出入库 | CRUD + 批量入库/出库 + 筛选联动 + **原子 Excel 导入** + **台账选择器** + **深链追溯** + **写权限门禁**；**唯一更新库存**；编辑 PUT 仅 `quantity/remark/purpose/projectRef`；**用途枚举** + **项目编号**（用途=项目领用时必填）+ **安全库存预警** + **补录 operatedAt**；**第二十四期 UI**：`MaterialIoFilterPanel` / `MaterialIoContextBar`、工具栏「更多」、**新增入库/出库下拉**、新增弹窗条件列与预警列 | `/warehouse/material-io` | `MaterialIoView.vue`、`MaterialIoBatchFormModal.vue`、`MaterialIoFilterPanel.vue`、`MaterialIoContextBar.vue`、`MaterialLedgerPickerModal.vue` | 同第二十三期 + `project_ref` |
+| 库存统计 | 台账/库存/预警汇总 + 近 N 日出入库笔数与数量 + 预警物料预览（`warehouse:stats:read`） | `/warehouse/inventory-stats` | `InventoryStatsView.vue` | `GET /api/warehouse-stats/overview` |
+| 安全库存管理 | 列表（全部台账 LEFT JOIN）+ 8 字段筛选 + 预警黄行 + 导出/批量导出 + 查看/编辑（`warehouse:safety-stock:write`）；预警期 = 开关开启且库存 < 安全库存数；详情跳转台账/出入库（读权限门禁）；无新增/删除/导入 | `/warehouse/safety-stock` | `SafetyStockView.vue`、`SafetyStockFormModal.vue`、`SafetyStockDetailDescriptions.vue` | `GET /api/safety-stock`、`GET /api/safety-stock/filter-options`、`GET /api/safety-stock/{materialLedgerId}`、`PUT /api/safety-stock/{materialLedgerId}`、`GET /api/safety-stock/export` |
+| Bin位管理 | CRUD + 导入导出 + 台账引用校验已实现 | `/warehouse/config/bin` | `BinManageView.vue`、`BinFormModal.vue` | `GET/POST/PUT/DELETE /api/warehouse-bins`、`DELETE /api/warehouse-bins/batch`、`GET /api/warehouse-bins/codes`、`GET /api/warehouse-bins/{id}`、`GET /api/warehouse-bins/export`、`GET /api/warehouse-bins/import-template`、`POST /api/warehouse-bins/import` |
+| 物料清单管理 | CRUD + 品类联动筛选 + 导入导出 + **MinIO 图片上传/预览** + 台账引用删除保护 | `/warehouse/config/bom` | `BomManageView.vue`、`BomFormModal.vue` | `GET/POST/PUT/DELETE /api/warehouse-boms`、`DELETE /api/warehouse-boms/batch`、`GET /api/warehouse-boms/filter-options`、`GET /api/warehouse-boms/{id}`、`GET /api/warehouse-boms/export`、`GET /api/warehouse-boms/import-template`、`POST /api/warehouse-boms/import`；图片经 `POST /api/files/upload` 上传，DB 存 `image_object_key`，API 动态返回 `imageUrl` |
 | 平台壳层 | **占位页**（个人中心/项目/采购/设计/技能/经验/财务） | `/platform/*` | `ShellPlaceholderView.vue` | — |
 
 ### 平台基础能力
 
 - **鉴权**：Apache Shiro Session + Cookie；`sys_user/role/menu` 表；开放注册默认 `USER` 角色（只读物料台账）；`composables/useAuth.ts`（含 `hasPermission`）+ `router/guards.ts`（含 `meta.permission`）+ `http` 拦截器。
-- **动态菜单**：`GET /api/menus/nav-tree` 按权限过滤；[SideMenu.vue](frontend/src/components/layout/SideMenu.vue) 从 API 加载；ADMIN 可见完整平台壳层，仓库管理下 4 项（台账 / 出入库 / 安全库存 / 配置管理 → Bin位、物料清单）；默认展开资源管理 → 仓库管理。
+- **动态菜单**：`GET /api/menus/nav-tree` 按权限过滤；[SideMenu.vue](frontend/src/components/layout/SideMenu.vue) 从 API 加载；ADMIN 可见完整平台壳层，仓库管理下 5 项（台账 / 出入库 / 安全库存 / **库存统计** / 配置管理 → Bin位、物料清单）；默认展开资源管理 → 仓库管理。
 - **动态 TabBar**：[useWorkbenchTabs.ts](frontend/src/composables/useWorkbenchTabs.ts) + [TabBar.vue](frontend/src/components/layout/TabBar.vue)；ADMIN 登录预置「个人中心」「项目中心」，访问业务页自动追加 Tab，可切换/关闭；USER 仅预置物料台账 Tab。
 - **壳层路由注册表**：[shellRouteRegistry.ts](frontend/src/constants/shellRouteRegistry.ts) 与 `migration-phase7-ui-shell-paths.sql` 对齐 DB `sys_menu.path`。
-- **对象存储**：MinIO（`docker-compose`）；`MinioStorageService` + `POST /api/files/upload`（本期未接入业务页面）。
-- **路由守卫**：`requiresAuth` 业务路由未登录时重定向 `/login`；登录页静态资源见 `frontend/src/assets/auth/`；**记住密码**用 `utils/loginRemember.ts` 仅存账号至 localStorage（不传 Shiro RememberMe）；Tab 可通过 `?tab=register` 切换。
+- **对象存储**：MinIO（`docker-compose`）；`FileStorageService` + `POST /api/files/upload`；物料清单保存 `image_object_key`，列表/详情 API 附带预签 `imageUrl`。
+- **路由守卫**：`requiresAuth` 业务路由未登录时重定向 `/login`；登录页静态资源见 `frontend/src/assets/auth/`；**记住密码**用 `utils/loginRemember.ts` 仅存账号至 localStorage（不传 Shiro RememberMe）；Tab 可通过 `?tab=register` 或 `?tab=forgot` 切换。
 
 ### 物料台账字段
 
-筛选：品类、统称、品牌、名称（关键字）、型号、Bin位；支持品类→统称→品牌联动收窄选项。表格：序号、品类、统称、品牌、名称、型号、Bin位、库存数量、单价、备注、操作（查看/编辑/删除）。导出按当前筛选条件导出全部匹配记录；勾选行支持批量导出与批量删除；支持 Excel 导入与模板下载。查看详情为右侧只读抽屉。新增/编辑通过弹窗维护主数据，**库存数量只读**（新建默认 0，变更走后续出入库模块）。
+筛选：品类、统称、品牌、名称（关键字）、型号、Bin位；支持品类→统称→品牌联动收窄选项（Bin 位选项来自 `warehouse_bin` 主数据，非台账 DISTINCT）。表格：序号、品类、统称、品牌、名称、型号、Bin位、库存数量、单价、备注、操作（查看；**编辑/删除仅 `warehouse:material-ledger:write`**）。导出按当前筛选条件导出全部匹配记录；勾选行支持批量导出与批量删除（写权限）；支持 Excel 导入与模板下载。查看详情为右侧只读抽屉。新增/编辑弹窗**独立加载** `filter-options` + `bom-catalog`（不依赖列表页筛选项）；**库存数量只读**（新建默认 0，变更走物料出入库模块）；保存/导入时 Bin 位须在 Bin 主数据中存在，**品类/统称/品牌/名称四元组须在物料清单中存在**；表单支持「从清单选择」自动填充四元组（`GET /api/materials/bom-catalog`）。
+
+### 物料出入库字段
+
+筛选：品类、统称、品牌、名称（关键字）、型号、Bin位、操作类型、**用途（随操作类型联动）**、**项目编号（关键字）**、操作时间区间、`materialLedgerId`（台账深链）、`id`（流水深链打开详情）；专用 [`MaterialIoFilterPanel`](frontend/src/components/warehouse/MaterialIoFilterPanel.vue)。表格：序号、品类、统称、品牌、名称、型号、Bin位、数量、**用途（Tag）**、**项目编号**、备注、操作类型（Tag 色）、操作人、操作时间、操作（查看；**编辑/删除仅 `warehouse:material-io:write`**）。工具栏：**新增（入库/出库下拉）** / 导出 / 导入；**下载模板 / 批量导出 / 批量删除** 收入「更多」下拉。深链上下文条：[`MaterialIoContextBar`](frontend/src/components/warehouse/MaterialIoContextBar.vue)（Tag 式紧凑展示 + 一键入库/出库）。新增为批量表单：顶栏一行化（类型 + 操作时间 + 新增行）；**入库隐藏用途/库存列**；**出库显示用途/可用库存/项目编号/独立预警列**（项目领用须填项目编号）；未选物料点击身份格选择；出库表头汇总预警 + 提交前 confirm（可勾选本次会话不再提示）。编辑禁止改操作类型与物料（PUT 仅 quantity/remark/purpose/projectRef）；重复物料硬拦截；切换出库时即时库存校验。台账详情可跳转 `?materialLedgerId=` 查看该物料流水；出入库详情跳转台账须 `warehouse:material-ledger:read`；`?id=` 深链时列表附加 `ids` 筛选确保行可见与高亮；点「查看」同步 URL；详情支持「复制链接」；关闭详情抽屉清除 `id` 参数并保留 `materialLedgerId` 筛选。Excel 导入全表预校验（含同文件出库累计超库存行级报错、出库用途校验、可选操作时间列）、锁内单事务写入。后端集成测试：`mvn test -Dspring.profiles.active=test`；前端单测：`cd frontend && npm run test`。
 
 ## 仓库约定
 
@@ -136,10 +142,35 @@
 | 导入导出 | `downloadBlob`、模板下载、按筛选导出 | 列定义、Excel 契约 |
 | 业务 | — | 字段、校验规则、联动筛选、权限码 |
 
-若新页面与参考实现在**骨架 + 数据流**上预计重复代码占比 **< 80%**（即不一致 **> 20%**），复用性与可控性几乎为零，**必须先抽象再写业务**，禁止再复制一整份 view。推荐落点（实现时再建，合入前更新目录结构）：
+若新页面与参考实现在**骨架 + 数据流**上预计重复代码占比 **< 80%**（即不一致 **> 20%**），复用性与可控性几乎为零，**必须先抽象再写业务**，禁止再复制一整份 view。已落地公共层：
 
-- `frontend/src/composables/usePaginatedCrudList.ts` — 分页、筛选、加载、删除确认等通用逻辑
-- `frontend/src/components/common/CrudListPage.vue` — 筛选/表格/工具栏插槽 + props 配置列与 API
+- `frontend/src/composables/usePaginatedCrudList.ts` — 分页列表加载、搜索、表格变更、行勾选
+- `frontend/src/composables/useExcelImportExport.ts` — 导入/导出/模板下载
+- `frontend/src/composables/useLinkedFilterOptions.ts` — 仓库域联动筛选底层
+- `frontend/src/composables/useWarehouseMaterialFilters.ts` + `WarehouseMaterialFilterPanel.vue` — 6 字段物料筛选
+- `frontend/src/composables/useMaterialLedgerDeepLink.ts` — 出入库 `?materialLedgerId=` 列表筛选深链
+- `frontend/src/composables/useMaterialLedgerRouteDetail.ts` — 台账 `?materialLedgerId=` 打开详情深链
+- `frontend/src/components/warehouse/MaterialIdentityDescriptions.vue` — 详情物料身份块
+- `frontend/src/composables/useWritePermission.ts` — 写权限 computed 门禁
+- `frontend/src/composables/useCrudDetailDrawer.ts` — 详情抽屉加载态
+- `frontend/src/components/common/CrudListPage.vue` — 筛选/表格/工具栏插槽布局壳
+- `frontend/src/components/common/CrudToolbar.vue` — 通用 CRUD 工具栏
+- `frontend/src/components/common/CrudDetailDrawer.vue` — 详情抽屉壳（含可选编辑按钮）
+- `frontend/src/components/common/CrudRowActions.vue` — 查看/编辑/删除操作列
+- `frontend/src/utils/confirmDelete.ts` — 删除确认（含 `confirmBatchDelete`）
+- `frontend/src/utils/importResult.ts` — 导入结果提示
+- `frontend/src/utils/tableIndex.ts` — 分页序号列
+- `frontend/src/utils/warehouseMaterialTable.ts` — 物料六字段 query/列定义 SSOT
+- `frontend/src/utils/materialLedgerRouteQuery.ts` — `?materialLedgerId=` 解析 SSOT
+- `frontend/src/utils/materialIoRouteQuery.ts` — 出入库 `?id=` 解析 SSOT
+- `frontend/src/constants/materialIoPurpose.ts` — 出入库用途枚举 SSOT
+- `frontend/src/composables/useCrudRouteDetail.ts` — 通用 `?queryKey=` 深链打开详情（IO/台账薄包装）
+- `frontend/src/composables/useMaterialIoList.ts` — 出入库分页列表（含 ioType/操作时间/用途筛选）
+- `frontend/src/composables/useMaterialIoSafetyHint.ts` — 出库安全库存预警提示
+- `frontend/src/composables/useSafetyStockList.ts` — 安全库存分页列表（含安全库存数/预警期筛选）
+- `frontend/src/composables/useMaterialIoRouteDetail.ts` — 出入库 `?id=` 自动打开详情
+- `frontend/src/composables/useMaterialLedgerList.ts` — 台账分页列表（台账页 + 选择器）
+- `frontend/src/views/warehouse/_shared/warehouseListScaffold.ts` — 后续仓库 CRUD 页脚手架注释
 - 各 view 只保留：列配置、表单字段、资源专属 API 绑定
 
 ```mermaid
@@ -256,19 +287,40 @@ Storage/
 │       │   ├── http.ts           # 共享 axios（withCredentials + 401 拦截）
 │       │   ├── auth.ts           # 登录/注册/登出/当前用户
 │       │   ├── menu.ts           # 导航树
-│       │   ├── system/           # 用户/角色管理 API
-│       │   └── materialLedger.ts # 物料台账 API
+│       │   ├── system/           # 用户/角色/客户管理 API
+│       │   ├── materialLedger.ts # 物料台账 API
+│       │   ├── materialIo.ts     # 物料出入库 API
+│       │   ├── safetyStock.ts    # 安全库存 API
+│       │   ├── warehouseStats.ts # 库存统计 API
+│       │   ├── file.ts           # 通用文件上传 API
+│       │   ├── warehouseBin.ts   # Bin位管理 API
+│       │   └── warehouseBom.ts   # 物料清单 API
 │       ├── composables/
-│       │   ├── useAuth.ts        # 登录态 composable（hasPermission）
-│       │   ├── useWorkbenchTabs.ts # 顶部 Tab 状态
-│       │   └── usePaginatedCrudList.ts # （规划）分页 CRUD 列表通用逻辑
+│       │   ├── useAuth.ts              # 登录态 composable（hasPermission）
+│       │   ├── useWorkbenchTabs.ts       # 顶部 Tab 状态
+│       │   ├── usePaginatedCrudList.ts   # 分页 CRUD 列表通用逻辑
+│       │   ├── useExcelImportExport.ts   # Excel 导入导出
+│       │   ├── useLinkedFilterOptions.ts # 联动筛选底层
+│       │   ├── useWarehouseMaterialFilters.ts # 6 字段物料筛选 composable
+│       │   ├── useMaterialLedgerDeepLink.ts # 出入库台账深链筛选
+│       │   ├── useMaterialIoList.ts      # 出入库分页列表
+│       │   ├── useSafetyStockList.ts   # 安全库存分页列表
+│       │   ├── useCrudRouteDetail.ts     # 通用深链打开详情
+│       │   ├── useMaterialIoRouteDetail.ts # 出入库流水深链打开详情
+│       │   ├── useMaterialLedgerRouteDetail.ts # 台账深链打开详情
+│       │   ├── useMaterialLedgerList.ts  # 台账分页列表（台账页+选择器）
+│       │   ├── useWritePermission.ts     # 写权限门禁
+│       │   ├── useCrudDetailDrawer.ts    # 详情抽屉
+│       │   ├── useMaterialIoStock.ts     # 出入库可用库存计算
+│       │   └── useMaterialIoSafetyHint.ts # 出库安全库存预警
 │       ├── components/
 │       │   ├── layout/           # SideMenu（动态菜单）、TabBar
-│       │   ├── common/           # ComingSoonPage；CrudListPage.vue（规划）
-│       │   ├── system/           # RoleManagePanel、MenuManagePanel
-│       │   └── warehouse/        # MaterialLedgerFormModal
+│       │   ├── common/           # ComingSoonPage、CrudListPage、CrudToolbar、CrudDetailDrawer、CrudRowActions
+│       │   ├── system/           # RoleManagePanel、MenuManagePanel、CustomerFormModal
+│       │   └── warehouse/        # …、MaterialIoFilterPanel、MaterialIoContextBar、MaterialIoBatchFormModal、SafetyStockDetailDescriptions
 │       ├── constants/
 │       │   ├── filter.ts         # 筛选常量（ALL_OPTION）
+│       │   ├── materialIoPurpose.ts # 出入库用途枚举 SSOT
 │       │   └── shellRouteRegistry.ts # 壳层占位路由 SSOT
 │       ├── assets/auth/          # 登录页静态资源
 │       ├── layouts/AppLayout.vue
@@ -278,21 +330,28 @@ Storage/
 │       │   ├── guards.ts         # beforeEach 登录与 permission 拦截
 │       │   └── meta.d.ts         # RouteMeta 类型扩展
 │       ├── types/
-│       │   ├── common.ts         # PageResult 等通用类型
+│       │   ├── common.ts         # PageResult、ImportResult 等通用类型
 │       │   ├── auth.ts
 │       │   ├── system.ts
-│       │   └── materialLedger.ts
-│       ├── utils/                # download、format、selectOptions、icons、loginRemember
+│       │   ├── materialLedger.ts
+│       │   ├── materialIo.ts
+│       │   ├── safetyStock.ts
+│       │   ├── warehouseStats.ts
+│       │   ├── customer.ts
+│       │   ├── file.ts
+│       │   ├── warehouseBin.ts
+│       │   └── warehouseBom.ts
+│       ├── utils/                # download、format、confirmDelete、importResult、tableIndex、warehouseMaterialTable、materialLedgerRouteQuery、materialIoRouteQuery、materialIoShareUrl、selectOptions、icons、loginRemember
 │       ├── views/auth/
 │       │   └── LoginView.vue     # 登录/注册
 │       ├── views/system/         # SystemManageLayout、UserManageView、CustomerManageView
 │       ├── views/platform/       # ShellPlaceholderView
-│       ├── views/warehouse/      # 出入库/安全库存/配置管理占位页
+│       ├── views/warehouse/      # MaterialIoView、SafetyStockView、InventoryStatsView；config/BinManageView、BomManageView；_shared/warehouseListScaffold.ts
 │       └── views/material-ledger/
 │           └── MaterialLedgerView.vue
 ├── backend/                  # Spring Boot 3 + MyBatis Plus
 │   └── src/main/java/com/storage/
-│       ├── controller/       # Auth、System、Material、File、MenuNav
+│       ├── controller/       # Auth、System、Material、MaterialIo、SafetyStock、WarehouseStats、WarehouseBin/Bom、File、MenuNav
 │       ├── config/           # CORS、Shiro、MinIO、WebMvc
 │       ├── shiro/            # Realm、ShiroConfig、SubjectBindingFilter
 │       ├── converter/        # DTO ↔ Entity 转换
@@ -302,7 +361,7 @@ Storage/
 │       ├── exception/        # 全局异常（可复用）
 │       ├── mapper/
 │       ├── query/            # 查询条件构建
-│       ├── service/
+│       ├── service/            # 业务 Service；含 MaterialStockMutationService（库存锁定/增减）
 │       └── web/              # Excel 响应构建
 ├── docker-compose.yml        # MySQL 8 + MinIO（端口/卷由 .env 参数化，含 healthcheck）
 ├── dev-up.cmd                # 一键环境 + 前后端（第八期推荐入口）
@@ -342,3 +401,24 @@ Storage/
 | 2026-06-25 | 第八期 DevX：`dev-up`、`health-check`、`cleanup-legacy-docker`、`wait-mysql`、`material_ledger` 中文修复、MySQL healthcheck |
 | 2026-06-25 | AGENTS：仓库同类 CRUD 20% 复用门禁与协作式 AI（补全式、可审查）原则 |
 | 2026-06-25 | 第九期系统管理 RBAC 补全：恢复菜单管理 Tab（`/system/users/menus`）、`MenuManagePanel` CRUD、用户表单多角色分配 |
+| 2026-06-25 | 第十期 CRUD 复用层：`usePaginatedCrudList`、`useExcelImportExport`、`useLinkedFilterOptions`、`CrudListPage`、`CrudToolbar`；物料台账/用户/角色列表页迁移至公共层 |
+| 2026-06-25 | 第十一期 Bin位管理：`warehouse_bin` 表与 CRUD/Excel API、`BinManageView`；台账 Bin 下拉改读主数据、保存/导入校验；`GET /api/materials/bin-codes` |
+| 2026-06-25 | 第十一期 11.2 物料清单：`warehouse_bom` 表与 CRUD/Excel API、`BomManageView`（品类联动筛选；图片列占位；从台账 DISTINCT 回填种子） |
+| 2026-06-25 | 第十一期 11.3 台账 ↔ 清单：`GET /api/materials/bom-catalog`、表单「从清单选择」、四元组严格校验、清单删除台账引用保护 |
+| 2026-06-25 | 第十一期 11.4 物料清单 MinIO 图片：`image_object_key` 字段、`BomFormModal` 上传/预览/清除、列表与详情缩略图；上传权限 OR `warehouse:bom:write` |
+| 2026-06-25 | 第十二期物料台账编辑链路：修复 `warehouse_bom.image_object_key` 迁移（MySQL 兼容）；编辑弹窗独立加载选项与 bom-catalog；`MaterialLedgerView` 写权限门禁对齐 Bin/用户管理 |
+| 2026-06-25 | 第十三期 CRUD 复用层补全：`confirmBatchDelete`、`useWritePermission`、`useCrudDetailDrawer`、`CrudDetailDrawer`、`CrudRowActions`、`getTableRowIndex`；台账/Bin/清单三页迁移；台账 Bin 筛选改走 `filter-options.binLocations` |
+| 2026-06-25 | 第十三期物料出入库：`material_io_record` 表与 CRUD/Excel API、`MaterialIoView` 批量入库/出库、`MaterialLedgerPickerModal`、`warehouse:material-io:write`；`material_ledger.stock_quantity` 唯一由出入库模块写入 |
+| 2026-06-26 | 第十四期物料出入库完善：筛选联动 bug 修复、Excel 原子导入 `importBatch`、台账选择器 composables 升级、批量表单库存列/实时库存、台账删除 IO 引用保护、`CrudToolbar` 模板只读下载 |
+| 2026-06-26 | 第十五期物料出入库优化：H2 集成测试、`useMaterialIoStock`、可用库存列、编辑禁改类型、出库选择器零库存拦截、`materialLedgerId` 深链追溯、台账详情跳转出入库、删除占位页 |
+| 2026-06-26 | 第十六期物料出入库复用与契约：`useWarehouseMaterialFilters`/`WarehouseMaterialFilterPanel` 消除三处筛选重复、`useMaterialLedgerDeepLink`、`MaterialIdentityDescriptions`、出库 InputNumber max、IO↔台账互跳、台账只读模板下载；后端禁改 ioType、批量重复物料拦截、`MaterialLedgerService.findByMaterialKey` |
+| 2026-06-26 | 第十七期追溯闭环与测试：`useMaterialLedgerRouteDetail` 台账 `?materialLedgerId=` 自动打开详情；`importBatch`/Excel 导入重复物料拦截；`MaterialIoImportServiceIntegrationTest` + Service 层 ioType/查询/重复测试扩展 |
+| 2026-06-26 | 第十八期追溯体验与复用深化：深链 `?materialLedgerId=` 新增预填、上下文条补全、IO↔台账读权限对称；编辑禁改物料（前后端）；`warehouseMaterialTable`/`materialLedgerRouteQuery`/`useMaterialLedgerList`/`MaterialIoDetailDescriptions`；台账页与选择器共用列表 composable |
+| 2026-06-26 | 第十九期流水深链与质量基建：`useMaterialIoRouteDetail` + `?id=` 打开出入库详情；`MaterialStockMutationService` 库存逻辑下沉；Vitest 基建 + `useMaterialIoStock` 单测 |
+| 2026-06-26 | 第二十期列表复用与深链闭环：`useMaterialIoList` 抽取瘦身 `MaterialIoView`；`?id=` 列表 `ids` 定位 + 查看 URL 同步；Excel 导入出库超库存行级 `ImportResultVO`；`MaterialStockMutationServiceTest` + 深链/route Vitest 扩展 |
+| 2026-06-26 | 第二十一期追溯快捷与契约瘦身：上下文条一键新增入库/出库、`useCrudRouteDetail`、`MaterialIoUpdateDTO`、详情复制链接 |
+| 2026-06-26 | 第二十二期安全库存管理：`safety_stock` 表与 API、`SafetyStockView`、预警黄行、导出/编辑 upsert、`warehouse:safety-stock:write`、H2 集成测试 |
+| 2026-06-29 | 第二十三期出入库业务语义：`purpose` 用途枚举、出库必填、列表筛选/Excel；`GET /api/material-io/safety-hints` 出库预警；新增补录 `operatedAt`；`useMaterialIoSafetyHint` |
+| 2026-06-29 | 第二十六期客户管理与忘记密码：`sys_customer` CRUD/Excel、`CustomerManageView`、`POST /api/auth/forgot-password`、登录页 `?tab=forgot` |
+| 2026-06-29 | 第二十四期出入库 UI 优化：`MaterialIoFilterPanel`、`MaterialIoContextBar`、工具栏「更多」、用途 Tag 列、新增弹窗顶栏/条件列/预警列、安全确认 checkbox |
+| 2026-06-29 | 第二十七期差距收敛：文档与客户占位表述同步、台账路由读权限、死代码清理、注册可选邮箱 + admin 种子邮箱、库存统计 `recentDays` 选择器、台账/Bin/客户 import 集成测试、GitHub Actions CI |

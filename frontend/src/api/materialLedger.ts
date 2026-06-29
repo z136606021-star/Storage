@@ -1,9 +1,9 @@
 import { http } from '@/api/http'
-import type { PageResult } from '@/types/common'
+import type { PageResult, ImportResult } from '@/types/common'
 import type {
+  BomCatalogItem,
   FilterLinkageQuery,
   FilterOptions,
-  ImportResult,
   MaterialLedger,
   MaterialQuery,
   MaterialSavePayload,
@@ -26,6 +26,16 @@ export async function fetchFilterOptions(
   const { data } = await http.get<FilterOptions>('/materials/filter-options', {
     params: query,
   })
+  return data
+}
+
+export async function fetchMaterialBinCodes(): Promise<string[]> {
+  const { data } = await http.get<string[]>('/materials/bin-codes')
+  return data
+}
+
+export async function fetchMaterialBomCatalog(): Promise<BomCatalogItem[]> {
+  const { data } = await http.get<BomCatalogItem[]>('/materials/bom-catalog')
   return data
 }
 

@@ -6,10 +6,11 @@ import LoginView from '@/views/auth/LoginView.vue'
 
 import MaterialLedgerView from '@/views/material-ledger/MaterialLedgerView.vue'
 
-import MaterialIoPlaceholderView from '@/views/warehouse/MaterialIoPlaceholderView.vue'
-import SafetyStockPlaceholderView from '@/views/warehouse/SafetyStockPlaceholderView.vue'
-import BinManagePlaceholderView from '@/views/warehouse/BinManagePlaceholderView.vue'
-import BomManagePlaceholderView from '@/views/warehouse/BomManagePlaceholderView.vue'
+import MaterialIoView from '@/views/warehouse/MaterialIoView.vue'
+import InventoryStatsView from '@/views/warehouse/InventoryStatsView.vue'
+import SafetyStockView from '@/views/warehouse/SafetyStockView.vue'
+import BinManageView from '@/views/warehouse/config/BinManageView.vue'
+import BomManageView from '@/views/warehouse/config/BomManageView.vue'
 
 import ShellPlaceholderView from '@/views/platform/ShellPlaceholderView.vue'
 
@@ -82,7 +83,7 @@ export const routes: RouteRecordRaw[] = [
 
         component: MaterialLedgerView,
 
-        meta: { title: '物料台账', requiresAuth: true },
+        meta: { title: '物料台账', requiresAuth: true, permission: 'warehouse:material-ledger:read' },
 
       },
 
@@ -92,7 +93,7 @@ export const routes: RouteRecordRaw[] = [
 
         name: 'MaterialIo',
 
-        component: MaterialIoPlaceholderView,
+        component: MaterialIoView,
 
         meta: { title: '物料出入库', requiresAuth: true, permission: 'warehouse:material-io:read' },
 
@@ -104,9 +105,21 @@ export const routes: RouteRecordRaw[] = [
 
         name: 'SafetyStock',
 
-        component: SafetyStockPlaceholderView,
+        component: SafetyStockView,
 
         meta: { title: '安全库存管理', requiresAuth: true, permission: 'warehouse:safety-stock:read' },
+
+      },
+
+      {
+
+        path: 'warehouse/inventory-stats',
+
+        name: 'InventoryStats',
+
+        component: InventoryStatsView,
+
+        meta: { title: '库存统计', requiresAuth: true, permission: 'warehouse:stats:read' },
 
       },
 
@@ -116,7 +129,7 @@ export const routes: RouteRecordRaw[] = [
 
         name: 'BinManage',
 
-        component: BinManagePlaceholderView,
+        component: BinManageView,
 
         meta: { title: 'Bin位管理', requiresAuth: true, permission: 'warehouse:bin:read' },
 
@@ -128,7 +141,7 @@ export const routes: RouteRecordRaw[] = [
 
         name: 'BomManage',
 
-        component: BomManagePlaceholderView,
+        component: BomManageView,
 
         meta: { title: '物料清单管理', requiresAuth: true, permission: 'warehouse:bom:read' },
 

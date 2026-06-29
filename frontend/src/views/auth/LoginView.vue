@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { LockOutlined, UserOutlined } from '@ant-design/icons-vue'
 import axios from 'axios'
@@ -9,6 +9,7 @@ import loginBg from '@/assets/auth/login-bg.png'
 import loginLogo from '@/assets/auth/login-logo.png'
 import loginDecoTech from '@/assets/auth/login-deco-tech.png'
 import { useAuth } from '@/composables/useAuth'
+import { forgotPassword } from '@/api/auth'
 import { getErrorMessage } from '@/api/http'
 import {
   clearRememberedUsername,
@@ -16,14 +17,20 @@ import {
   saveRememberedUsername,
 } from '@/utils/loginRemember'
 
-type AuthTab = 'login' | 'register'
+type AuthTab = 'login' | 'register' | 'forgot'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuth()
 
 function resolveTabFromQuery(tab: unknown): AuthTab {
-  return tab === 'register' ? 'register' : 'login'
+  if (tab === 'register') {
+    return 'register'
+  }
+  if (tab === 'forgot') {
+    return 'forgot'
+  }
+  return 'login'
 }
 
 const activeTab = ref<AuthTab>(resolveTabFromQuery(route.query.tab))
@@ -40,6 +47,24 @@ const registerForm = reactive({
   password: '',
   confirmPassword: '',
   displayName: '',
+  email: '',
+})
+
+const forgotForm = reactive({
+  username: '',
+  email: '',
+  newPassword: '',
+  confirmPassword: '',
+})
+
+const panelHeading = computed(() => {
+  if (activeTab.value === 'register') {
+    return '欢迎注册'
+  }
+  if (activeTab.value === 'forgot') {
+    return '重置密码'
+  }
+  return '欢迎登录'
 })
 
 const loginRules: Record<string, Rule[]> = {
@@ -71,6 +96,43 @@ const registerRules = computed<Record<string, Rule[]>>(() => ({
       trigger: 'blur',
     },
   ],
+  email: [
+    {
+      validator: async (_rule, value: string) => {
+        const trimmed = value?.trim()
+        if (!trimmed) {
+          return
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+          throw new Error('邮箱格式不正确')
+        }
+      },
+      trigger: 'blur',
+    },
+  ],
+}))
+
+const forgotRules = computed<Record<string, Rule[]>>(() => ({
+  username: [{ required: true, message: '请输入账号', trigger: 'blur' }],
+  email: [
+    { required: true, message: '请输入邮箱', trigger: 'blur' },
+    { type: 'email', message: '邮箱格式不正确', trigger: 'blur' },
+  ],
+  newPassword: [
+    { required: true, message: '请输入新密码', trigger: 'blur' },
+    { min: 6, max: 64, message: '密码长度为 6-64 个字符', trigger: 'blur' },
+  ],
+  confirmPassword: [
+    { required: true, message: '请确认新密码', trigger: 'blur' },
+    {
+      validator: async (_rule, value) => {
+        if (value !== forgotForm.newPassword) {
+          throw new Error('两次输入的密码不一致')
+        }
+      },
+      trigger: 'blur',
+    },
+  ],
 }))
 
 const loginCanSubmit = computed(
@@ -91,6 +153,13 @@ const registerCanSubmit = computed(() => {
   )
 })
 
+const forgotCanSubmit = computed(() => (
+  forgotForm.username.trim().length > 0
+  && forgotForm.email.trim().length > 0
+  && forgotForm.newPassword.length >= 6
+  && forgotForm.confirmPassword === forgotForm.newPassword
+))
+
 function syncTabToUrl(tab: AuthTab) {
   router.replace({
     query: {
@@ -105,6 +174,13 @@ function switchTab(tab: AuthTab) {
   syncTabToUrl(tab)
 }
 
+watch(
+  () => route.query.tab,
+  (tab) => {
+    activeTab.value = resolveTabFromQuery(tab)
+  },
+)
+
 onMounted(() => {
   const remembered = loadRememberedUsername()
   if (remembered) {
@@ -113,8 +189,23 @@ onMounted(() => {
   }
 })
 
-function showComingSoon(feature: string) {
-  message.info(`${feature}功能开发中，敬请期待`)
+async function handleForgotPassword() {
+  submitting.value = true
+  try {
+    await forgotPassword({
+      username: forgotForm.username.trim(),
+      email: forgotForm.email.trim(),
+      newPassword: forgotForm.newPassword,
+    })
+    message.success('密码已重置，请使用新密码登录')
+    forgotForm.newPassword = ''
+    forgotForm.confirmPassword = ''
+    switchTab('login')
+  } catch (error) {
+    message.error(getErrorMessage(error, '重置密码失败'))
+  } finally {
+    submitting.value = false
+  }
 }
 
 function getLoginErrorMessage(error: unknown): string {
@@ -158,6 +249,7 @@ async function handleRegister() {
       username: registerForm.username.trim(),
       password: registerForm.password,
       displayName: registerForm.displayName.trim(),
+      ...(registerForm.email.trim() ? { email: registerForm.email.trim() } : {}),
     })
     message.success('注册成功')
     const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/warehouse/material-ledger'
@@ -181,9 +273,9 @@ async function handleRegister() {
       </section>
 
       <section class="login-form-panel">
-        <h2 class="login-form-panel__heading">{{ activeTab === 'login' ? '欢迎登录' : '欢迎注册' }}</h2>
+        <h2 class="login-form-panel__heading">{{ panelHeading }}</h2>
 
-        <div class="login-tabs" role="tablist" aria-label="登录方式">
+        <div v-if="activeTab !== 'forgot'" class="login-tabs" role="tablist" aria-label="登录方式">
           <button
             type="button"
             class="login-tabs__item"
@@ -226,7 +318,7 @@ async function handleRegister() {
           </a-form-item>
           <div class="login-form__options">
             <a-checkbox v-model:checked="rememberPassword">记住密码</a-checkbox>
-            <a-button type="link" class="login-form__forgot" @click="showComingSoon('忘记密码')">忘记密码</a-button>
+            <a-button type="link" class="login-form__forgot" @click="switchTab('forgot')">忘记密码</a-button>
           </div>
           <a-button
             type="primary"
@@ -238,6 +330,47 @@ async function handleRegister() {
             :disabled="!loginCanSubmit"
           >
             登录
+          </a-button>
+        </a-form>
+
+        <a-form
+          v-else-if="activeTab === 'forgot'"
+          class="login-form"
+          layout="vertical"
+          :model="forgotForm"
+          :rules="forgotRules"
+          @finish="handleForgotPassword"
+        >
+          <a-form-item name="username">
+            <a-input v-model:value="forgotForm.username" size="large" placeholder="请输入账号" autocomplete="username">
+              <template #prefix><UserOutlined class="login-form__icon" /></template>
+            </a-input>
+          </a-form-item>
+          <a-form-item name="email">
+            <a-input v-model:value="forgotForm.email" size="large" placeholder="请输入注册邮箱" autocomplete="email">
+              <template #prefix><UserOutlined class="login-form__icon" /></template>
+            </a-input>
+          </a-form-item>
+          <a-form-item name="newPassword">
+            <a-input-password v-model:value="forgotForm.newPassword" size="large" placeholder="请输入新密码（至少 6 位）" autocomplete="new-password">
+              <template #prefix><LockOutlined class="login-form__icon" /></template>
+            </a-input-password>
+          </a-form-item>
+          <a-form-item name="confirmPassword">
+            <a-input-password v-model:value="forgotForm.confirmPassword" size="large" placeholder="请再次输入新密码" autocomplete="new-password">
+              <template #prefix><LockOutlined class="login-form__icon" /></template>
+            </a-input-password>
+          </a-form-item>
+          <a-button
+            type="primary"
+            html-type="submit"
+            size="large"
+            block
+            class="login-form__submit"
+            :loading="submitting"
+            :disabled="!forgotCanSubmit"
+          >
+            重置密码
           </a-button>
         </a-form>
 
@@ -256,6 +389,11 @@ async function handleRegister() {
           </a-form-item>
           <a-form-item name="displayName">
             <a-input v-model:value="registerForm.displayName" size="large" placeholder="请输入显示名称">
+              <template #prefix><UserOutlined class="login-form__icon" /></template>
+            </a-input>
+          </a-form-item>
+          <a-form-item name="email">
+            <a-input v-model:value="registerForm.email" size="large" placeholder="邮箱（选填，用于找回密码）" autocomplete="email">
               <template #prefix><UserOutlined class="login-form__icon" /></template>
             </a-input>
           </a-form-item>
@@ -287,8 +425,12 @@ async function handleRegister() {
             没有账户？
             <a-button type="link" class="login-form-panel__register" @click="switchTab('register')">点击注册</a-button>
           </template>
-          <template v-else>
+          <template v-else-if="activeTab === 'register'">
             已有账户？
+            <a-button type="link" class="login-form-panel__register" @click="switchTab('login')">返回登录</a-button>
+          </template>
+          <template v-else>
+            想起密码了？
             <a-button type="link" class="login-form-panel__register" @click="switchTab('login')">返回登录</a-button>
           </template>
         </p>

@@ -75,6 +75,35 @@ CREATE TABLE sys_file (
     CONSTRAINT fk_file_uploader FOREIGN KEY (uploader_id) REFERENCES sys_user (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE warehouse_bin (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    bin_code VARCHAR(32) NOT NULL COMMENT 'Bin位编号（排-列-层）',
+    row_no INT NOT NULL COMMENT '排',
+    col_no INT NOT NULL COMMENT '列',
+    level_no INT NOT NULL COMMENT '层',
+    remark VARCHAR(255) NULL COMMENT '备注',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_bin_code (bin_code),
+    UNIQUE KEY uk_row_col_level (row_no, col_no, level_no),
+    INDEX idx_bin_code (bin_code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE warehouse_bom (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    category VARCHAR(64) NOT NULL COMMENT '品类',
+    generic_name VARCHAR(64) NOT NULL COMMENT '统称',
+    brand VARCHAR(64) NULL COMMENT '品牌',
+    name VARCHAR(128) NOT NULL COMMENT '名称',
+    remark VARCHAR(255) NULL COMMENT '备注',
+    image_object_key VARCHAR(512) NULL COMMENT 'MinIO 对象键',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_category (category),
+    INDEX idx_generic_name (generic_name),
+    INDEX idx_name (name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE material_ledger (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     category VARCHAR(64) NOT NULL COMMENT '品类',
@@ -93,9 +122,57 @@ CREATE TABLE material_ledger (
     INDEX idx_bin_location (bin_location)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE material_io_record (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    material_ledger_id BIGINT NOT NULL COMMENT '物料台账 ID',
+    io_type VARCHAR(8) NOT NULL COMMENT 'IN=入库 OUT=出库',
+    quantity INT NOT NULL COMMENT '数量',
+    remark VARCHAR(255) NULL COMMENT '备注',
+    purpose VARCHAR(32) NULL COMMENT '用途码',
+    project_ref VARCHAR(128) NULL COMMENT '项目编号/名称（项目领用）',
+    operator_user_id BIGINT NOT NULL COMMENT '操作人用户 ID',
+    operated_at DATETIME NOT NULL COMMENT '操作时间',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_material_ledger_id (material_ledger_id),
+    INDEX idx_io_type (io_type),
+    INDEX idx_material_io_purpose (purpose),
+    INDEX idx_material_io_project_ref (project_ref),
+    INDEX idx_operated_at (operated_at),
+    CONSTRAINT fk_material_io_ledger FOREIGN KEY (material_ledger_id) REFERENCES material_ledger (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE safety_stock (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    material_ledger_id BIGINT NOT NULL COMMENT '物料台账 ID',
+    safety_quantity INT NOT NULL DEFAULT 0 COMMENT '安全库存数',
+    warning_enabled TINYINT(1) NOT NULL DEFAULT 0 COMMENT '预警开关',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_safety_stock_ledger (material_ledger_id),
+    CONSTRAINT fk_safety_stock_ledger FOREIGN KEY (material_ledger_id)
+        REFERENCES material_ledger (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE sys_customer (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    customer_code VARCHAR(64) NOT NULL COMMENT '客户编号',
+    name VARCHAR(128) NOT NULL COMMENT '客户名称',
+    contact_name VARCHAR(64) NULL COMMENT '联系人',
+    phone VARCHAR(32) NULL COMMENT '电话',
+    email VARCHAR(128) NULL COMMENT '邮箱',
+    address VARCHAR(255) NULL COMMENT '地址',
+    remark VARCHAR(255) NULL COMMENT '备注',
+    status TINYINT NOT NULL DEFAULT 1 COMMENT '1=启用 0=停用',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_sys_customer_code (customer_code),
+    INDEX idx_sys_customer_name (name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- admin / admin123 (BCrypt cost 10)
-INSERT INTO sys_user (username, password_hash, display_name, status) VALUES
-('admin', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iwK8pJ5C', '系统管理员', 1);
+INSERT INTO sys_user (username, password_hash, display_name, email, status) VALUES
+('admin', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iwK8pJ5C', '系统管理员', 'admin@example.com', 1);
 
 INSERT INTO sys_role (code, name) VALUES
 ('ADMIN', '系统管理员'),
@@ -116,6 +193,7 @@ INSERT INTO sys_menu (id, parent_id, menu_type, name, permission, path, icon, vi
 (111, 110, 'MENU', '物料台账', 'warehouse:material-ledger:read', '/warehouse/material-ledger', NULL, 1, 10),
 (112, 110, 'MENU', '物料出入库', 'warehouse:material-io:read', '/warehouse/material-io', NULL, 1, 20),
 (113, 110, 'MENU', '安全库存管理', 'warehouse:safety-stock:read', '/warehouse/safety-stock', NULL, 1, 30),
+(117, 110, 'MENU', '库存统计', 'warehouse:stats:read', '/warehouse/inventory-stats', NULL, 1, 25),
 (114, 110, 'CATALOG', '配置管理', NULL, NULL, NULL, 1, 40),
 (115, 114, 'MENU', 'Bin位管理', 'warehouse:bin:read', '/warehouse/config/bin', NULL, 1, 10),
 (116, 114, 'MENU', '物料清单管理', 'warehouse:bom:read', '/warehouse/config/bom', NULL, 1, 20),
@@ -143,18 +221,39 @@ INSERT INTO sys_menu (id, parent_id, menu_type, name, permission, path, icon, vi
 (234, NULL, 'MENU', '菜单写', 'system:menu:write', NULL, NULL, 0, 234),
 (244, NULL, 'MENU', '客户写', 'system:customer:write', NULL, NULL, 0, 244),
 (254, NULL, 'MENU', 'Bin位写', 'warehouse:bin:write', NULL, NULL, 0, 254),
-(255, NULL, 'MENU', '物料清单写', 'warehouse:bom:write', NULL, NULL, 0, 255);
+(255, NULL, 'MENU', '物料清单写', 'warehouse:bom:write', NULL, NULL, 0, 255),
+(256, NULL, 'MENU', '物料出入库写', 'warehouse:material-io:write', NULL, NULL, 0, 256),
+(257, NULL, 'MENU', '安全库存写', 'warehouse:safety-stock:write', NULL, NULL, 0, 257);
 
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 (1, 2), (1, 3),
 (1, 10), (1, 20), (1, 21), (1, 22), (1, 23),
-(1, 100), (1, 110), (1, 111), (1, 112), (1, 113), (1, 114), (1, 115), (1, 116),
+(1, 100), (1, 110), (1, 111), (1, 112), (1, 113), (1, 117), (1, 114), (1, 115), (1, 116),
 (1, 120), (1, 121), (1, 122), (1, 123),
 (1, 150), (1, 160), (1, 161), (1, 162), (1, 163),
 (1, 170), (1, 180), (1, 181), (1, 182), (1, 183),
 (1, 200), (1, 201), (1, 202), (1, 203), (1, 204),
-(1, 214), (1, 224), (1, 234), (1, 244), (1, 254), (1, 255),
+(1, 214), (1, 224), (1, 234), (1, 244), (1, 254), (1, 255), (1, 256), (1, 257),
 (2, 111);
+
+INSERT INTO warehouse_bin (bin_code, row_no, col_no, level_no, remark) VALUES
+('1-1-1', 1, 1, 1, NULL),
+('1-1-4', 1, 1, 4, NULL),
+('1-2-1', 1, 2, 1, NULL),
+('1-2-2', 1, 2, 2, NULL),
+('1-2-3', 1, 2, 3, NULL),
+('1-3-1', 1, 3, 1, NULL);
+
+INSERT INTO warehouse_bom (category, generic_name, brand, name, remark) VALUES
+('气路配件', '气管接头', NULL, 'SL/L型节流阀', NULL),
+('气路配件', '气管接头', NULL, 'SPA/直通节流阀', NULL),
+('气路配件', '气管接头', NULL, 'SPP/四通节流阀', NULL),
+('气路配件', '气管接头', NULL, 'PC型/直通', NULL),
+('气路配件', '电磁阀', 'SMC', '二位五通', NULL),
+('气路配件', '电磁阀', 'SMC', '三位五通', NULL),
+('耗材', '生料带', '冰禹', '生料带', NULL),
+('耗材', '密封圈', '三环', 'O型密封圈', NULL),
+('耗材', '润滑油', '美孚', '液压油', NULL);
 
 INSERT INTO material_ledger (category, generic_name, brand, name, model, bin_location, stock_quantity, unit_price, remark) VALUES
 ('气路配件', '气管接头', NULL, 'SL/L型节流阀', 'SL8-01', '1-1-1', 200, NULL, '机加工用'),
@@ -172,3 +271,12 @@ INSERT INTO material_ledger (category, generic_name, brand, name, model, bin_loc
 ('气路配件', '气管接头', NULL, 'SL/L型节流阀', 'SL6-01', '1-2-1', 120, NULL, '机加工用'),
 ('气路配件', '气管接头', NULL, 'SPA/直通节流阀', 'SPA-8', '1-2-1', 88, NULL, '机加工用'),
 ('耗材', '生料带', '冰禹', '生料带', '25*30', '1-1-4', 30, NULL, '甘工项目');
+
+INSERT INTO safety_stock (material_ledger_id, safety_quantity, warning_enabled)
+SELECT id, 30, 1 FROM material_ledger WHERE model = 'PC8-02' LIMIT 1;
+
+INSERT INTO safety_stock (material_ledger_id, safety_quantity, warning_enabled)
+SELECT id, 15, 1 FROM material_ledger WHERE model = 'SY3120' LIMIT 1;
+
+INSERT INTO safety_stock (material_ledger_id, safety_quantity, warning_enabled)
+SELECT id, 10, 1 FROM material_ledger WHERE model = 'SY3320' LIMIT 1;

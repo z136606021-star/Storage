@@ -1,6 +1,7 @@
 package com.storage.controller;
 
 import com.storage.dto.BatchDeleteDTO;
+import com.storage.dto.BomCatalogItemVO;
 import com.storage.dto.FilterLinkageQueryDTO;
 import com.storage.dto.FilterOptionsVO;
 import com.storage.dto.ImportResultVO;
@@ -27,6 +28,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.time.LocalDate;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/materials")
@@ -45,6 +47,18 @@ public class MaterialLedgerController {
     @RequiresPermissions("warehouse:material-ledger:read")
     public FilterOptionsVO filterOptions(FilterLinkageQueryDTO query) {
         return materialLedgerService.filterOptions(query);
+    }
+
+    @GetMapping("/bin-codes")
+    @RequiresPermissions("warehouse:material-ledger:read")
+    public List<String> listBinCodes() {
+        return materialLedgerService.listBinCodes();
+    }
+
+    @GetMapping("/bom-catalog")
+    @RequiresPermissions("warehouse:material-ledger:read")
+    public List<BomCatalogItemVO> listBomCatalog() {
+        return materialLedgerService.listBomCatalog();
     }
 
     @GetMapping("/export")

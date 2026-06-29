@@ -1,13 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { Modal, message } from 'ant-design-vue'
-import {
-  DownloadOutlined,
-  PlusOutlined,
-  ReloadOutlined,
-  SearchOutlined,
-  UploadOutlined,
-} from '@ant-design/icons-vue'
+import { ReloadOutlined, SearchOutlined } from '@ant-design/icons-vue'
+import { message } from 'ant-design-vue'
 import { getErrorMessage } from '@/api/http'
 import {
   createRole,
@@ -20,17 +14,16 @@ import {
   updateRole,
 } from '@/api/system/role'
 import { fetchMenuTree } from '@/api/system/menu'
-import { useAuth } from '@/composables/useAuth'
+import CrudToolbar from '@/components/common/CrudToolbar.vue'
+import { useWritePermission } from '@/composables/useWritePermission'
+import { useExcelImportExport } from '@/composables/useExcelImportExport'
 import type { SysMenu, SysRole, SysRoleSave } from '@/types/system'
-import { downloadBlob } from '@/utils/download'
+import { confirmDelete } from '@/utils/confirmDelete'
 import { displayValue } from '@/utils/format'
 
-const auth = useAuth()
-const canWrite = () => auth.hasPermission('system:role:write')
+const { canWrite } = useWritePermission('system:role:write')
 
 const loading = ref(false)
-const exporting = ref(false)
-const importing = ref(false)
 const dataSource = ref<SysRole[]>([])
 const menuTree = ref<SysMenu[]>([])
 const modalOpen = ref(false)
@@ -48,6 +41,31 @@ const formState = reactive<SysRoleSave>({
   status: 1,
   menuIds: [],
 })
+
+async function loadData() {
+  loading.value = true
+  try {
+    const { data } = await fetchRoles()
+    dataSource.value = data
+  } catch (error) {
+    message.error(getErrorMessage(error, '加载角色列表失败'))
+  } finally {
+    loading.value = false
+  }
+}
+
+const { exporting, importing, handleExport, handleImport, handleDownloadTemplate } =
+  useExcelImportExport({
+    exportFn: exportRoles,
+    importFn: importRoles,
+    templateFn: downloadRoleImportTemplate,
+    getExportFilename: () => '角色列表.xlsx',
+    getTemplateFilename: () => '角色导入模板.xlsx',
+    exportErrorMessage: '导出失败',
+    templateErrorMessage: '下载模板失败',
+    importErrorMessage: '导入失败',
+    onAfterImport: loadData,
+  })
 
 const filteredData = computed(() => {
   if (!queryForm.roleId) {
@@ -77,18 +95,6 @@ function mapMenuTree(menus: SysMenu[]): Array<{ title: string; key: number; chil
 async function loadMenus() {
   const { data } = await fetchMenuTree()
   menuTree.value = data
-}
-
-async function loadData() {
-  loading.value = true
-  try {
-    const { data } = await fetchRoles()
-    dataSource.value = data
-  } catch (error) {
-    message.error(getErrorMessage(error, '加载角色列表失败'))
-  } finally {
-    loading.value = false
-  }
 }
 
 function resetQuery() {
@@ -144,55 +150,16 @@ async function handleSubmit() {
 }
 
 function handleDelete(record: SysRole) {
-  Modal.confirm({
+  confirmDelete({
     title: '删除角色',
     content: `确定删除角色「${record.name}」吗？`,
-    okType: 'danger',
-    onOk: async () => {
+    successMessage: '角色已删除',
+    errorMessage: '删除失败',
+    onDelete: async () => {
       await deleteRole(record.id)
-      message.success('角色已删除')
-      await loadData()
     },
+    onSuccess: loadData,
   })
-}
-
-async function handleExport() {
-  exporting.value = true
-  try {
-    const blob = await exportRoles()
-    downloadBlob(blob, '角色列表.xlsx')
-  } catch (error) {
-    message.error(getErrorMessage(error, '导出失败'))
-  } finally {
-    exporting.value = false
-  }
-}
-
-async function handleDownloadTemplate() {
-  try {
-    const blob = await downloadRoleImportTemplate()
-    downloadBlob(blob, '角色导入模板.xlsx')
-  } catch (error) {
-    message.error(getErrorMessage(error, '下载模板失败'))
-  }
-}
-
-async function handleImport(file: File) {
-  importing.value = true
-  try {
-    const result = await importRoles(file)
-    if (result.failCount > 0) {
-      message.warning(`导入完成：成功 ${result.successCount} 条，失败 ${result.failCount} 条`)
-    } else {
-      message.success(`导入成功 ${result.successCount} 条`)
-    }
-    await loadData()
-  } catch (error) {
-    message.error(getErrorMessage(error, '导入失败'))
-  } finally {
-    importing.value = false
-  }
-  return false
 }
 
 onMounted(async () => {
@@ -226,24 +193,17 @@ onMounted(async () => {
       </a-form>
     </div>
 
-    <div class="action-bar">
-      <a-space>
-        <a-button v-if="canWrite()" type="primary" class="btn-add" @click="openCreate">
-          <PlusOutlined />新增
-        </a-button>
-        <a-button type="primary" :loading="exporting" @click="handleExport">
-          <DownloadOutlined />导出
-        </a-button>
-        <template v-if="canWrite()">
-          <a-upload :show-upload-list="false" :before-upload="handleImport" accept=".xlsx,.xls">
-            <a-button type="primary" :loading="importing">
-              <UploadOutlined />导入
-            </a-button>
-          </a-upload>
-          <a-button type="link" @click="handleDownloadTemplate">下载模板</a-button>
-        </template>
-      </a-space>
-    </div>
+    <CrudToolbar
+      create-green
+      export-icon="download"
+      :can-write="canWrite"
+      :importing="importing"
+      :exporting="exporting"
+      @create="openCreate"
+      @export="handleExport"
+      @import="handleImport"
+      @download-template="handleDownloadTemplate"
+    />
 
     <a-table row-key="id" :columns="columns" :data-source="filteredData" :loading="loading" :pagination="false">
       <template #bodyCell="{ column, record }">
@@ -255,7 +215,7 @@ onMounted(async () => {
         <template v-else-if="column.key === 'actions'">
           <a-space>
             <a-button type="link" size="small" @click="openView(record as SysRole)">查看</a-button>
-            <template v-if="canWrite()">
+            <template v-if="canWrite">
               <a-button type="link" size="small" @click="openEdit(record as SysRole)">编辑</a-button>
               <a-button
                 v-if="!['ADMIN', 'USER'].includes((record as SysRole).code)"
@@ -337,20 +297,6 @@ onMounted(async () => {
 
 .toolbar {
   margin-bottom: 12px;
-}
-
-.action-bar {
-  margin-bottom: 12px;
-}
-
-.btn-add {
-  background: #52c41a;
-  border-color: #52c41a;
-}
-
-.btn-add:hover {
-  background: #73d13d;
-  border-color: #73d13d;
 }
 
 .drawer-tree {

@@ -1,0 +1,8 @@
+package com.storage.exception;
+
+public class WarehouseBinNotFoundException extends RuntimeException {
+
+    public WarehouseBinNotFoundException(Long id) {
+        super("Bin位不存在: " + id);
+    }
+}

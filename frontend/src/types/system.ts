@@ -91,4 +91,5 @@ export interface RegisterRequest {
   username: string
   password: string
   displayName: string
+  email?: string
 }

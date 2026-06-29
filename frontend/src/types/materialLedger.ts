@@ -1,4 +1,4 @@
-export type { PageResult } from '@/types/common'
+export type { ImportResult, PageResult } from '@/types/common'
 
 export interface MaterialLedger {
   id: number
@@ -52,8 +52,12 @@ export interface FilterOptions {
   binLocations: string[]
 }
 
-export interface ImportResult {
-  successCount: number
-  failCount: number
-  errors: Array<{ row: number; message: string }>
+export interface BomCatalogItem {
+  id: number
+  category: string
+  genericName: string
+  brand: string | null
+  name: string
+  displayLabel: string
 }
+

@@ -28,6 +28,8 @@ public class MaterialLedgerImportService {
 
     private final MaterialLedgerMapper materialLedgerMapper;
     private final MaterialLedgerConverter materialLedgerConverter;
+    private final WarehouseBinService warehouseBinService;
+    private final WarehouseBomService warehouseBomService;
 
     public ImportResultVO importExcel(MultipartFile file) throws IOException {
         if (file == null || file.isEmpty()) {
@@ -59,6 +61,9 @@ public class MaterialLedgerImportService {
                 try {
                     MaterialSaveDTO dto = parseRow(row);
                     validateDto(dto);
+                    warehouseBinService.assertBinExists(dto.getBinLocation());
+                    warehouseBomService.assertCatalogExists(
+                            dto.getCategory(), dto.getGenericName(), dto.getBrand(), dto.getName());
                     MaterialLedger entity = materialLedgerConverter.toNewEntity(dto);
                     materialLedgerMapper.insert(entity);
                     result.setSuccessCount(result.getSuccessCount() + 1);

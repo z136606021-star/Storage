@@ -72,4 +72,26 @@ public final class MaterialLedgerQueryBuilder {
   public static boolean isFilterValue(String value) {
     return StringUtils.hasText(value) && !ALL.equals(value);
   }
+
+  public static LambdaQueryWrapper<MaterialLedger> byNaturalKey(
+      String category,
+      String genericName,
+      String brand,
+      String name,
+      String model,
+      String binLocation
+  ) {
+    LambdaQueryWrapper<MaterialLedger> wrapper = Wrappers.lambdaQuery();
+    wrapper.eq(MaterialLedger::getCategory, category.trim())
+        .eq(MaterialLedger::getGenericName, genericName.trim())
+        .eq(MaterialLedger::getName, name.trim())
+        .eq(MaterialLedger::getModel, model.trim())
+        .eq(MaterialLedger::getBinLocation, binLocation.trim());
+    if (StringUtils.hasText(brand)) {
+      wrapper.eq(MaterialLedger::getBrand, brand.trim());
+    } else {
+      wrapper.and(w -> w.isNull(MaterialLedger::getBrand).or().eq(MaterialLedger::getBrand, ""));
+    }
+    return wrapper;
+  }
 }

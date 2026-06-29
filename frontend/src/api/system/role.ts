@@ -1,5 +1,5 @@
 import { http } from '@/api/http'
-import type { ImportResult } from '@/types/materialLedger'
+import type { ImportResult } from '@/types/common'
 import type { SysRole, SysRoleSave } from '@/types/system'
 
 export function fetchRoles() {
