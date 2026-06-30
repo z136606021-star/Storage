@@ -98,13 +98,13 @@
 ### 环境变量门禁
 
 - 连接串、端口、密钥、桶名等**禁止硬编码**在 Java / TypeScript / Vue 业务代码中。
-- SSOT：根目录 [`.env.example`](.env.example)（模板）+ [`scripts/worktree-db.ps1`](scripts/worktree-db.ps1)（分支 MySQL/MinIO 端口；保留已有数据库/MinIO 凭据、`BACKEND_PORT` / `FRONTEND_PORT` / `VITE_API_PROXY` / `CORS_ALLOWED_ORIGINS` / `SESSION_COOKIE_*` / `RESET_ADMIN_PASSWORD_ON_STARTUP` / `UPLOAD_*` / `APP_PUBLIC_BASE_URL` / `MAIL_*` / `PASSWORD_RESET_TOKEN_TTL_MINUTES`）+ [`application.yml`](backend/src/main/resources/application.yml)（`${VAR:default}` 占位）+ [`vite.config.ts`](frontend/vite.config.ts)（读根目录 `.env` 的 `VITE_API_PROXY` / `FRONTEND_PORT`）。
+- SSOT：根目录 [`.env.example`](.env.example)（模板）+ [`scripts/worktree-db.ps1`](scripts/worktree-db.ps1) / [`scripts/worktree-db.sh`](scripts/worktree-db.sh)（分支 MySQL/MinIO 端口；保留已有数据库/MinIO 凭据、`BACKEND_PORT` / `FRONTEND_PORT` / `VITE_API_PROXY` / `CORS_ALLOWED_ORIGINS` / `SESSION_COOKIE_*` / `RESET_ADMIN_PASSWORD_ON_STARTUP` / `UPLOAD_*` / `APP_PUBLIC_BASE_URL` / `MAIL_*` / `PASSWORD_RESET_TOKEN_TTL_MINUTES`）+ [`application.yml`](backend/src/main/resources/application.yml)（`${VAR:default}` 占位）+ [`vite.config.ts`](frontend/vite.config.ts)（读根目录 `.env` 的 `VITE_API_PROXY` / `FRONTEND_PORT`）。
 - 新增配置项：先扩展 `.env.example` 与 `Format-WorktreeEnvContent`，再在 `application.yml` / `vite.config.ts` / 脚本中引用；默认值仅作本地 fallback。
 - 禁止在代码或文档中维护与 worktree 注册表不一致的另一套连接信息。
 - 脚本内访问 MySQL 必须读取 `MYSQL_USER` / `MYSQL_PASSWORD` / `MYSQL_DB`，禁止写死 `-pstorage123` 或明文密码参数。
 - `docker-compose.yml` 必须读取 `.env` 中的 `MYSQL_*` / `MINIO_*`；healthcheck 禁止硬编码密码参数。
 - `CORS_ALLOWED_ORIGINS` 必须随 `FRONTEND_PORT` 或本地前端域名同步，禁止在 Java 配置中写死 5173。
-- `start-dev.ps1` 后端窗口须显式注入后端运行所需环境变量（数据库、MinIO、CORS、Session、admin 初始化、上传、邮件与密码重置），避免子进程遗漏 `.env` 配置。
+- `start-dev.ps1` / `start-dev.sh` 后端进程须显式注入后端运行所需环境变量（数据库、MinIO、CORS、Session、admin 初始化、上传、邮件与密码重置），避免子进程遗漏 `.env` 配置。
 
 ### 数据库迁移门禁
 
@@ -115,11 +115,11 @@
 
 ### 推荐日常开发拓扑
 
-- **基础设施**：`.\scripts\sync-worktree-env.ps1` → `docker compose --env-file .env up -d`（仅 MySQL + MinIO）
+- **基础设施**：Windows `.\scripts\sync-worktree-env.ps1` / Linux/macOS `./scripts/sync-worktree-env.sh` → `docker compose --env-file .env up -d`（仅 MySQL + MinIO）
 - **后端调试**：IntelliJ IDEA **Debug** 启动 `com.storage.StorageApplication`（读根目录 `.env` 或 Run Configuration 环境变量）
 - **前端**：`cd frontend && npm run dev`（Vite 代理至 `VITE_API_PROXY`）
-- [`dev-up.ps1`](scripts/dev-up.ps1) / [`start-dev.ps1`](scripts/start-dev.ps1) 适用于快速冒烟；脚本端口读取 `.env` 的 `BACKEND_PORT` / `FRONTEND_PORT`；**功能开发与排错优先 IDEA 断点**，非每次 `mvn package` 进容器
-- [`start-dev.ps1`](scripts/start-dev.ps1) 会跳过 IntelliJ 父进程上的 Java/node；**IDEA Debug 运行后端时勿用 dev-up 重启后端**
+- [`dev-up.ps1`](scripts/dev-up.ps1) / [`dev-up.sh`](scripts/dev-up.sh) 与 [`start-dev.ps1`](scripts/start-dev.ps1) / [`start-dev.sh`](scripts/start-dev.sh) 适用于快速冒烟；脚本端口读取 `.env` 的 `BACKEND_PORT` / `FRONTEND_PORT`；**功能开发与排错优先 IDEA 断点**，非每次 `mvn package` 进容器
+- **IDEA Debug 运行后端时勿用 dev-up 重启后端**，避免重复启动占端口
 
 ### 前后端表单校验（Postman 须绕不过）
 
@@ -157,7 +157,7 @@
 - 不得仅写前端 `rules` 而省略后端校验与集成测试。
 - 不得用「打包进容器再测」替代本地 IDEA 单步调试说明。
 - 改 Service / Controller 后须在说明中写明断点位置和测试用例/请求如何验证。
-- 新增配置或端口时须说明 `.env.example`、`worktree-db.ps1`、`application.yml`、`vite.config.ts` / 启动脚本是否同步，避免只改一处。
+- 新增配置或端口时须说明 `.env.example`、`worktree-db.ps1` / `worktree-db.sh`、`application.yml`、`vite.config.ts` / 启动脚本是否同步，避免只改一处。
 
 ### 安全与生产部署门禁
 
@@ -277,7 +277,7 @@ flowchart TD
 
 1. **先说明复用结论**：开始编码前，用一两句话说明「复用了哪些现有模块」或「为何需要新建模块」；**仓库域 CRUD 须对照 `MaterialLedgerView` 并满足 20% 差异门禁**。
 2. **新建公共模块时同步文档**：在「目录结构」与本文件记录其用途、边界、调用方。
-3. **Worktree 并行开发**：公共能力优先合入 `main`，各功能分支通过 `git merge origin/main` 同步，不在多个分支各自维护一份相同公共代码。当前 worktree：`main`（`E:/Storage`）、`feat/material-ledger`（`E:/Storage-worktrees/material-ledger`）、`feat/material-io`、`feat/safety-stock`、`feat/config-mgmt`（`E:/Storage-worktrees/config-mgmt`）。**切换 worktree 或分支后必须先执行 `scripts/sync-worktree-env.ps1`**，确认 MySQL 端口与当前分支一致后再启 Docker / 后端。
+3. **Worktree 并行开发**：公共能力优先合入 `main`，各功能分支通过 `git merge origin/main` 同步，不在多个分支各自维护一份相同公共代码。当前 worktree：`main`（`E:/Storage`）、`feat/material-ledger`（`E:/Storage-worktrees/material-ledger`）、`feat/material-io`、`feat/safety-stock`、`feat/config-mgmt`（`E:/Storage-worktrees/config-mgmt`）。**切换 worktree 或分支后必须先执行 `scripts/sync-worktree-env.ps1`（Windows）或 `scripts/sync-worktree-env.sh`（Linux/macOS/Git Bash）**，确认 MySQL 端口与当前分支一致后再启 Docker / 后端。
 4. **重构优先于堆叠**：发现重复实现时，优先抽取再扩展，而非再写第三份副本。
 
 ### 协作与 AI 使用原则
@@ -293,7 +293,7 @@ flowchart TD
 
 ### Worktree 数据库隔离
 
-各 worktree 拥有**独立的 MySQL / MinIO 端口、容器名与 Docker 数据卷**；逻辑库名均为 `storage`，隔离靠端口 + 卷。注册表 SSOT：[`scripts/worktree-db.ps1`](scripts/worktree-db.ps1)。
+各 worktree 拥有**独立的 MySQL / MinIO 端口、容器名与 Docker 数据卷**；逻辑库名均为 `storage`，隔离靠端口 + 卷。注册表 SSOT：[`scripts/worktree-db.ps1`](scripts/worktree-db.ps1) / [`scripts/worktree-db.sh`](scripts/worktree-db.sh)。
 
 | 分支 | Worktree | MySQL | MinIO API | Compose 项目 |
 |------|----------|-------|-----------|--------------|
@@ -308,14 +308,25 @@ flowchart TD
 ```powershell
 cd E:\Storage-worktrees\material-io
 git checkout feat/material-io
-.\scripts\dev-up.ps1                      # 推荐：一键 sync + docker + 前后端
+.\scripts\dev-up.ps1                      # Windows：一键 sync + docker + 前后端
 # 或分步：
 .\scripts\sync-worktree-env.ps1
 docker compose --env-file .env up -d
 .\scripts\start-dev.ps1
 ```
 
-`start-dev.ps1` / `reset-db.ps1` 启动时会自动 sync；手动改分支后建议显式执行一次 `sync-worktree-env.ps1`。
+Linux / macOS / Git Bash：
+
+```bash
+chmod +x scripts/*.sh
+./scripts/dev-up.sh                       # 一键 sync + docker + 前后端
+# 或分步：
+./scripts/sync-worktree-env.sh
+docker compose --env-file .env up -d
+./scripts/start-dev.sh
+```
+
+`start-dev.ps1` / `start-dev.sh` / `reset-db.ps1` / `reset-db.sh` 启动时会自动 sync；手动改分支后建议显式执行一次 `sync-worktree-env`。
 
 #### 隔离原则
 
@@ -323,40 +334,40 @@ docker compose --env-file .env up -d
 - **在哪个分支写代码，就用哪个分支的 `.env` 与端口**；禁止用 main 的 3307 卷测试 feature 分支代码。
 - **禁止**在未确认目录/分支时对 `docker compose down -v`（会删错卷）。
 - **禁止**把 A 分支 mysqldump 导入 B 分支端口（除非明确在做数据迁移）。
-- `.env` 不入库；端口分配只改 `worktree-db.ps1` 一处。
+- `.env` 不入库；端口分配须同步 `worktree-db.ps1` 与 `worktree-db.sh`。
 
 #### Git 合并时（不能弄混）
 
 | 场景 | 正确做法 |
 |------|----------|
 | feature 新增 `migration-*.sql` | 脚本保持幂等（`IF NOT EXISTS` / `INSERT IGNORE` / UPDATE 修复中文）；合并后各 worktree **各自重启后端**，迁移只作用于**本卷** |
-| 修改 `schema.sql` 种子 | 只影响**新初始化**的空卷；已有卷靠 migration 或 `reset-db.ps1` |
+| 修改 `schema.sql` 种子 | 只影响**新初始化**的空卷；已有卷靠 migration 或 `reset-db.ps1` / `reset-db.sh` |
 | `main` 合并进 feature | 先 `git merge`，再 `sync-worktree-env`，再启后端；不要用 main 的 Docker 卷测 feature |
 | PR / 代理说明 | 若变更 DB 结构，注明「各 worktree 需重启后端；是否需 reset-db 由开发者自判」 |
 | 代理执行 | 在 feature worktree 开发时连接该分支注册端口；合入 main 时在 **main 目录**验证，不跨端口读库 |
 
 #### 一次性迁移说明
 
-从旧版共用 `material-ledger-*` 容器 / `storage_mysql_data` 卷迁移时：运行 `scripts/cleanup-legacy-docker.ps1`，再执行 `sync-worktree-env` + `docker compose --env-file .env up -d` 创建 `storage-{slug}_*` 新卷。若需保留 main 现有数据，迁移前先 `mysqldump` 备份再导入新 `storage-main-mysql` 容器。
+从旧版共用 `material-ledger-*` 容器 / `storage_mysql_data` 卷迁移时：Windows 运行 `scripts/cleanup-legacy-docker.ps1`，再执行 `sync-worktree-env` + `docker compose --env-file .env up -d` 创建 `storage-{slug}_*` 新卷。若需保留 main 现有数据，迁移前先 `mysqldump` 备份再导入新 `storage-main-mysql` 容器。
 
 ### 第八期 DevX
 
-日常开发优先使用 [`scripts/dev-up.ps1`](scripts/dev-up.ps1) / [`dev-up.cmd`](dev-up.cmd)（sync + Docker + wait MySQL + start-dev）。
+日常开发优先使用 Windows [`scripts/dev-up.ps1`](scripts/dev-up.ps1) / [`dev-up.cmd`](dev-up.cmd)，或 Linux/macOS [`scripts/dev-up.sh`](scripts/dev-up.sh)（sync + Docker + wait MySQL + start-dev）。
 
 | 脚本 | 用途 |
 |------|------|
-| `dev-up.ps1` | 一键启动完整开发环境 |
-| `health-check.ps1` | 只读自检（分支、.env、容器、中文、前后端）；退出码 0/1 |
-| `cleanup-legacy-docker.ps1` | 清理第七期前 `material-ledger-*` 遗留容器 |
-| `wait-mysql.ps1` | 轮询 MySQL 端口与 `SELECT 1`，供 dev-up/reset-db 复用 |
-| `sync-worktree-env.ps1` | 按分支生成本地 `.env` |
-| `start-dev.ps1` | 启动后端 + 前端（自动 sync，可选联动 Docker） |
-| `reset-db.ps1` | 重置当前 worktree Docker 数据卷并重建数据库 |
+| `dev-up.ps1` / `dev-up.sh` | 一键启动完整开发环境 |
+| `health-check.ps1` / `health-check.sh` | 只读自检（分支、.env、容器、中文、前后端）；退出码 0/1 |
+| `cleanup-legacy-docker.ps1` / `cleanup-legacy-docker.sh` | 清理第七期前 `material-ledger-*` 遗留容器 |
+| `wait-mysql.ps1` / `wait-mysql.sh` | 轮询 MySQL `SELECT 1`，供 dev-up/reset-db 复用 |
+| `sync-worktree-env.ps1` / `sync-worktree-env.sh` | 按分支生成本地 `.env` |
+| `start-dev.ps1` / `start-dev.sh` | 启动后端 + 前端（自动 sync，可选联动 Docker） |
+| `reset-db.ps1` / `reset-db.sh` | 重置当前 worktree Docker 数据卷并重建数据库 |
 
 **代理执行要求（DevX）**：
 
 - 切换 worktree 或启动开发环境前，建议先跑 `health-check.ps1`；失败时先排查，**不要**擅自 `docker compose down -v`。
-- 物料台账中文乱码：重启后端触发 `migration-fix-chinese-data.sql`（含 `material_ledger` 幂等 UPDATE）；仍异常再用 `reset-db.ps1`。
+- 物料台账中文乱码：重启后端触发 `migration-fix-chinese-data.sql`（含 `material_ledger` 幂等 UPDATE）；仍异常再用 `reset-db.ps1` / `reset-db.sh`。
 - 遇端口占用且存在 `material-ledger-*`：先 `cleanup-legacy-docker.ps1`，再 `dev-up`。
 
 ## 目录结构
@@ -448,14 +459,14 @@ Storage/
 ├── docker-compose.yml        # MySQL 8 + MinIO（端口/凭据/卷由 .env 参数化，含 healthcheck）
 ├── dev-up.cmd                # 一键环境 + 前后端（第八期推荐入口）
 ├── scripts/
-│   ├── worktree-db.ps1       # Worktree 分支→端口/容器/卷注册表（SSOT）
-│   ├── sync-worktree-env.ps1 # 按当前分支生成本地 .env
-│   ├── dev-up.ps1            # sync + docker + wait-mysql + start-dev
-│   ├── health-check.ps1      # 开发环境只读自检
-│   ├── cleanup-legacy-docker.ps1 # 清理 material-ledger-* 遗留容器
-│   ├── wait-mysql.ps1        # MySQL 就绪轮询
-│   ├── start-dev.ps1         # 启动前后端（自动 sync + 注入 DB 环境变量）
-│   └── reset-db.ps1          # 重置当前 worktree 的 Docker 卷
+│   ├── worktree-db.ps1/.sh   # Worktree 分支→端口/容器/卷注册表（SSOT）
+│   ├── sync-worktree-env.ps1/.sh # 按当前分支生成本地 .env
+│   ├── dev-up.ps1/.sh        # sync + docker + wait-mysql + start-dev
+│   ├── health-check.ps1/.sh  # 开发环境只读自检
+│   ├── cleanup-legacy-docker.ps1/.sh # 清理 material-ledger-* 遗留容器
+│   ├── wait-mysql.ps1/.sh    # MySQL 就绪轮询
+│   ├── start-dev.ps1/.sh     # 启动前后端（自动 sync + 注入 DB 环境变量）
+│   └── reset-db.ps1/.sh      # 重置当前 worktree 的 Docker 卷
 ├── .env.example
 ├── AGENTS.md
 └── README.md
@@ -510,3 +521,4 @@ Storage/
 | 2026-06-30 | 第三十一期模块复用复查与废弃物清理：复核仓库/系统同类列表页公共层复用，移除未引用 `_shared/warehouseListScaffold.ts` 注释脚手架，文档改记录真实公共模块 |
 | 2026-06-30 | 第三十二期安全门禁复查与上传加固：复核环境变量、CORS、Session、忘记密码、迁移脚本与敏感信息门禁；文件上传增加 JPG/PNG/WebP/GIF 魔数校验 |
 | 2026-06-30 | 第三十三期系统环境变量一致性审核：核对 `.env.example` 与 `Format-WorktreeEnvContent` 变量清单一致；`start-dev.ps1` 显式注入 Session/Admin/Upload/Mail/PasswordReset 环境变量；补齐文档 SSOT |
+| 2026-06-30 | 第三十四期跨平台 DevX：补齐 Linux/macOS/Git Bash 版 `worktree-db.sh`、`sync-worktree-env.sh`、`dev-up.sh`、`start-dev.sh`、`wait-mysql.sh`、`reset-db.sh`、`health-check.sh`、`cleanup-legacy-docker.sh`，README/AGENTS 同步双平台启动入口 |

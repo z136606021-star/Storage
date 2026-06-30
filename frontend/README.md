@@ -21,7 +21,7 @@ npm run build
 
 - 开发代理读取根目录 `.env` 中的 `VITE_API_PROXY`
 - Vite 开发端口读取根目录 `.env` 中的 `FRONTEND_PORT`
-- `.env` 由 `scripts/sync-worktree-env.ps1` 维护，切换分支/worktree 后需先执行同步
+- `.env` 由根目录 `scripts/sync-worktree-env.ps1`（Windows）或 `scripts/sync-worktree-env.sh`（Linux/macOS/Git Bash）维护，切换分支/worktree 后需先执行同步
 
 ## 文档入口
 

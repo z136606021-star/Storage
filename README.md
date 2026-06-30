@@ -15,9 +15,18 @@
 
 ## 快速启动
 
-### 推荐：一键启动（Windows，第八期 DevX）
+### 推荐：一键启动（跨平台，第八期 DevX）
 
 需已安装 Docker、Java 17+、Maven、Node.js 20+。在项目根目录：
+
+Linux / macOS / Git Bash：
+
+```bash
+chmod +x scripts/*.sh
+./scripts/dev-up.sh
+```
+
+Windows PowerShell：
 
 ```powershell
 .\scripts\dev-up.ps1
@@ -30,6 +39,8 @@
 - `-ResetDb`：先重置当前 worktree 数据库卷再启动
 - `-SkipDocker`：跳过 Docker（数据库已运行时）
 - `-Install`：强制执行 `npm install`
+
+Bash 版参数名为 `--reset-db` / `--skip-docker` / `--install` / `--no-kill`。
 
 环境自检：
 
@@ -54,13 +65,21 @@
 docker compose --env-file .env up -d
 ```
 
+Linux / macOS / Git Bash 等价命令：
+
+```bash
+chmod +x scripts/*.sh
+./scripts/sync-worktree-env.sh
+docker compose --env-file .env up -d
+```
+
 若本机 PowerShell 执行策略阻止 `.ps1`，可使用：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\sync-worktree-env.ps1
 ```
 
-`sync-worktree-env.ps1` 会根据**当前 git 分支**生成本地 `.env`（不入库），为各 worktree 分配独立端口、容器名与数据卷。
+`sync-worktree-env.ps1` / `sync-worktree-env.sh` 会根据**当前 git 分支**生成本地 `.env`（不入库），为各 worktree 分配独立端口、容器名与数据卷。
 
 将自动创建 `storage` 数据库并导入 [backend/src/main/resources/db/schema.sql](backend/src/main/resources/db/schema.sql) 中的表结构与种子数据。
 
@@ -74,12 +93,18 @@ powershell -ExecutionPolicy Bypass -File .\scripts\sync-worktree-env.ps1
 | `feat/safety-stock` | `E:/Storage-worktrees/safety-stock` | **3310** | 9030 | 9031 |
 | `feat/config-mgmt` | `E:/Storage-worktrees/config-mgmt` | **3311** | 9040 | 9041 |
 
-切换 worktree 或分支后务必先执行 `sync-worktree-env.ps1`，再 `docker compose --env-file .env up -d`。详见 [AGENTS.md](AGENTS.md)「Worktree 数据库隔离」。
+切换 worktree 或分支后务必先执行 `sync-worktree-env.ps1`（Windows）或 `sync-worktree-env.sh`（Linux/macOS/Git Bash），再 `docker compose --env-file .env up -d`。详见 [AGENTS.md](AGENTS.md)「Worktree 数据库隔离」。
 
 若修改了种子数据或表结构（如鉴权表），需重建**当前 worktree** 的数据库卷后重新导入：
 
 ```powershell
 .\scripts\reset-db.ps1
+```
+
+Linux / macOS / Git Bash：
+
+```bash
+./scripts/reset-db.sh
 ```
 
 或手动：
@@ -91,14 +116,12 @@ docker compose --env-file .env up -d
 
 已有物料数据、仅需补齐鉴权/系统管理表时，后端启动时会自动执行 `db/migration-*.sql`（条件 DDL + `INSERT IGNORE` + 中文数据修复）。迁移脚本须为 **UTF-8** 编码；`application.yml` 已配置 `spring.sql.init.encoding=UTF-8`，且 `continue-on-error=false`，迁移失败会阻断启动以避免静默漏表/漏列。
 
-Windows 也可执行 [scripts/reset-db.ps1](scripts/reset-db.ps1)。
-
 默认连接信息见 [.env.example](.env.example)（main 分支示例）：
 
 - MySQL: `localhost:3307` / `storage` / `storage` / `storage123`
 - MinIO API: `http://localhost:9000`（控制台 `http://localhost:9001`，`minioadmin` / `minioadmin123`）
 
-其他 worktree 端口见上表；以 `.\scripts\sync-worktree-env.ps1` 生成的 `.env` 为准。
+其他 worktree 端口见上表；以 `scripts/sync-worktree-env.ps1` 或 `scripts/sync-worktree-env.sh` 生成的 `.env` 为准。
 
 应用端口（各 worktree 通常相同，见 `.env`）：
 
@@ -107,7 +130,7 @@ Windows 也可执行 [scripts/reset-db.ps1](scripts/reset-db.ps1)。
 - `VITE_API_PROXY`：前端 `/api` 代理目标（默认 `http://localhost:8080`）
 - `CORS_ALLOWED_ORIGINS`：后端允许的前端来源（默认跟随 `FRONTEND_PORT`）
 
-`sync-worktree-env.ps1` 会按分支重写 MySQL/MinIO 端口、容器名和卷名，但会保留已有 `.env` 或当前进程中的数据库/MinIO 凭据、`BACKEND_PORT` / `FRONTEND_PORT` / `VITE_API_PROXY` / `CORS_ALLOWED_ORIGINS` / `SESSION_COOKIE_*` / `RESET_ADMIN_PASSWORD_ON_STARTUP` / `UPLOAD_*` / `APP_PUBLIC_BASE_URL` / `PASSWORD_RESET_TOKEN_TTL_MINUTES` / `MAIL_*`，便于本地避开端口冲突和使用自定义本地密码。
+`sync-worktree-env.ps1` / `sync-worktree-env.sh` 会按分支重写 MySQL/MinIO 端口、容器名和卷名，但会保留已有 `.env` 或当前进程中的数据库/MinIO 凭据、`BACKEND_PORT` / `FRONTEND_PORT` / `VITE_API_PROXY` / `CORS_ALLOWED_ORIGINS` / `SESSION_COOKIE_*` / `RESET_ADMIN_PASSWORD_ON_STARTUP` / `UPLOAD_*` / `APP_PUBLIC_BASE_URL` / `PASSWORD_RESET_TOKEN_TTL_MINUTES` / `MAIL_*`，便于本地避开端口冲突和使用自定义本地密码。
 
 ### 2. 启动后端
 
@@ -115,7 +138,7 @@ Windows 也可执行 [scripts/reset-db.ps1](scripts/reset-db.ps1)。
 
 功能开发与排错**优先**在 IDEA 中单步调试，而非每次 `mvn package` 进容器或仅靠 `mvn spring-boot:run` 看日志。
 
-1. 确保 Docker 已运行：`.\scripts\sync-worktree-env.ps1` → `docker compose --env-file .env up -d`
+1. 确保 Docker 已运行：`.\scripts\sync-worktree-env.ps1` 或 `./scripts/sync-worktree-env.sh` → `docker compose --env-file .env up -d`
 2. IDEA 打开 `backend` 模块，新建 **Spring Boot** Run/Debug Configuration：
    - Main class：`com.storage.StorageApplication`
    - Working directory：`backend` 目录
@@ -125,7 +148,7 @@ Windows 也可执行 [scripts/reset-db.ps1](scripts/reset-db.ps1)。
 5. 另开终端：`cd frontend && npm run dev`
 6. 浏览器或 Postman 复现请求，单步跟进
 
-**注意**：IDEA Debug 运行后端时，勿执行 `dev-up.ps1` / `start-dev.ps1` 重启后端——脚本会识别 IntelliJ 进程并跳过，但重复启动仍可能占端口。
+**注意**：IDEA Debug 运行后端时，勿执行 `dev-up` / `start-dev` 脚本重启后端，避免重复启动占端口。
 
 #### 备选：命令行启动
 
@@ -181,7 +204,13 @@ npm run dev
 powershell -ExecutionPolicy Bypass -File .\scripts\start-dev.ps1
 ```
 
-将分别打开两个终端窗口运行后端与前端，端口读取 `.env` 的 `BACKEND_PORT` / `FRONTEND_PORT`。**脚本会先等待后端就绪，再启动前端**，避免登录时 `ECONNREFUSED`。
+Linux / macOS / Git Bash：
+
+```bash
+./scripts/start-dev.sh
+```
+
+Windows 版会分别打开两个终端窗口运行后端与前端；Bash 版会在当前终端运行后端、后台运行前端并在退出时收尾。端口读取 `.env` 的 `BACKEND_PORT` / `FRONTEND_PORT`。
 
 **端口冲突**：若 `.env` 中配置的应用端口已被本项目的 `mvn spring-boot:run` 或 `npm run dev` 占用，脚本会**自动结束旧进程**后再启动，无需手动 `taskkill`。改过后端代码后，直接重新运行此脚本即可加载新代码。若端口被其他程序占用，脚本会报错并提示手动处理；也可先改 `.env` 的 `BACKEND_PORT` / `FRONTEND_PORT` / `VITE_API_PROXY` 再运行脚本。
 
@@ -191,7 +220,9 @@ powershell -ExecutionPolicy Bypass -File .\scripts\start-dev.ps1
 - `-WithDocker`：同时执行 `docker compose --env-file .env up -d` 并等待 MySQL 就绪
 - `-NoKill`：端口被占用时仅警告，不自动结束进程
 
-`start-dev.ps1` 会将 `.env` 中的数据库、MinIO、CORS、Session、admin 初始化、上传、邮件与密码重置变量显式注入后端窗口，避免子进程遗漏本地配置。
+Bash 版参数名为 `--install` / `--with-docker` / `--no-kill`。
+
+`start-dev.ps1` / `start-dev.sh` 会将 `.env` 中的数据库、MinIO、CORS、Session、admin 初始化、上传、邮件与密码重置变量显式注入后端进程，避免子进程遗漏本地配置。
 
 ### 手动测试文件上传（MinIO）
 
@@ -247,6 +278,7 @@ curl -X POST http://localhost:8080/api/files/upload \
 - [x] **第三十期忘记密码邮件链接重置**：Google SMTP 环境变量预留、`password_reset_token`、`POST /api/auth/reset-password`、登录页 `?tab=reset&token=...`
 - [x] **第二十七期差距收敛**：文档与客户占位表述同步、台账路由读权限、注册可选邮箱 + admin 种子邮箱、库存统计 `recentDays` 选择器、台账/Bin/客户 import 集成测试、GitHub Actions CI
 - [x] **第二十八期开发与调试规范**：环境变量门禁、IDEA 断点工作流、前后端双端校验 checklist、启动脚本端口参数化
+- [x] **第三十四期跨平台 DevX**：补齐 Linux/macOS/Git Bash 版 `dev-up.sh` / `start-dev.sh` / `sync-worktree-env.sh` / `wait-mysql.sh` / `reset-db.sh` / `health-check.sh` / `cleanup-legacy-docker.sh`
 - [x] **第二十九期质量门禁与安全加固**：Docker/CORS 凭据参数化、迁移 fail-fast + 条件 DDL、忘记密码统一提示与限流、Auth Controller 集成测试、CI 增加前端 build、路由懒加载 + AntD 按需导入
 - [x] **第三十一期模块复用复查与废弃物清理**：复核仓库/系统同类列表页仍复用公共 CRUD/composable/utils 层，清理未引用脚手架注释文件与 Vite 模板残留
 - [x] **第三十二期安全门禁复查与上传加固**：复核环境变量、CORS、Session、忘记密码、迁移脚本与敏感信息门禁；上传增加图片魔数校验
