@@ -1,30 +1,21 @@
 import type { RouteRecordRaw } from 'vue-router'
 
-import AppLayout from '@/layouts/AppLayout.vue'
-
-import LoginView from '@/views/auth/LoginView.vue'
-
-import MaterialLedgerView from '@/views/material-ledger/MaterialLedgerView.vue'
-
-import MaterialIoView from '@/views/warehouse/MaterialIoView.vue'
-import InventoryStatsView from '@/views/warehouse/InventoryStatsView.vue'
-import SafetyStockView from '@/views/warehouse/SafetyStockView.vue'
-import BinManageView from '@/views/warehouse/config/BinManageView.vue'
-import BomManageView from '@/views/warehouse/config/BomManageView.vue'
-
-import ShellPlaceholderView from '@/views/platform/ShellPlaceholderView.vue'
-
-import SystemManageLayout from '@/views/system/SystemManageLayout.vue'
-
-import UserManageView from '@/views/system/UserManageView.vue'
-
-import RoleManagePanel from '@/components/system/RoleManagePanel.vue'
-
-import MenuManagePanel from '@/components/system/MenuManagePanel.vue'
-
-import CustomerManageView from '@/views/system/CustomerManageView.vue'
-
 import { SHELL_ROUTE_REGISTRY } from '@/constants/shellRouteRegistry'
+
+const AppLayout = () => import('@/layouts/AppLayout.vue')
+const LoginView = () => import('@/views/auth/LoginView.vue')
+const MaterialLedgerView = () => import('@/views/material-ledger/MaterialLedgerView.vue')
+const MaterialIoView = () => import('@/views/warehouse/MaterialIoView.vue')
+const InventoryStatsView = () => import('@/views/warehouse/InventoryStatsView.vue')
+const SafetyStockView = () => import('@/views/warehouse/SafetyStockView.vue')
+const BinManageView = () => import('@/views/warehouse/config/BinManageView.vue')
+const BomManageView = () => import('@/views/warehouse/config/BomManageView.vue')
+const ShellPlaceholderView = () => import('@/views/platform/ShellPlaceholderView.vue')
+const SystemManageLayout = () => import('@/views/system/SystemManageLayout.vue')
+const UserManageView = () => import('@/views/system/UserManageView.vue')
+const RoleManagePanel = () => import('@/components/system/RoleManagePanel.vue')
+const MenuManagePanel = () => import('@/components/system/MenuManagePanel.vue')
+const CustomerManageView = () => import('@/views/system/CustomerManageView.vue')
 
 function toChildPath(fullPath: string) {
   return fullPath.replace(/^\//, '')
@@ -230,4 +221,3 @@ export const routes: RouteRecordRaw[] = [
   },
 
 ]
-

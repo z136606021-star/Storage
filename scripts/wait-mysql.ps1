@@ -13,6 +13,12 @@ Set-Location $RepoRoot
 $profile = Get-CurrentBranchProfile -RepoRoot $RepoRoot
 $container = $profile.MysqlContainer
 $port = $profile.MysqlPort
+if (Test-Path -LiteralPath (Join-Path $RepoRoot '.env')) {
+    Import-WorktreeEnvFile -RepoRoot $RepoRoot
+}
+$mysqlUser = if ($env:MYSQL_USER) { $env:MYSQL_USER } else { 'storage' }
+$mysqlPassword = if ($env:MYSQL_PASSWORD) { $env:MYSQL_PASSWORD } else { 'storage123' }
+$mysqlDb = if ($env:MYSQL_DB) { $env:MYSQL_DB } else { 'storage' }
 
 function Test-PortOpen([int]$TargetPort) {
     $conn = Get-NetTCPConnection -LocalPort $TargetPort -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -20,7 +26,12 @@ function Test-PortOpen([int]$TargetPort) {
 }
 
 function Test-MysqlQuery([string]$Sql) {
-    $output = docker exec $container mysql -ustorage -pstorage123 --default-character-set=utf8mb4 storage -N -e $Sql 2>$null
+    $mysqlArgs = @(
+        'exec', '-e', "MYSQL_PWD=$mysqlPassword", $container,
+        'mysql', "-u$mysqlUser", '--default-character-set=utf8mb4',
+        $mysqlDb, '-N', '-e', $Sql
+    )
+    $output = docker @mysqlArgs 2>$null
     return $LASTEXITCODE -eq 0 -and $null -ne $output
 }
 
@@ -35,7 +46,12 @@ while ((Get-Date) -lt $deadline) {
     if ($portReady) {
         $pingReady = Test-MysqlQuery 'SELECT 1'
         if ($pingReady -and $RequireSeedData) {
-            $count = docker exec $container mysql -ustorage -pstorage123 --default-character-set=utf8mb4 storage -N -e 'SELECT COUNT(*) FROM material_ledger;' 2>$null
+            $mysqlArgs = @(
+                'exec', '-e', "MYSQL_PWD=$mysqlPassword", $container,
+                'mysql', "-u$mysqlUser", '--default-character-set=utf8mb4',
+                $mysqlDb, '-N', '-e', 'SELECT COUNT(*) FROM material_ledger;'
+            )
+            $count = docker @mysqlArgs 2>$null
             if ($LASTEXITCODE -eq 0 -and [int]$count -gt 0) {
                 $seedReady = $true
             }

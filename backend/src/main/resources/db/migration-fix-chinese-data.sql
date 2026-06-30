@@ -1,6 +1,4 @@
 -- 修复 Spring SQL init 在 Windows 下以 GBK 读取 UTF-8 脚本导致的中文乱码（幂等 UPDATE）
-USE storage;
-
 SET NAMES utf8mb4;
 
 UPDATE sys_user SET display_name = '系统管理员' WHERE username = 'admin';

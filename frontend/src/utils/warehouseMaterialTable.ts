@@ -18,7 +18,7 @@ const IDENTITY_FIELD_META = [
   { key: 'binLocation', title: 'Bin位' },
 ] as const
 
-type IdentityPreset = 'ledgerList' | 'ioList' | 'picker' | 'batchForm'
+type IdentityPreset = 'ledgerList' | 'ioList' | 'picker' | 'batchForm' | 'statsWarning'
 
 const IDENTITY_WIDTHS: Record<IdentityPreset, Record<string, number>> = {
   ledgerList: {
@@ -46,6 +46,14 @@ const IDENTITY_WIDTHS: Record<IdentityPreset, Record<string, number>> = {
     binLocation: 80,
   },
   batchForm: {
+    category: 90,
+    genericName: 90,
+    brand: 80,
+    name: 120,
+    model: 90,
+    binLocation: 80,
+  },
+  statsWarning: {
     category: 90,
     genericName: 90,
     brand: 80,

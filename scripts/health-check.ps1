@@ -31,6 +31,28 @@ function Test-ContainerRunning([string]$Name) {
     return $status -eq 'true'
 }
 
+function Get-EnvInt([string]$Name, [int]$DefaultValue) {
+    $value = (Get-Item -Path "Env:$Name" -ErrorAction SilentlyContinue).Value
+    if ([string]::IsNullOrWhiteSpace($value)) {
+        return $DefaultValue
+    }
+
+    $parsed = 0
+    if ([int]::TryParse($value, [ref]$parsed)) {
+        return $parsed
+    }
+
+    throw "$Name must be an integer, got '$value'."
+}
+
+function Get-EnvText([string]$Name, [string]$DefaultValue) {
+    $value = (Get-Item -Path "Env:$Name" -ErrorAction SilentlyContinue).Value
+    if ([string]::IsNullOrWhiteSpace($value)) {
+        return $DefaultValue
+    }
+    return $value
+}
+
 Write-Host "Storage dev health check"
 Write-Host "Project root: $RepoRoot"
 Write-Host ""
@@ -51,6 +73,12 @@ $envPath = Join-Path $RepoRoot '.env'
 $envOk = $false
 if ($profile -and (Test-Path -LiteralPath $envPath)) {
     Import-WorktreeEnvFile -RepoRoot $RepoRoot
+    if (-not $PSBoundParameters.ContainsKey('BackendPort')) {
+        $BackendPort = Get-EnvInt 'BACKEND_PORT' $BackendPort
+    }
+    if (-not $PSBoundParameters.ContainsKey('FrontendPort')) {
+        $FrontendPort = Get-EnvInt 'FRONTEND_PORT' $FrontendPort
+    }
     $envOk = ($env:MYSQL_PORT -eq [string]$profile.MysqlPort) -and
              ($env:STORAGE_MYSQL_CONTAINER -eq $profile.MysqlContainer)
     Write-CheckResult '.env' $envOk "MYSQL_PORT=$($env:MYSQL_PORT) container=$($env:STORAGE_MYSQL_CONTAINER)"
@@ -74,7 +102,15 @@ if ($profile) {
     }
 
     if ($mysqlRunning) {
-        $sample = docker exec $profile.MysqlContainer mysql -ustorage -pstorage123 --default-character-set=utf8mb4 storage -N -e "SELECT CONCAT(category, '|', name) FROM material_ledger LIMIT 1;" 2>$null
+        $mysqlUser = Get-EnvText 'MYSQL_USER' 'storage'
+        $mysqlPassword = Get-EnvText 'MYSQL_PASSWORD' 'storage123'
+        $mysqlDb = Get-EnvText 'MYSQL_DB' 'storage'
+        $mysqlArgs = @(
+            'exec', '-e', "MYSQL_PWD=$mysqlPassword", $profile.MysqlContainer,
+            'mysql', "-u$mysqlUser", '--default-character-set=utf8mb4',
+            $mysqlDb, '-N', '-e', "SELECT CONCAT(category, '|', name) FROM material_ledger LIMIT 1;"
+        )
+        $sample = docker @mysqlArgs 2>$null
         $chineseOk = $LASTEXITCODE -eq 0 -and $sample -and ($sample -notmatch '\?')
         Write-CheckResult 'mysql-chinese' $chineseOk "sample=$sample"
     } else {

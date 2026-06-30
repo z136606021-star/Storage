@@ -1,6 +1,4 @@
 -- 第二期鉴权表增量迁移（不删除 material_ledger 已有数据）
-USE storage;
-
 SET NAMES utf8mb4;
 
 CREATE TABLE IF NOT EXISTS sys_user (

@@ -1,6 +1,4 @@
 -- 第六期：完整平台壳层导航 + 仓库配置管理菜单
-USE storage;
-
 SET NAMES utf8mb4;
 
 -- 平台壳层（ADMIN 可见，无 path 的 MENU 点击仍提示开发中）

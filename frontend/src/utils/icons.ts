@@ -1,7 +1,25 @@
-import * as Icons from '@ant-design/icons-vue'
+import {
+  BookOutlined,
+  BulbOutlined,
+  DatabaseOutlined,
+  HomeOutlined,
+  ProjectOutlined,
+  SettingOutlined,
+  ShoppingOutlined,
+  ToolOutlined,
+} from '@ant-design/icons-vue'
 import type { Component } from 'vue'
 
-const iconMap = Icons as Record<string, Component>
+const iconMap: Record<string, Component> = {
+  BookOutlined,
+  BulbOutlined,
+  DatabaseOutlined,
+  HomeOutlined,
+  ProjectOutlined,
+  SettingOutlined,
+  ShoppingOutlined,
+  ToolOutlined,
+}
 
 export function resolveIcon(name?: string | null): Component | undefined {
   if (!name) {

@@ -1,5 +1,6 @@
 package com.storage.dto;
 
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
@@ -20,5 +21,6 @@ public class RegisterRequestDTO {
     private String displayName;
 
     @Size(max = 128, message = "邮箱不能超过 128 个字符")
+    @Email(message = "邮箱格式不正确")
     private String email;
 }

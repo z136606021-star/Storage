@@ -7,7 +7,11 @@ $Root = Split-Path -Parent $PSScriptRoot
 Set-Location $Root
 $profile = Get-CurrentBranchProfile -RepoRoot $Root
 Write-WorktreeEnvFile -Profile $profile -RepoRoot $Root | Out-Null
+Import-WorktreeEnvFile -RepoRoot $Root
 $composeArgs = Get-DockerComposeArgs -RepoRoot $Root
+$mysqlUser = if ($env:MYSQL_USER) { $env:MYSQL_USER } else { 'storage' }
+$mysqlPassword = if ($env:MYSQL_PASSWORD) { $env:MYSQL_PASSWORD } else { 'storage123' }
+$mysqlDb = if ($env:MYSQL_DB) { $env:MYSQL_DB } else { 'storage' }
 
 Write-Host "Resetting database for branch: $($profile.Branch)"
 Write-Host "  MySQL port: $($profile.MysqlPort)"
@@ -25,18 +29,18 @@ Write-Host "Waiting for MySQL to initialize..."
 & (Join-Path $PSScriptRoot 'wait-mysql.ps1') -RequireSeedData -RepoRoot $Root
 
 $mysqlExec = @(
-    'docker', 'exec', $profile.MysqlContainer,
-    'mysql', '-ustorage', '-pstorage123', '--default-character-set=utf8mb4',
-    'storage', '-N', '-e', 'SELECT COUNT(*) FROM material_ledger;'
+    'exec', '-e', "MYSQL_PWD=$mysqlPassword", $profile.MysqlContainer,
+    'mysql', "-u$mysqlUser", '--default-character-set=utf8mb4',
+    $mysqlDb, '-N', '-e', 'SELECT COUNT(*) FROM material_ledger;'
 )
-$count = & $mysqlExec[0] $mysqlExec[1..($mysqlExec.Length - 1)] 2>$null
+$count = docker @mysqlExec 2>$null
 Write-Host "material_ledger rows: $count"
 
 $mysqlSample = @(
-    'docker', 'exec', $profile.MysqlContainer,
-    'mysql', '-ustorage', '-pstorage123', '--default-character-set=utf8mb4',
-    'storage', '-e', 'SELECT id, category, name FROM material_ledger LIMIT 3;'
+    'exec', '-e', "MYSQL_PWD=$mysqlPassword", $profile.MysqlContainer,
+    'mysql', "-u$mysqlUser", '--default-character-set=utf8mb4',
+    $mysqlDb, '-e', 'SELECT id, category, name FROM material_ledger LIMIT 3;'
 )
-& $mysqlSample[0] $mysqlSample[1..($mysqlSample.Length - 1)] 2>$null
+docker @mysqlSample 2>$null
 
 Write-Host "Done. Restart backend: .\scripts\start-dev.ps1"

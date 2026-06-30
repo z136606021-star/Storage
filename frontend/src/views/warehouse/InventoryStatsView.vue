@@ -5,6 +5,7 @@ import { message } from 'ant-design-vue'
 import { fetchWarehouseStatsOverview } from '@/api/warehouseStats'
 import { getErrorMessage } from '@/api/http'
 import type { WarehouseStatsOverview } from '@/types/warehouseStats'
+import type { SafetyStockRecord } from '@/types/safetyStock'
 import { displayValue } from '@/utils/format'
 import { materialIdentityColumns } from '@/utils/warehouseMaterialTable'
 
@@ -115,10 +116,10 @@ watch(recentDays, () => {
           :columns="warningColumns"
           :data-source="stats.warningMaterials"
           :pagination="false"
-          :row-key="(record) => record.materialLedgerId"
+          :row-key="(record: SafetyStockRecord) => record.materialLedgerId"
           size="small"
           bordered
-          :custom-row="(record) => ({
+          :custom-row="(record: SafetyStockRecord) => ({
             class: 'warning-row',
             onClick: () => goLedger(record.materialLedgerId),
           })"

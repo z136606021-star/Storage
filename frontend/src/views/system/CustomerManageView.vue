@@ -80,7 +80,7 @@ const {
   handleBatchExport,
   handleImport,
   handleDownloadTemplate,
-} = useExcelImportExport({
+} = useExcelImportExport<ReturnType<typeof buildQueryParams>, { ids: number[] }>({
   exportFn: (params) => exportCustomers(params ?? buildQueryParams()),
   batchExportFn: (params) => exportCustomers(params),
   importFn: importCustomers,

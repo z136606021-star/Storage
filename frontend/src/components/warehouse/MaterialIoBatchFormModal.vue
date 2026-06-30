@@ -2,6 +2,7 @@
 import { computed, ref, toRef, watch } from 'vue'
 import { PlusOutlined } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
+import type { TableProps } from 'ant-design-vue'
 import dayjs, { type Dayjs } from 'dayjs'
 import { batchCreateMaterialIo, updateMaterialIo } from '@/api/materialIo'
 import { fetchMaterialLedgerDetail } from '@/api/materialLedger'
@@ -20,6 +21,7 @@ import { displayValue } from '@/utils/format'
 import { materialIdentityColumns } from '@/utils/warehouseMaterialTable'
 
 const IDENTITY_KEYS = ['category', 'genericName', 'brand', 'name', 'model', 'binLocation'] as const
+type TableColumn = NonNullable<TableProps['columns']>[number]
 
 const props = defineProps<{
   open: boolean
@@ -70,7 +72,7 @@ const modalTitle = computed(() => (isEdit.value ? '编辑出入库' : '新增'))
 const purposeOptions = computed(() => outboundPurposeOptions())
 
 const tableColumns = computed(() => {
-  const cols = [
+  const cols: TableColumn[] = [
     { title: '序号', key: 'index', width: 64, align: 'center' as const },
     ...materialIdentityColumns('batchForm'),
   ]

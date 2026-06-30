@@ -1,6 +1,4 @@
 -- 第七期：壳层菜单补全 path，支持侧栏跳转与 Tab 同步
-USE storage;
-
 SET NAMES utf8mb4;
 
 UPDATE sys_menu SET path = '/platform/personal' WHERE id = 10;

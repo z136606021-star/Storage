@@ -1,16 +1,38 @@
 -- 第三期系统管理：菜单树扩展、USER 角色、系统管理权限
-USE storage;
-
 SET NAMES utf8mb4;
 
-ALTER TABLE sys_menu
-    ADD COLUMN menu_type VARCHAR(16) NOT NULL DEFAULT 'MENU' COMMENT 'CATALOG/MENU' AFTER parent_id;
+SET @ddl := (
+    SELECT IF(COUNT(*) = 0,
+        'ALTER TABLE sys_menu ADD COLUMN menu_type VARCHAR(16) NOT NULL DEFAULT ''MENU'' COMMENT ''CATALOG/MENU'' AFTER parent_id',
+        'SELECT 1')
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'sys_menu' AND COLUMN_NAME = 'menu_type'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
-ALTER TABLE sys_menu
-    ADD COLUMN icon VARCHAR(64) NULL COMMENT 'Ant Design 图标名' AFTER path;
+SET @ddl := (
+    SELECT IF(COUNT(*) = 0,
+        'ALTER TABLE sys_menu ADD COLUMN icon VARCHAR(64) NULL COMMENT ''Ant Design 图标名'' AFTER path',
+        'SELECT 1')
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'sys_menu' AND COLUMN_NAME = 'icon'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
-ALTER TABLE sys_menu
-    ADD COLUMN visible TINYINT NOT NULL DEFAULT 1 COMMENT '1显示 0隐藏' AFTER icon;
+SET @ddl := (
+    SELECT IF(COUNT(*) = 0,
+        'ALTER TABLE sys_menu ADD COLUMN visible TINYINT NOT NULL DEFAULT 1 COMMENT ''1显示 0隐藏'' AFTER icon',
+        'SELECT 1')
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'sys_menu' AND COLUMN_NAME = 'visible'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
 ALTER TABLE sys_menu
     MODIFY COLUMN permission VARCHAR(128) NULL COMMENT '权限标识，目录可为空';

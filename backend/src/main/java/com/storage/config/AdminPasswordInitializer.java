@@ -4,6 +4,7 @@ import com.storage.entity.SysUser;
 import com.storage.mapper.SysUserMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.dao.DataAccessException;
@@ -20,9 +21,14 @@ public class AdminPasswordInitializer implements ApplicationRunner {
 
     private final SysUserMapper sysUserMapper;
     private final BCryptPasswordEncoder passwordEncoder;
+    @Value("${storage.auth.reset-admin-password-on-startup:true}")
+    private boolean resetAdminPasswordOnStartup;
 
     @Override
     public void run(ApplicationArguments args) {
+        if (!resetAdminPasswordOnStartup) {
+            return;
+        }
         try {
             SysUser admin = sysUserMapper.selectByUsername(ADMIN_USERNAME);
             if (admin == null) {

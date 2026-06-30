@@ -8,7 +8,7 @@
 - **上层平台**：项目生命周期管理系统（项目管理平台）
 - **所属模块**：项目管理平台 → 资源管理 → 仓库管理
 - **远端仓库**：https://github.com/z136606021-star/Storage.git
-- **当前阶段**：**第二十九期质量门禁与安全加固（已落地）**，并完成第二十七/二十八期差距收敛与开发规范固化
+- **当前阶段**：**第三十三期系统环境变量一致性审核（已落地）**，并完成第三十二期安全门禁复查与上传加固
 
 ## 技术栈
 
@@ -51,7 +51,7 @@
 |--------|------|------|------|-----|
 | 登录页 | Shiro Session 鉴权 + 开放注册（邮箱可选）+ **忘记密码邮件链接重置**（账号+邮箱申请、一次性 token 链接、统一错误提示、失败限流）+ **第五期 UI/UX 优化** | `/login`、`/login?tab=register`、`/login?tab=forgot`、`/login?tab=reset&token=...` | `LoginView.vue`、`utils/loginRemember.ts` | `POST /api/auth/login`、`POST /api/auth/register`、`POST /api/auth/forgot-password`、`POST /api/auth/reset-password`、`POST /api/auth/logout`、`GET /api/auth/me` |
 | 系统管理 | 用户管理（含角色/菜单子 Tab、多角色、授权只读面板）+ **客户管理 CRUD**（Excel 导入导出）+ Excel 导入导出已实现 | `/system/users`、`/system/users/roles`、`/system/users/menus`、`/system/customers` | `SystemManageLayout.vue`、`UserManageView.vue`、`RoleManagePanel.vue`、`MenuManagePanel.vue`、`CustomerManageView.vue`、`CustomerFormModal.vue` | 用户：`GET/POST/PUT/DELETE /api/system/users`、…；**客户**：`GET/POST/PUT/DELETE /api/system/customers`、`DELETE .../batch`、`GET .../export`、`POST .../import`；角色/菜单同前 |
-| 文件上传（MinIO） | 基础设施 + 通用上传 API；**物料清单图片已接入** | — | — | `POST /api/files/upload`（`platform:file:upload` 或 `warehouse:bom:write`） |
+| 文件上传（MinIO） | 基础设施 + 通用上传 API；**物料清单图片已接入**；后端大小 / MIME 白名单 / 图片魔数校验 | — | — | `POST /api/files/upload`（`platform:file:upload` 或 `warehouse:bom:write`） |
 | 物料台账 | CRUD + 导入 + 批量操作 + 筛选联动 + **Bin/清单主数据校验** + **从清单选择** + **写权限门禁**（`warehouse:material-ledger:write`）+ **出入库流水删除保护** + **详情跳转出入库** + **只读模板下载** + **`?materialLedgerId=` 深链打开详情** | `/warehouse/material-ledger` | `MaterialLedgerView.vue`、`MaterialLedgerFormModal.vue` | `GET/POST/PUT/DELETE /api/materials`、`DELETE /api/materials/batch`、`GET /api/materials/filter-options`、`GET /api/materials/bin-codes`、`GET /api/materials/bom-catalog`、`GET /api/materials/{id}`、`GET /api/materials/export`、`GET /api/materials/import-template`、`POST /api/materials/import` |
 | 物料出入库 | CRUD + 批量入库/出库 + 筛选联动 + **原子 Excel 导入** + **台账选择器** + **深链追溯** + **写权限门禁**；**唯一更新库存**；编辑 PUT 仅 `quantity/remark/purpose/projectRef`；**用途枚举** + **项目编号**（用途=项目领用时必填）+ **安全库存预警** + **补录 operatedAt**；**第二十四期 UI**：`MaterialIoFilterPanel` / `MaterialIoContextBar`、工具栏「更多」、**新增入库/出库下拉**、新增弹窗条件列与预警列 | `/warehouse/material-io` | `MaterialIoView.vue`、`MaterialIoBatchFormModal.vue`、`MaterialIoFilterPanel.vue`、`MaterialIoContextBar.vue`、`MaterialLedgerPickerModal.vue` | `GET /api/material-io`、`GET /api/material-io/filter-options`、`GET /api/material-io/{id}`、`POST /api/material-io/batch`、`PUT /api/material-io/{id}`、`DELETE /api/material-io/{id}`、`DELETE /api/material-io/batch`、`GET /api/material-io/export`、`GET /api/material-io/import-template`、`POST /api/material-io/import`、`GET /api/material-io/safety-hints`（含 `project_ref`） |
 | 库存统计 | 台账/库存/预警汇总 + 近 N 日出入库笔数与数量 + 预警物料预览（`warehouse:stats:read`，支持 `recentDays`） | `/warehouse/inventory-stats` | `InventoryStatsView.vue` | `GET /api/warehouse-stats/overview`（`recentDays`） |
@@ -66,7 +66,7 @@
 - **动态菜单**：`GET /api/menus/nav-tree` 按权限过滤；[SideMenu.vue](frontend/src/components/layout/SideMenu.vue) 从 API 加载；ADMIN 可见完整平台壳层，仓库管理下 5 项（台账 / 出入库 / 安全库存 / **库存统计** / 配置管理 → Bin位、物料清单）；默认展开资源管理 → 仓库管理。
 - **动态 TabBar**：[useWorkbenchTabs.ts](frontend/src/composables/useWorkbenchTabs.ts) + [TabBar.vue](frontend/src/components/layout/TabBar.vue)；ADMIN 登录预置「个人中心」「项目中心」，访问业务页自动追加 Tab，可切换/关闭；USER 仅预置物料台账 Tab。
 - **壳层路由注册表**：[shellRouteRegistry.ts](frontend/src/constants/shellRouteRegistry.ts) 与 `migration-phase7-ui-shell-paths.sql` 对齐 DB `sys_menu.path`。
-- **对象存储**：MinIO（`docker-compose`）；`FileStorageService` + `POST /api/files/upload`；物料清单保存 `image_object_key`，列表/详情 API 附带预签 `imageUrl`。
+- **对象存储**：MinIO（`docker-compose`）；`FileStorageService` + `POST /api/files/upload`；上传以后端大小、MIME 白名单与图片魔数校验为准；物料清单保存 `image_object_key`，列表/详情 API 附带预签 `imageUrl`。
 - **路由守卫**：`requiresAuth` 业务路由未登录时重定向 `/login`；登录页静态资源见 `frontend/src/assets/auth/`；**记住密码**用 `utils/loginRemember.ts` 仅存账号至 localStorage（不传 Shiro RememberMe）；Tab 可通过 `?tab=register`、`?tab=forgot` 或 `?tab=reset&token=...` 切换；忘记密码为邮件一次性链接重置，失败统一提示并限流。
 
 ### 物料台账字段
@@ -98,12 +98,13 @@
 ### 环境变量门禁
 
 - 连接串、端口、密钥、桶名等**禁止硬编码**在 Java / TypeScript / Vue 业务代码中。
-- SSOT：根目录 [`.env.example`](.env.example)（模板）+ [`scripts/worktree-db.ps1`](scripts/worktree-db.ps1)（分支 MySQL/MinIO 端口；保留已有数据库/MinIO 凭据、`BACKEND_PORT` / `FRONTEND_PORT` / `VITE_API_PROXY` / `CORS_ALLOWED_ORIGINS` / `APP_PUBLIC_BASE_URL` / `MAIL_*` / `PASSWORD_RESET_TOKEN_TTL_MINUTES`）+ [`application.yml`](backend/src/main/resources/application.yml)（`${VAR:default}` 占位）+ [`vite.config.ts`](frontend/vite.config.ts)（读根目录 `.env` 的 `VITE_API_PROXY` / `FRONTEND_PORT`）。
+- SSOT：根目录 [`.env.example`](.env.example)（模板）+ [`scripts/worktree-db.ps1`](scripts/worktree-db.ps1)（分支 MySQL/MinIO 端口；保留已有数据库/MinIO 凭据、`BACKEND_PORT` / `FRONTEND_PORT` / `VITE_API_PROXY` / `CORS_ALLOWED_ORIGINS` / `SESSION_COOKIE_*` / `RESET_ADMIN_PASSWORD_ON_STARTUP` / `UPLOAD_*` / `APP_PUBLIC_BASE_URL` / `MAIL_*` / `PASSWORD_RESET_TOKEN_TTL_MINUTES`）+ [`application.yml`](backend/src/main/resources/application.yml)（`${VAR:default}` 占位）+ [`vite.config.ts`](frontend/vite.config.ts)（读根目录 `.env` 的 `VITE_API_PROXY` / `FRONTEND_PORT`）。
 - 新增配置项：先扩展 `.env.example` 与 `Format-WorktreeEnvContent`，再在 `application.yml` / `vite.config.ts` / 脚本中引用；默认值仅作本地 fallback。
 - 禁止在代码或文档中维护与 worktree 注册表不一致的另一套连接信息。
 - 脚本内访问 MySQL 必须读取 `MYSQL_USER` / `MYSQL_PASSWORD` / `MYSQL_DB`，禁止写死 `-pstorage123` 或明文密码参数。
 - `docker-compose.yml` 必须读取 `.env` 中的 `MYSQL_*` / `MINIO_*`；healthcheck 禁止硬编码密码参数。
 - `CORS_ALLOWED_ORIGINS` 必须随 `FRONTEND_PORT` 或本地前端域名同步，禁止在 Java 配置中写死 5173。
+- `start-dev.ps1` 后端窗口须显式注入后端运行所需环境变量（数据库、MinIO、CORS、Session、admin 初始化、上传、邮件与密码重置），避免子进程遗漏 `.env` 配置。
 
 ### 数据库迁移门禁
 
@@ -167,6 +168,7 @@
 - Session Cookie 生产环境必须启用 HTTPS 并开启 `SESSION_COOKIE_SECURE=true`；`CORS_ALLOWED_ORIGINS` 仅允许可信前端来源。
 - `AdminPasswordInitializer` 仅用于本地排障；生产应关闭自动重置 admin 密码，避免服务重启回退弱口令。
 - 文件上传安全校验必须以后端为准（大小/MIME 白名单），前端限制仅用于体验优化，不能替代服务端校验。
+- 第三十二期复查已补齐图片魔数校验：JPG/PNG/WebP/GIF 上传不仅检查请求 MIME，还校验文件头，避免伪造 Content-Type 绕过。
 
 ## 模块复用与可维护性门禁
 
@@ -247,8 +249,9 @@
 - `frontend/src/composables/useSafetyStockList.ts` — 安全库存分页列表（含安全库存数/预警期筛选）
 - `frontend/src/composables/useMaterialIoRouteDetail.ts` — 出入库 `?id=` 自动打开详情
 - `frontend/src/composables/useMaterialLedgerList.ts` — 台账分页列表（台账页 + 选择器）
-- `frontend/src/views/warehouse/_shared/warehouseListScaffold.ts` — 后续仓库 CRUD 页脚手架注释
 - 各 view 只保留：列配置、表单字段、资源专属 API 绑定
+
+**第三十一期复用复查结论**：未新增业务模块；仓库域与系统域同类列表页仍复用 `CrudListPage`、`CrudToolbar`、`CrudDetailDrawer`、`CrudRowActions`、`usePaginatedCrudList`、`useExcelImportExport`、`useWritePermission`、`confirmDelete`、`getTableRowIndex` 等公共层；物料身份筛选/列定义继续由 `useWarehouseMaterialFilters`、`WarehouseMaterialFilterPanel`、`warehouseMaterialTable` 统一承载。已清理未被引用的 Vite 默认模板残留与过期 `_shared/warehouseListScaffold.ts` 注释脚手架，避免把文档性占位文件误认为运行时公共模块。
 
 ```mermaid
 flowchart TD
@@ -425,7 +428,7 @@ Storage/
 │       │   └── LoginView.vue     # 登录/注册
 │       ├── views/system/         # SystemManageLayout、UserManageView、CustomerManageView
 │       ├── views/platform/       # ShellPlaceholderView
-│       ├── views/warehouse/      # MaterialIoView、SafetyStockView、InventoryStatsView；config/BinManageView、BomManageView；_shared/warehouseListScaffold.ts
+│       ├── views/warehouse/      # MaterialIoView、SafetyStockView、InventoryStatsView；config/BinManageView、BomManageView
 │       └── views/material-ledger/
 │           └── MaterialLedgerView.vue
 ├── backend/                  # Spring Boot 3 + MyBatis Plus
@@ -504,3 +507,6 @@ Storage/
 | 2026-06-29 | 第二十八期开发与调试规范：AGENTS/README 环境变量门禁、IDEA 断点工作流、双端校验 checklist、断点表；`BACKEND_PORT` / `FRONTEND_PORT` / `VITE_API_PROXY` 参数化，脚本保留应用端口并读取 MySQL 环境变量 |
 | 2026-06-29 | 第二十九期质量门禁与安全加固：Docker/CORS 凭据参数化、迁移关闭 `continue-on-error` 并改条件 DDL、忘记密码统一提示与限流、Auth Controller 集成测试、CI 增加前端 build、路由懒加载 + AntD 组件按需导入、清理 Vite 脚手架残留 |
 | 2026-06-30 | 第三十期忘记密码邮件链接重置：Google SMTP 环境变量预留、`password_reset_token`、`POST /api/auth/reset-password`、登录页 `?tab=reset&token=...` |
+| 2026-06-30 | 第三十一期模块复用复查与废弃物清理：复核仓库/系统同类列表页公共层复用，移除未引用 `_shared/warehouseListScaffold.ts` 注释脚手架，文档改记录真实公共模块 |
+| 2026-06-30 | 第三十二期安全门禁复查与上传加固：复核环境变量、CORS、Session、忘记密码、迁移脚本与敏感信息门禁；文件上传增加 JPG/PNG/WebP/GIF 魔数校验 |
+| 2026-06-30 | 第三十三期系统环境变量一致性审核：核对 `.env.example` 与 `Format-WorktreeEnvContent` 变量清单一致；`start-dev.ps1` 显式注入 Session/Admin/Upload/Mail/PasswordReset 环境变量；补齐文档 SSOT |

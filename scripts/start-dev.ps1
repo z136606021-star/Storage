@@ -1,5 +1,5 @@
 # 一键启动前后端开发服务（各开一个终端窗口）
-# 若 8080/5173 已被本项目的 Java/Vite 进程占用，会自动结束旧进程后再启动
+# Uses BACKEND_PORT/FRONTEND_PORT from .env and restarts matching Storage dev processes on those ports.
 param(
     [switch]$Install,
     [switch]$WithDocker,
@@ -10,8 +10,6 @@ $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 $BackendDir = Join-Path $Root "backend"
 $FrontendDir = Join-Path $Root "frontend"
-$BackendPort = 8080
-$FrontendPort = 5173
 
 . (Join-Path $PSScriptRoot 'worktree-db.ps1')
 Set-Location $Root
@@ -20,6 +18,30 @@ Write-WorktreeEnvFile -Profile $DbProfile -RepoRoot $Root | Out-Null
 Import-WorktreeEnvFile -RepoRoot $Root
 $ComposeArgs = Get-DockerComposeArgs -RepoRoot $Root
 $MysqlPort = $DbProfile.MysqlPort
+
+function Get-EnvInt([string]$Name, [int]$DefaultValue) {
+    $value = (Get-Item -Path "Env:$Name" -ErrorAction SilentlyContinue).Value
+    if ([string]::IsNullOrWhiteSpace($value)) {
+        return $DefaultValue
+    }
+
+    $parsed = 0
+    if ([int]::TryParse($value, [ref]$parsed)) {
+        return $parsed
+    }
+
+    throw "$Name must be an integer, got '$value'."
+}
+
+function ConvertTo-PowerShellSingleQuotedString([string]$Value) {
+    if ($null -eq $Value) {
+        $Value = ''
+    }
+    return "'" + ($Value -replace "'", "''") + "'"
+}
+
+$BackendPort = Get-EnvInt 'BACKEND_PORT' 8080
+$FrontendPort = Get-EnvInt 'FRONTEND_PORT' 5173
 
 function Test-PortInUse([int]$Port) {
     $conn = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -243,18 +265,44 @@ if (-not (Test-PortInUse $MysqlPort)) {
 }
 Write-Host ""
 
+$backendEnvNames = @(
+    'MYSQL_HOST',
+    'MYSQL_PORT',
+    'MYSQL_DB',
+    'MYSQL_USER',
+    'MYSQL_PASSWORD',
+    'MINIO_ENDPOINT',
+    'MINIO_ACCESS_KEY',
+    'MINIO_SECRET_KEY',
+    'MINIO_BUCKET',
+    'BACKEND_PORT',
+    'CORS_ALLOWED_ORIGINS',
+    'SESSION_COOKIE_HTTP_ONLY',
+    'SESSION_COOKIE_SECURE',
+    'RESET_ADMIN_PASSWORD_ON_STARTUP',
+    'UPLOAD_MAX_SIZE_BYTES',
+    'UPLOAD_ALLOWED_CONTENT_TYPES',
+    'APP_PUBLIC_BASE_URL',
+    'PASSWORD_RESET_TOKEN_TTL_MINUTES',
+    'MAIL_HOST',
+    'MAIL_PORT',
+    'MAIL_USERNAME',
+    'MAIL_PASSWORD',
+    'MAIL_FROM',
+    'MAIL_SMTP_AUTH',
+    'MAIL_SMTP_STARTTLS_ENABLE'
+)
+$backendEnvAssignments = ($backendEnvNames | ForEach-Object {
+    $value = (Get-Item -Path "Env:$_" -ErrorAction SilentlyContinue).Value
+    "`$env:$_ = $(ConvertTo-PowerShellSingleQuotedString $value)"
+}) -join "`r`n"
+$backendDirLiteral = ConvertTo-PowerShellSingleQuotedString $BackendDir
+$frontendDirLiteral = ConvertTo-PowerShellSingleQuotedString $FrontendDir
+
 $backendCommand = @"
-Set-Location '$BackendDir'
+Set-Location $backendDirLiteral
 `$ErrorActionPreference = 'Continue'
-`$env:MYSQL_HOST = '$env:MYSQL_HOST'
-`$env:MYSQL_PORT = '$env:MYSQL_PORT'
-`$env:MYSQL_DB = '$env:MYSQL_DB'
-`$env:MYSQL_USER = '$env:MYSQL_USER'
-`$env:MYSQL_PASSWORD = '$env:MYSQL_PASSWORD'
-`$env:MINIO_ENDPOINT = '$env:MINIO_ENDPOINT'
-`$env:MINIO_ACCESS_KEY = '$env:MINIO_ACCESS_KEY'
-`$env:MINIO_SECRET_KEY = '$env:MINIO_SECRET_KEY'
-`$env:MINIO_BUCKET = '$env:MINIO_BUCKET'
+$backendEnvAssignments
 Write-Host 'Starting backend on http://localhost:$BackendPort (MySQL localhost:$MysqlPort) ...' -ForegroundColor Cyan
 mvn spring-boot:run
 if (`$LASTEXITCODE -ne 0) {
@@ -270,7 +318,7 @@ $frontendSetup = if ($Install -or -not (Test-Path (Join-Path $FrontendDir "node_
 }
 
 $frontendCommand = @"
-Set-Location '$FrontendDir'
+Set-Location $frontendDirLiteral
 Write-Host 'Starting frontend on http://localhost:$FrontendPort/login ...' -ForegroundColor Cyan
 $frontendSetup npm run dev
 "@

@@ -107,7 +107,7 @@ Windows 也可执行 [scripts/reset-db.ps1](scripts/reset-db.ps1)。
 - `VITE_API_PROXY`：前端 `/api` 代理目标（默认 `http://localhost:8080`）
 - `CORS_ALLOWED_ORIGINS`：后端允许的前端来源（默认跟随 `FRONTEND_PORT`）
 
-`sync-worktree-env.ps1` 会按分支重写 MySQL/MinIO 端口、容器名和卷名，但会保留已有 `.env` 或当前进程中的数据库/MinIO 凭据、`BACKEND_PORT` / `FRONTEND_PORT` / `VITE_API_PROXY` / `CORS_ALLOWED_ORIGINS`，便于本地避开端口冲突和使用自定义本地密码。
+`sync-worktree-env.ps1` 会按分支重写 MySQL/MinIO 端口、容器名和卷名，但会保留已有 `.env` 或当前进程中的数据库/MinIO 凭据、`BACKEND_PORT` / `FRONTEND_PORT` / `VITE_API_PROXY` / `CORS_ALLOWED_ORIGINS` / `SESSION_COOKIE_*` / `RESET_ADMIN_PASSWORD_ON_STARTUP` / `UPLOAD_*` / `APP_PUBLIC_BASE_URL` / `PASSWORD_RESET_TOKEN_TTL_MINUTES` / `MAIL_*`，便于本地避开端口冲突和使用自定义本地密码。
 
 ### 2. 启动后端
 
@@ -191,6 +191,8 @@ powershell -ExecutionPolicy Bypass -File .\scripts\start-dev.ps1
 - `-WithDocker`：同时执行 `docker compose --env-file .env up -d` 并等待 MySQL 就绪
 - `-NoKill`：端口被占用时仅警告，不自动结束进程
 
+`start-dev.ps1` 会将 `.env` 中的数据库、MinIO、CORS、Session、admin 初始化、上传、邮件与密码重置变量显式注入后端窗口，避免子进程遗漏本地配置。
+
 ### 手动测试文件上传（MinIO）
 
 登录后可用 curl 测试通用上传 API（需先 `docker compose up -d` 启动 MinIO）：
@@ -203,7 +205,7 @@ curl -X POST http://localhost:8080/api/files/upload \
 
 先调用 `POST /api/auth/login` 获取 Session Cookie，再携带 Cookie 上传。MinIO 控制台：`http://localhost:9001`（`minioadmin` / `minioadmin123`）。
 
-物料清单图片可在 **配置管理 → 物料清单** 新增/编辑弹窗中上传（JPG/PNG/WebP/GIF，≤5MB）；保存后列表与详情展示缩略图。Excel 导入导出不含图片列。
+物料清单图片可在 **配置管理 → 物料清单** 新增/编辑弹窗中上传（JPG/PNG/WebP/GIF，≤5MB）；后端会校验大小、MIME 白名单与图片魔数，保存后列表与详情展示缩略图。Excel 导入导出不含图片列。
 
 ## 当前功能
 
@@ -246,6 +248,9 @@ curl -X POST http://localhost:8080/api/files/upload \
 - [x] **第二十七期差距收敛**：文档与客户占位表述同步、台账路由读权限、注册可选邮箱 + admin 种子邮箱、库存统计 `recentDays` 选择器、台账/Bin/客户 import 集成测试、GitHub Actions CI
 - [x] **第二十八期开发与调试规范**：环境变量门禁、IDEA 断点工作流、前后端双端校验 checklist、启动脚本端口参数化
 - [x] **第二十九期质量门禁与安全加固**：Docker/CORS 凭据参数化、迁移 fail-fast + 条件 DDL、忘记密码统一提示与限流、Auth Controller 集成测试、CI 增加前端 build、路由懒加载 + AntD 按需导入
+- [x] **第三十一期模块复用复查与废弃物清理**：复核仓库/系统同类列表页仍复用公共 CRUD/composable/utils 层，清理未引用脚手架注释文件与 Vite 模板残留
+- [x] **第三十二期安全门禁复查与上传加固**：复核环境变量、CORS、Session、忘记密码、迁移脚本与敏感信息门禁；上传增加图片魔数校验
+- [x] **第三十三期系统环境变量一致性审核**：`.env.example` 与 `worktree-db.ps1` 变量清单一致；启动脚本显式注入后端运行环境变量；文档补齐 SSOT
 
 ## 安全与生产部署要点
 
@@ -255,6 +260,7 @@ curl -X POST http://localhost:8080/api/files/upload \
 - Google SMTP 默认按 Gmail 直连预留：`smtp.gmail.com:587` + STARTTLS；`MAIL_PASSWORD` 使用 Google 应用专用密码，不提交真实邮箱密码。公司 Workspace relay 可通过环境变量切换到 `smtp-relay.gmail.com`
 - Session 生产环境需启用 HTTPS，并设置 `SESSION_COOKIE_SECURE=true`；`CORS_ALLOWED_ORIGINS` 必须仅配置可信前端域名
 - 默认管理员密码自动重置能力仅建议本地排障开启，生产应关闭该初始化开关，避免启动时回退弱密码
+- 文件上传以后端校验为准：当前限制 JPG/PNG/WebP/GIF、默认 ≤5MB，并校验图片魔数，前端限制仅用于体验优化
 - GitHub Actions CI：[`CI workflow`](https://github.com/z136606021-star/Storage/blob/main/.github/workflows/ci.yml)（后端测试 + 前端测试/构建）
 
 后端测试：`cd backend && mvn test "-Dspring.profiles.active=test"`
@@ -267,4 +273,4 @@ curl -X POST http://localhost:8080/api/files/upload \
 
 https://github.com/z136606021-star/Storage.git
 
-协作者与 AI 代理请参阅 [AGENTS.md](AGENTS.md)。新增功能前须按 `AGENTS.md` 的「模块复用与可维护性门禁」检查并优先复用 `api/http.ts`、`types/common.ts`、`utils/`、`converter/`、`query/`、`excel/` 等公共层。
+协作者与 AI 代理请参阅 [AGENTS.md](AGENTS.md)。新增功能前须按 `AGENTS.md` 的「模块复用与可维护性门禁」检查并优先复用 `CrudListPage`、`usePaginatedCrudList`、`useExcelImportExport`、`api/http.ts`、`types/common.ts`、`utils/`、`converter/`、`query/`、`excel/` 等公共层。
