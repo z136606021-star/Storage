@@ -305,4 +305,6 @@ curl -X POST http://localhost:8080/api/files/upload \
 
 https://github.com/z136606021-star/Storage.git
 
+历史变更记录见 [CHANGELOG.md](CHANGELOG.md)。
+
 协作者与 AI 代理请参阅 [AGENTS.md](AGENTS.md)。新增功能前须按 `AGENTS.md` 的「模块复用与可维护性门禁」检查并优先复用 `CrudListPage`、`usePaginatedCrudList`、`useExcelImportExport`、`api/http.ts`、`types/common.ts`、`utils/`、`converter/`、`query/`、`excel/` 等公共层。

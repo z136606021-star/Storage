@@ -1,524 +1,142 @@
-# AGENTS.md — 仓库管理系统
+# AGENTS.md — AI 代理准则
 
-> **维护要求**：每次项目结构、技术栈、约定或功能范围发生变化时，代理必须同步更新本文件。
+> 本文件只放 AI 代理必须遵守的长期准则、边界与质量门禁。启动方式、功能清单、目录说明放 [README.md](README.md)，历史流水放 [CHANGELOG.md](CHANGELOG.md)。
 
-## 项目概述
+## 项目边界
 
-- **名称**：仓库管理系统（Storage Management System）
-- **上层平台**：项目生命周期管理系统（项目管理平台）
-- **所属模块**：项目管理平台 → 资源管理 → 仓库管理
-- **远端仓库**：https://github.com/z136606021-star/Storage.git
-- **当前阶段**：**第三十三期系统环境变量一致性审核（已落地）**，并完成第三十二期安全门禁复查与上传加固
+- 项目：仓库管理系统，属于项目生命周期管理平台的「资源管理 → 仓库管理」模块。
+- 技术栈：Vue 3 + TypeScript + Vite + Ant Design Vue；Java 17 + Spring Boot 3.3 + MyBatis Plus + Apache Shiro；MySQL 8；MinIO。
+- 仓库模块只承接物料相关资源流转：物料台账、出入库、安全库存、库存统计、Bin 位、物料清单、通用上传。
+- 不要把项目管理、采购审批、财务结算、客户验收、项目进度编排等职责硬塞进仓库模块。
+- 系统管理当前包含用户、角色、菜单、客户管理；新增系统级能力时要确认是否属于本仓库边界。
 
-## 技术栈
+## 文档分工
 
-| 层级 | 技术 |
-|------|------|
-| 前端 | Vue 3、TypeScript、Vite、Ant Design Vue 4、Vue Router、Axios、unplugin-vue-components |
-| 后端 | Java 17+、Spring Boot 3.3、MyBatis Plus 3.5、Apache POI、Apache Shiro 2 |
-| 数据库 | MySQL 8 |
-| 对象存储 | MinIO |
+- `AGENTS.md`：代理准则、质量门禁、架构边界、协作约定。保持短小，高信号。
+- `README.md`：项目说明、启动/调试方式、当前功能、常用命令、交付说明。
+- `CHANGELOG.md`：阶段记录、历史变更、已落地事项。
+- 新增或修改启动方式、脚本、用户可见功能时，同步 `README.md`；新增阶段性记录时同步 `CHANGELOG.md`。
+- 只有规则、边界、门禁发生变化时才更新 `AGENTS.md`。
 
-## 平台总体架构
+## 工作方式
 
-本仓库当前实现的是项目生命周期管理系统中的「资源管理 → 仓库管理」能力。新增功能时必须先判断其所属一级域与业务边界，避免把项目管理、采购、财务或系统管理逻辑混入仓库管理模块。
+- 先读现有实现，再动手；优先复用本仓库已有组件、composable、API、DTO、Service、工具类与脚本。
+- 保持小步、可审查变更；不要一次性铺开多个模块的大块生成。
+- 不要回滚或覆盖用户已有改动；遇到不相关脏工作区，忽略它；遇到相关改动，先理解再衔接。
+- 禁止提交 `.env`、真实密码、真实邮箱密码、API Key、访问令牌或本地构建产物。
+- 提交信息遵循 Conventional Commits：`feat:`、`fix:`、`chore:` 等。
+- 默认分支是 `main`；远端仓库是 `https://github.com/z136606021-star/Storage.git`。
 
-| 一级域 | 子模块/能力 | 当前仓库边界 |
-|--------|-------------|--------------|
-| 个人中心 | 快捷导航、项目进度统计、待办事项、特别注意事项、工作安排 | 暂不实现；仅在平台壳层导航中保留扩展入口 |
-| 项目管理 | 新建项目、项目评估阶段、项目启动阶段、项目规划阶段、项目执行阶段、过程监控阶段、项目收尾阶段 | 暂不实现；仓库模块只消费项目/BOM/采购等上游结果，不承载项目流程编排 |
-| 资源管理 | 采购管理、仓库管理、设计指引、技能中心、经验库、财务结算中心 | 当前只实现仓库管理；采购、设计、技能、经验、财务结算均作为后续独立子模块 |
-| 系统管理 | 角色管理、用户管理、客户管理 | 用户/角色/菜单管理已实现；**客户管理 CRUD**（Excel 导入导出）已实现 |
+## 复用门禁
 
-### 项目生命周期主流程
+新增页面、API、表结构或业务逻辑前，必须先检查可复用能力：
 
-项目管理域围绕项目从立项到收尾的生命周期展开：新建项目 → Study → DFA → Buyoff → Award → Design → Make → Install → Debug → Trial → Delivery。流程节点会产生设计方案、BOM 用量表、采购申请、物料入库、安装调试、验收与项目总结等业务动作。
-
-仓库管理只承接与物料相关的资源流转：根据 BOM 或采购需求判断库存，库存不足时进入采购申请，物料到货后入库，并在后续出入库模块中记录项目领用、退库或调整。不得在仓库模块内硬编码项目生命周期审批、客户验收、项目进度更新等项目管理职责。
-
-### 资源管理模块边界
-
-- **采购管理**：采购需求申请、采购审批、采购清单、供应商/合同/采购周期等，后续独立实现。
-- **仓库管理**：物料台账、物料出入库、安全库存管理、库存预警与库存统计；这是当前仓库的核心实现范围。
-- **设计指引**：图纸/工艺/标准类资料沉淀，后续独立实现。
-- **技能中心**：岗位技能、认证、培训或人员能力库，后续独立实现。
-- **经验库**：项目复盘、问题案例、知识沉淀，后续独立实现。
-- **财务结算中心**：成本分析、财务结算或付款管理，后续独立实现。
-
-## 子系统范围
-
-| 子系统 | 状态 | 路由 | 组件 | API |
-|--------|------|------|------|-----|
-| 登录页 | Shiro Session 鉴权 + 开放注册（邮箱可选）+ **忘记密码邮件链接重置**（账号+邮箱申请、一次性 token 链接、统一错误提示、失败限流）+ **第五期 UI/UX 优化** | `/login`、`/login?tab=register`、`/login?tab=forgot`、`/login?tab=reset&token=...` | `LoginView.vue`、`utils/loginRemember.ts` | `POST /api/auth/login`、`POST /api/auth/register`、`POST /api/auth/forgot-password`、`POST /api/auth/reset-password`、`POST /api/auth/logout`、`GET /api/auth/me` |
-| 系统管理 | 用户管理（含角色/菜单子 Tab、多角色、授权只读面板）+ **客户管理 CRUD**（Excel 导入导出）+ Excel 导入导出已实现 | `/system/users`、`/system/users/roles`、`/system/users/menus`、`/system/customers` | `SystemManageLayout.vue`、`UserManageView.vue`、`RoleManagePanel.vue`、`MenuManagePanel.vue`、`CustomerManageView.vue`、`CustomerFormModal.vue` | 用户：`GET/POST/PUT/DELETE /api/system/users`、…；**客户**：`GET/POST/PUT/DELETE /api/system/customers`、`DELETE .../batch`、`GET .../export`、`POST .../import`；角色/菜单同前 |
-| 文件上传（MinIO） | 基础设施 + 通用上传 API；**物料清单图片已接入**；后端大小 / MIME 白名单 / 图片魔数校验 | — | — | `POST /api/files/upload`（`platform:file:upload` 或 `warehouse:bom:write`） |
-| 物料台账 | CRUD + 导入 + 批量操作 + 筛选联动 + **Bin/清单主数据校验** + **从清单选择** + **写权限门禁**（`warehouse:material-ledger:write`）+ **出入库流水删除保护** + **详情跳转出入库** + **只读模板下载** + **`?materialLedgerId=` 深链打开详情** | `/warehouse/material-ledger` | `MaterialLedgerView.vue`、`MaterialLedgerFormModal.vue` | `GET/POST/PUT/DELETE /api/materials`、`DELETE /api/materials/batch`、`GET /api/materials/filter-options`、`GET /api/materials/bin-codes`、`GET /api/materials/bom-catalog`、`GET /api/materials/{id}`、`GET /api/materials/export`、`GET /api/materials/import-template`、`POST /api/materials/import` |
-| 物料出入库 | CRUD + 批量入库/出库 + 筛选联动 + **原子 Excel 导入** + **台账选择器** + **深链追溯** + **写权限门禁**；**唯一更新库存**；编辑 PUT 仅 `quantity/remark/purpose/projectRef`；**用途枚举** + **项目编号**（用途=项目领用时必填）+ **安全库存预警** + **补录 operatedAt**；**第二十四期 UI**：`MaterialIoFilterPanel` / `MaterialIoContextBar`、工具栏「更多」、**新增入库/出库下拉**、新增弹窗条件列与预警列 | `/warehouse/material-io` | `MaterialIoView.vue`、`MaterialIoBatchFormModal.vue`、`MaterialIoFilterPanel.vue`、`MaterialIoContextBar.vue`、`MaterialLedgerPickerModal.vue` | `GET /api/material-io`、`GET /api/material-io/filter-options`、`GET /api/material-io/{id}`、`POST /api/material-io/batch`、`PUT /api/material-io/{id}`、`DELETE /api/material-io/{id}`、`DELETE /api/material-io/batch`、`GET /api/material-io/export`、`GET /api/material-io/import-template`、`POST /api/material-io/import`、`GET /api/material-io/safety-hints`（含 `project_ref`） |
-| 库存统计 | 台账/库存/预警汇总 + 近 N 日出入库笔数与数量 + 预警物料预览（`warehouse:stats:read`，支持 `recentDays`） | `/warehouse/inventory-stats` | `InventoryStatsView.vue` | `GET /api/warehouse-stats/overview`（`recentDays`） |
-| 安全库存管理 | 列表（全部台账 LEFT JOIN）+ 8 字段筛选 + 预警黄行 + 导出/批量导出 + 查看/编辑（`warehouse:safety-stock:write`）；预警期 = 开关开启且库存 < 安全库存数；详情跳转台账/出入库（读权限门禁）；无新增/删除/导入 | `/warehouse/safety-stock` | `SafetyStockView.vue`、`SafetyStockFormModal.vue`、`SafetyStockDetailDescriptions.vue` | `GET /api/safety-stock`、`GET /api/safety-stock/filter-options`、`GET /api/safety-stock/{materialLedgerId}`、`PUT /api/safety-stock/{materialLedgerId}`、`GET /api/safety-stock/export` |
-| Bin位管理 | CRUD + 导入导出 + 台账引用校验已实现 | `/warehouse/config/bin` | `BinManageView.vue`、`BinFormModal.vue` | `GET/POST/PUT/DELETE /api/warehouse-bins`、`DELETE /api/warehouse-bins/batch`、`GET /api/warehouse-bins/codes`、`GET /api/warehouse-bins/{id}`、`GET /api/warehouse-bins/export`、`GET /api/warehouse-bins/import-template`、`POST /api/warehouse-bins/import` |
-| 物料清单管理 | CRUD + 品类联动筛选 + 导入导出 + **MinIO 图片上传/预览** + 台账引用删除保护 | `/warehouse/config/bom` | `BomManageView.vue`、`BomFormModal.vue` | `GET/POST/PUT/DELETE /api/warehouse-boms`、`DELETE /api/warehouse-boms/batch`、`GET /api/warehouse-boms/filter-options`、`GET /api/warehouse-boms/{id}`、`GET /api/warehouse-boms/export`、`GET /api/warehouse-boms/import-template`、`POST /api/warehouse-boms/import`；图片经 `POST /api/files/upload` 上传，DB 存 `image_object_key`，API 动态返回 `imageUrl` |
-| 平台壳层 | **占位页**（个人中心/项目/采购/设计/技能/经验/财务） | `/platform/*` | `ShellPlaceholderView.vue` | — |
-
-### 平台基础能力
-
-- **鉴权**：Apache Shiro Session + Cookie；`sys_user/role/menu` 表；开放注册默认 `USER` 角色（只读物料台账）；`composables/useAuth.ts`（含 `hasPermission`）+ `router/guards.ts`（含 `meta.permission`）+ `http` 拦截器。
-- **动态菜单**：`GET /api/menus/nav-tree` 按权限过滤；[SideMenu.vue](frontend/src/components/layout/SideMenu.vue) 从 API 加载；ADMIN 可见完整平台壳层，仓库管理下 5 项（台账 / 出入库 / 安全库存 / **库存统计** / 配置管理 → Bin位、物料清单）；默认展开资源管理 → 仓库管理。
-- **动态 TabBar**：[useWorkbenchTabs.ts](frontend/src/composables/useWorkbenchTabs.ts) + [TabBar.vue](frontend/src/components/layout/TabBar.vue)；ADMIN 登录预置「个人中心」「项目中心」，访问业务页自动追加 Tab，可切换/关闭；USER 仅预置物料台账 Tab。
-- **壳层路由注册表**：[shellRouteRegistry.ts](frontend/src/constants/shellRouteRegistry.ts) 与 `migration-phase7-ui-shell-paths.sql` 对齐 DB `sys_menu.path`。
-- **对象存储**：MinIO（`docker-compose`）；`FileStorageService` + `POST /api/files/upload`；上传以后端大小、MIME 白名单与图片魔数校验为准；物料清单保存 `image_object_key`，列表/详情 API 附带预签 `imageUrl`。
-- **路由守卫**：`requiresAuth` 业务路由未登录时重定向 `/login`；登录页静态资源见 `frontend/src/assets/auth/`；**记住密码**用 `utils/loginRemember.ts` 仅存账号至 localStorage（不传 Shiro RememberMe）；Tab 可通过 `?tab=register`、`?tab=forgot` 或 `?tab=reset&token=...` 切换；忘记密码为邮件一次性链接重置，失败统一提示并限流。
-
-### 物料台账字段
-
-筛选：品类、统称、品牌、名称（关键字）、型号、Bin位；支持品类→统称→品牌联动收窄选项（Bin 位选项来自 `warehouse_bin` 主数据，非台账 DISTINCT）。表格：序号、品类、统称、品牌、名称、型号、Bin位、库存数量、单价、备注、操作（查看；**编辑/删除仅 `warehouse:material-ledger:write`**）。导出按当前筛选条件导出全部匹配记录；勾选行支持批量导出与批量删除（写权限）；支持 Excel 导入与模板下载。查看详情为右侧只读抽屉。新增/编辑弹窗**独立加载** `filter-options` + `bom-catalog`（不依赖列表页筛选项）；**库存数量只读**（新建默认 0，变更走物料出入库模块）；保存/导入时 Bin 位须在 Bin 主数据中存在，**品类/统称/品牌/名称四元组须在物料清单中存在**；表单支持「从清单选择」自动填充四元组（`GET /api/materials/bom-catalog`）。
-
-### 物料出入库字段
-
-筛选：品类、统称、品牌、名称（关键字）、型号、Bin位、操作类型、**用途（随操作类型联动）**、**项目编号（关键字）**、操作时间区间、`materialLedgerId`（台账深链）、`id`（流水深链打开详情）；专用 [`MaterialIoFilterPanel`](frontend/src/components/warehouse/MaterialIoFilterPanel.vue)。表格：序号、品类、统称、品牌、名称、型号、Bin位、数量、**用途（Tag）**、**项目编号**、备注、操作类型（Tag 色）、操作人、操作时间、操作（查看；**编辑/删除仅 `warehouse:material-io:write`**）。工具栏：**新增（入库/出库下拉）** / 导出 / 导入；**下载模板 / 批量导出 / 批量删除** 收入「更多」下拉。深链上下文条：[`MaterialIoContextBar`](frontend/src/components/warehouse/MaterialIoContextBar.vue)（Tag 式紧凑展示 + 一键入库/出库）。新增为批量表单：顶栏一行化（类型 + 操作时间 + 新增行）；**入库隐藏用途/库存列**；**出库显示用途/可用库存/项目编号/独立预警列**（项目领用须填项目编号）；未选物料点击身份格选择；出库表头汇总预警 + 提交前 confirm（可勾选本次会话不再提示）。编辑禁止改操作类型与物料（PUT 仅 quantity/remark/purpose/projectRef）；重复物料硬拦截；切换出库时即时库存校验。台账详情可跳转 `?materialLedgerId=` 查看该物料流水；出入库详情跳转台账须 `warehouse:material-ledger:read`；`?id=` 深链时列表附加 `ids` 筛选确保行可见与高亮；点「查看」同步 URL；详情支持「复制链接」；关闭详情抽屉清除 `id` 参数并保留 `materialLedgerId` 筛选。Excel 导入全表预校验（含同文件出库累计超库存行级报错、出库用途校验、可选操作时间列）、锁内单事务写入。后端集成测试：`mvn test -Dspring.profiles.active=test`；前端单测：`cd frontend && npm run test`。
-
-## 仓库约定
-
-- **默认分支**：`main`
-- **提交规范**：Conventional Commits（`feat:`、`fix:`、`chore:`）
-- **忽略文件**：见 [.gitignore](.gitignore)
-- **环境变量**：参考 [.env.example](.env.example)，勿提交 `.env`
-
-## 代理工作指引
-
-1. **更新本文件**：新增模块、路由、API、技术栈或目录结构时同步更新
-2. **子系统实现**：新页面实现后更新「子系统范围」表
-3. **不提交敏感信息**：数据库密码、API Key 等不入库
-4. **保持 README 同步**：启动方式变化时更新 [README.md](README.md)
-
-## 开发与调试规范
-
-> **强制要求**：代理与维护者须遵循本节；「能跑」不等于可合入。**DEBUG 与测试耗时通常大于写代码**。
-
-### 环境变量门禁
-
-- 连接串、端口、密钥、桶名等**禁止硬编码**在 Java / TypeScript / Vue 业务代码中。
-- SSOT：根目录 [`.env.example`](.env.example)（模板）+ [`scripts/worktree-db.ps1`](scripts/worktree-db.ps1) / [`scripts/worktree-db.sh`](scripts/worktree-db.sh)（分支 MySQL/MinIO 端口；保留已有数据库/MinIO 凭据、`BACKEND_PORT` / `FRONTEND_PORT` / `VITE_API_PROXY` / `CORS_ALLOWED_ORIGINS` / `SESSION_COOKIE_*` / `RESET_ADMIN_PASSWORD_ON_STARTUP` / `UPLOAD_*` / `APP_PUBLIC_BASE_URL` / `MAIL_*` / `PASSWORD_RESET_TOKEN_TTL_MINUTES`）+ [`application.yml`](backend/src/main/resources/application.yml)（`${VAR:default}` 占位）+ [`vite.config.ts`](frontend/vite.config.ts)（读根目录 `.env` 的 `VITE_API_PROXY` / `FRONTEND_PORT`）。
-- 新增配置项：先扩展 `.env.example` 与 `Format-WorktreeEnvContent`，再在 `application.yml` / `vite.config.ts` / 脚本中引用；默认值仅作本地 fallback。
-- 禁止在代码或文档中维护与 worktree 注册表不一致的另一套连接信息。
-- 脚本内访问 MySQL 必须读取 `MYSQL_USER` / `MYSQL_PASSWORD` / `MYSQL_DB`，禁止写死 `-pstorage123` 或明文密码参数。
-- `docker-compose.yml` 必须读取 `.env` 中的 `MYSQL_*` / `MINIO_*`；healthcheck 禁止硬编码密码参数。
-- `CORS_ALLOWED_ORIGINS` 必须随 `FRONTEND_PORT` 或本地前端域名同步，禁止在 Java 配置中写死 5173。
-- `start-dev.ps1` / `start-dev.sh` 后端进程须显式注入后端运行所需环境变量（数据库、MinIO、CORS、Session、admin 初始化、上传、邮件与密码重置），避免子进程遗漏 `.env` 配置。
-
-### 数据库迁移门禁
-
-- `spring.sql.init.continue-on-error=false`；迁移失败必须阻断启动，禁止靠吞错实现幂等。
-- MySQL 不支持的 `ADD COLUMN IF NOT EXISTS` / `CREATE INDEX IF NOT EXISTS` 必须用 `INFORMATION_SCHEMA` 条件 DDL guard。
-- 迁移脚本不得 `USE storage` 或写死库名，必须使用连接串中的当前库（`DATABASE()`）。
-- `schema.sql` 只负责新空卷初始化；已有卷结构变更必须通过 `migration-*.sql` 幂等落地。
-
-### 推荐日常开发拓扑
-
-- **基础设施**：Windows `.\scripts\sync-worktree-env.ps1` / Linux/macOS `./scripts/sync-worktree-env.sh` → `docker compose --env-file .env up -d`（仅 MySQL + MinIO）
-- **后端调试**：IntelliJ IDEA **Debug** 启动 `com.storage.StorageApplication`（读根目录 `.env` 或 Run Configuration 环境变量）
-- **前端**：`cd frontend && npm run dev`（Vite 代理至 `VITE_API_PROXY`）
-- [`dev-up.ps1`](scripts/dev-up.ps1) / [`dev-up.sh`](scripts/dev-up.sh) 与 [`start-dev.ps1`](scripts/start-dev.ps1) / [`start-dev.sh`](scripts/start-dev.sh) 适用于快速冒烟；脚本端口读取 `.env` 的 `BACKEND_PORT` / `FRONTEND_PORT`；**功能开发与排错优先 IDEA 断点**，非每次 `mvn package` 进容器
-- **IDEA Debug 运行后端时勿用 dev-up 重启后端**，避免重复启动占端口
-
-### 前后端表单校验（Postman 须绕不过）
-
-| 层级 | 要求 | 参考 |
-|------|------|------|
-| 前端 | Ant Design Vue `rules`，改善 UX | `LoginView.vue`、各 `*FormModal.vue` |
-| DTO | Jakarta `@NotBlank` / `@Size` / `@Min` 等 | `*SaveDTO.java` |
-| Controller | `@Valid @RequestBody`（或嵌套 `@Valid`） | `AuthController`、`MaterialIoController` |
-| Service | 引用存在、库存、重复物料、权限等业务规则 | `MaterialIoService`、`MaterialLedgerService` |
-| 异常 | `MethodArgumentNotValidException` → 400 | `GlobalExceptionHandler.handleValidation` |
-| 测试 | 至少一条非法 body 集成测试（不依赖前端） | `*IntegrationTest.java` |
-
-**新增或修改写 API 时合入前 checklist**：
-
-1. DTO 注解与 Controller `@Valid` 已加
-2. 嵌套列表 DTO 已加 `@Valid` + `@NotEmpty`，枚举/状态字段在 DTO 或 Service 层白名单校验
-3. Service 业务校验已加（不仅靠前端）
-4. Postman / curl 发空字段、非法枚举、超长字符串、越权/越库存数据 → 期望 **400/403** 与明确 `message`
-5. `mvn test -Dspring.profiles.active=test` 通过；涉及前端表单时补 `cd frontend && npm run test`；涉及模板/路由/构建配置时补 `cd frontend && npm run build`
-
-### 断点推荐位置
-
-| 场景 | 文件 | 位置 |
-|------|------|------|
-| API 入口 | `*Controller.java` | `POST` / `PUT` 映射方法第一行 |
-| Bean 校验失败 | `GlobalExceptionHandler` | `handleValidation` |
-| 参数类型/JSON 解析失败 | `GlobalExceptionHandler` | 对应 `handle*` 方法 |
-| 业务规则 | `*Service.java` | `save` / `update` / `importBatch` |
-| 库存变更 | `MaterialStockMutationService` | 增减库存方法 |
-| DTO 转换 | `*Converter.java` | `toEntity` / `toVO` |
-| 鉴权 | `AuthService` | `login` / `register` / `forgotPassword` |
-
-### 代理质量要求
-
-- 不得仅写前端 `rules` 而省略后端校验与集成测试。
-- 不得用「打包进容器再测」替代本地 IDEA 单步调试说明。
-- 改 Service / Controller 后须在说明中写明断点位置和测试用例/请求如何验证。
-- 新增配置或端口时须说明 `.env.example`、`worktree-db.ps1` / `worktree-db.sh`、`application.yml`、`vite.config.ts` / 启动脚本是否同步，避免只改一处。
-
-### 安全与生产部署门禁
-
-- 开发默认凭据（`admin123`、`storage123`、`minioadmin123`）仅限本地开发；生产必须在部署前轮换。
-- `POST /api/auth/register` 是否对公网开放须由部署侧显式评估；`POST /api/auth/forgot-password` / `POST /api/auth/reset-password` 已使用邮件一次性链接，但仍需配合 HTTPS、可信前端域名与限流策略。
-- 忘记密码为“账号+邮箱申请邮件链接，token 重置密码”模型；token 仅明文出现在邮件链接中，数据库保存 SHA-256 哈希，默认 30 分钟过期且使用后失效；失败限流为单实例内存级（15 分钟 5 次），多实例生产需升级到 Redis 或网关限流。
-- Google SMTP 默认按 Gmail 直连预留：`smtp.gmail.com:587` + STARTTLS；`MAIL_PASSWORD` 使用 Google 应用专用密码，不得提交真实邮箱密码。公司 Workspace relay 可通过环境变量切换至 `smtp-relay.gmail.com`。
-- Session Cookie 生产环境必须启用 HTTPS 并开启 `SESSION_COOKIE_SECURE=true`；`CORS_ALLOWED_ORIGINS` 仅允许可信前端来源。
-- `AdminPasswordInitializer` 仅用于本地排障；生产应关闭自动重置 admin 密码，避免服务重启回退弱口令。
-- 文件上传安全校验必须以后端为准（大小/MIME 白名单），前端限制仅用于体验优化，不能替代服务端校验。
-- 第三十二期复查已补齐图片魔数校验：JPG/PNG/WebP/GIF 上传不仅检查请求 MIME，还校验文件头，避免伪造 Content-Type 绕过。
-
-## 模块复用与可维护性门禁
-
-> **强制要求**：代理在新增页面、API、表结构或业务逻辑前，必须先完成复用检查并优先使用现有公共模块，禁止为赶进度重复造轮子。
-
-### 开发前检查清单
-
-实现任何新功能前，必须先检索以下目录是否已有可复用能力：
-
-| 层级 | 检索路径 | 典型复用物 |
-|------|----------|------------|
-| 前端组件 | `frontend/src/components/`、`frontend/src/layouts/` | 布局壳层、筛选区、表格包装、弹窗/抽屉 |
-| 前端 API | `frontend/src/api/`、`frontend/src/types/` | Axios 封装、分页类型、筛选参数、实体类型 |
-| 后端通用 | `backend/.../config/`、`backend/.../exception/`、`backend/.../dto/` | CORS、全局异常、分页响应、校验 DTO |
-| 后端业务 | `backend/.../service/`、`backend/.../mapper/` | 分页查询、导入导出、批量操作 |
-| 数据库 | `backend/src/main/resources/db/` | 表命名、字段命名、种子/迁移脚本 |
-| 文档 | `AGENTS.md`、`README.md` | 子系统范围、API 列表、目录结构 |
-
-### 分层职责
-
-- **页面（views）**：只做路由入口、状态编排与组件组合，不写大段重复 UI 或请求逻辑。
-- **组件（components）**：可复用 UI 必须下沉到 `components/common/` 或 `components/warehouse/`，禁止在多个 view 内复制粘贴相同模板。
-- **API 层（api + types）**：每个资源一个模块文件；分页、筛选、导出等模式保持统一签名，不各写一套。
-- **后端 Service**：分页、异常处理、导入导出、DTO 转换优先抽共享 helper 或基类，禁止每个 Controller 复制相同样板代码。
-- **数据库**：相同业务含义只用一套字段名（如 `generic_name`、`bin_location`）；状态/类型优先字典表或统一枚举，避免子系统各搞一套。
-
-### 仓库管理同类 CRUD 复用标准
-
-仓库域多个子模块（物料台账、出入库、安全库存、Bin位、物料清单）及系统管理中的用户/角色列表，本质均为**筛选 + 分页表格 + 弹窗/抽屉 + 导入导出**的增删改查，差异主要在表结构、字段与 API，应配置化或引用公共组件，禁止各写一整份 view。
-
-**参考实现**（实现前必须打开对比）：
-
-| 优先级 | 文件 | 说明 |
-|--------|------|------|
-| 主参考 | [`MaterialLedgerView.vue`](frontend/src/views/material-ledger/MaterialLedgerView.vue) | 仓库域完整 CRUD + 筛选联动 + 导入导出 |
-| 次参考 | [`UserManageView.vue`](frontend/src/views/system/UserManageView.vue) | 系统管理同类列表页模式 |
-
-**实现前强制步骤**：
-
-1. 对比至少两个已有实现（优先物料台账 + 与目标最接近的 view）。
-2. 列出可复用层：`http` / `types` / `utils` / 后端 `query`+`excel`+`converter` / 前端筛选区+表格+弹窗模式。
-3. 在 PR 或代理说明中写明「复用结论」：引用哪些公共模块，或为何差异不可避免。
-
-**20% 差异门禁**（跨模块整体红线，与下文「30 行单次复制」并存，任一触发都须先抽象）：
-
-| 维度 | 一致部分（应复用） | 允许差异部分（计入差异） |
-|------|-------------------|-------------------------|
-| 页面骨架 | 筛选区、工具栏、分页表、空态/加载、确认删除 | — |
-| 数据流 | 分页查询、`buildQueryParams`、`handleTableChange` | — |
-| 导入导出 | `downloadBlob`、模板下载、按筛选导出 | 列定义、Excel 契约 |
-| 业务 | — | 字段、校验规则、联动筛选、权限码 |
-
-若新页面与参考实现在**骨架 + 数据流**上预计重复代码占比 **< 80%**（即不一致 **> 20%**），复用性与可控性几乎为零，**必须先抽象再写业务**，禁止再复制一整份 view。已落地公共层：
-
-- `frontend/src/composables/usePaginatedCrudList.ts` — 分页列表加载、搜索、表格变更、行勾选
-- `frontend/src/composables/useExcelImportExport.ts` — 导入/导出/模板下载
-- `frontend/src/composables/useLinkedFilterOptions.ts` — 仓库域联动筛选底层
-- `frontend/src/composables/useWarehouseMaterialFilters.ts` + `WarehouseMaterialFilterPanel.vue` — 6 字段物料筛选
-- `frontend/src/composables/useMaterialLedgerDeepLink.ts` — 出入库 `?materialLedgerId=` 列表筛选深链
-- `frontend/src/composables/useMaterialLedgerRouteDetail.ts` — 台账 `?materialLedgerId=` 打开详情深链
-- `frontend/src/components/warehouse/MaterialIdentityDescriptions.vue` — 详情物料身份块
-- `frontend/src/composables/useWritePermission.ts` — 写权限 computed 门禁
-- `frontend/src/composables/useCrudDetailDrawer.ts` — 详情抽屉加载态
-- `frontend/src/components/common/CrudListPage.vue` — 筛选/表格/工具栏插槽布局壳
-- `frontend/src/components/common/CrudToolbar.vue` — 通用 CRUD 工具栏
-- `frontend/src/components/common/CrudDetailDrawer.vue` — 详情抽屉壳（含可选编辑按钮）
-- `frontend/src/components/common/CrudRowActions.vue` — 查看/编辑/删除操作列
-- `frontend/src/utils/confirmDelete.ts` — 删除确认（含 `confirmBatchDelete`）
-- `frontend/src/utils/importResult.ts` — 导入结果提示
-- `frontend/src/utils/tableIndex.ts` — 分页序号列
-- `frontend/src/utils/warehouseMaterialTable.ts` — 物料六字段 query/列定义 SSOT
-- `frontend/src/utils/materialLedgerRouteQuery.ts` — `?materialLedgerId=` 解析 SSOT
-- `frontend/src/utils/materialIoRouteQuery.ts` — 出入库 `?id=` 解析 SSOT
-- `frontend/src/constants/materialIoPurpose.ts` — 出入库用途枚举 SSOT
-- `frontend/src/composables/useCrudRouteDetail.ts` — 通用 `?queryKey=` 深链打开详情（IO/台账薄包装）
-- `frontend/src/composables/useMaterialIoList.ts` — 出入库分页列表（含 ioType/操作时间/用途筛选）
-- `frontend/src/composables/useMaterialIoSafetyHint.ts` — 出库安全库存预警提示
-- `frontend/src/composables/useSafetyStockList.ts` — 安全库存分页列表（含安全库存数/预警期筛选）
-- `frontend/src/composables/useMaterialIoRouteDetail.ts` — 出入库 `?id=` 自动打开详情
-- `frontend/src/composables/useMaterialLedgerList.ts` — 台账分页列表（台账页 + 选择器）
-- 各 view 只保留：列配置、表单字段、资源专属 API 绑定
-
-**第三十一期复用复查结论**：未新增业务模块；仓库域与系统域同类列表页仍复用 `CrudListPage`、`CrudToolbar`、`CrudDetailDrawer`、`CrudRowActions`、`usePaginatedCrudList`、`useExcelImportExport`、`useWritePermission`、`confirmDelete`、`getTableRowIndex` 等公共层；物料身份筛选/列定义继续由 `useWarehouseMaterialFilters`、`WarehouseMaterialFilterPanel`、`warehouseMaterialTable` 统一承载。已清理未被引用的 Vite 默认模板残留与过期 `_shared/warehouseListScaffold.ts` 注释脚手架，避免把文档性占位文件误认为运行时公共模块。
-
-```mermaid
-flowchart TD
-  ref[对比 MaterialLedgerView 等参考实现]
-  gate{"骨架+数据流重复 >= 80%?"}
-  abstract[先抽 composable / CrudListPage]
-  extend[view 仅配置字段与 API]
-  ref --> gate
-  gate -->|是| extend
-  gate -->|"否 差异>20%"| abstract --> extend
-```
-
-### 禁止事项
-
-- 禁止在未检查现有代码的情况下新建功能相近的组件、Service、DTO 或 API 文件。
-- 禁止把通用逻辑长期留在某个子系统 view 或 Controller 内。
-- 禁止为单个页面硬编码本应从 `filter-options` 或字典接口获取的下拉数据。
-- 禁止复制粘贴超过 30 行且结构相同的代码而不抽象；若确不抽象，须在 PR/说明中写明理由。
-- 禁止仓库域 CRUD 在**骨架 + 数据流**上与参考实现差异 **> 20%** 仍不复用公共层；禁止在未对比 `MaterialLedgerView` 的情况下从零生成完整列表页。
-- 禁止代理一次性向多个 view 提交数百行重复模板而不抽公共层；禁止把「能跑」当作合入标准。
-
-### 代理执行要求
-
-1. **先说明复用结论**：开始编码前，用一两句话说明「复用了哪些现有模块」或「为何需要新建模块」；**仓库域 CRUD 须对照 `MaterialLedgerView` 并满足 20% 差异门禁**。
-2. **新建公共模块时同步文档**：在「目录结构」与本文件记录其用途、边界、调用方。
-3. **Worktree 并行开发**：公共能力优先合入 `main`，各功能分支通过 `git merge origin/main` 同步，不在多个分支各自维护一份相同公共代码。当前 worktree：`main`（`E:/Storage`）、`feat/material-ledger`（`E:/Storage-worktrees/material-ledger`）、`feat/material-io`、`feat/safety-stock`、`feat/config-mgmt`（`E:/Storage-worktrees/config-mgmt`）。**切换 worktree 或分支后必须先执行 `scripts/sync-worktree-env.ps1`（Windows）或 `scripts/sync-worktree-env.sh`（Linux/macOS/Git Bash）**，确认 MySQL 端口与当前分支一致后再启 Docker / 后端。
-4. **重构优先于堆叠**：发现重复实现时，优先抽取再扩展，而非再写第三份副本。
-
-### 协作与 AI 使用原则
-
-适用于维护者与 Cursor Agent，强调**补全式、可审查**开发，避免黑盒式整包生成。
-
-- **补全式优先**：采用 Cursor/Copilot 式「边写边看」——小步修改、即时审阅 diff，而非一次性生成整个子系统且不知写了什么。
-- **可控性要求**：
-  - 编码前说明复用结论与**拟改文件清单**；禁止未经确认跨多文件大块生成。
-  - 单次变更聚焦一个子模块或一层（如先 API/types，再 composable，再 view）；避免单 PR 同时铺开多个仓库 CRUD 页。
-  - 维护者须在 IDE 中**逐文件审查** diff 后再合并；不清楚内容的代码不得合入。
-- **合入标准**：仓库域 CRUD 须**可维护、可对比、差异可解释**；与参考实现差异须有文档说明，不得仅追求「能跑」。
-
-### Worktree 数据库隔离
-
-各 worktree 拥有**独立的 MySQL / MinIO 端口、容器名与 Docker 数据卷**；逻辑库名均为 `storage`，隔离靠端口 + 卷。注册表 SSOT：[`scripts/worktree-db.ps1`](scripts/worktree-db.ps1) / [`scripts/worktree-db.sh`](scripts/worktree-db.sh)。
-
-| 分支 | Worktree | MySQL | MinIO API | Compose 项目 |
-|------|----------|-------|-----------|--------------|
-| `main` | `E:/Storage` | 3307 | 9000 | `storage-main` |
-| `feat/material-ledger` | `E:/Storage-worktrees/material-ledger` | 3308 | 9010 | `storage-material-ledger` |
-| `feat/material-io` | `E:/Storage-worktrees/material-io` | 3309 | 9020 | `storage-material-io` |
-| `feat/safety-stock` | `E:/Storage-worktrees/safety-stock` | 3310 | 9030 | `storage-safety-stock` |
-| `feat/config-mgmt` | `E:/Storage-worktrees/config-mgmt` | 3311 | 9040 | `storage-config-mgmt` |
-
-#### 日常流程
-
-```powershell
-cd E:\Storage-worktrees\material-io
-git checkout feat/material-io
-.\scripts\dev-up.ps1                      # Windows：一键 sync + docker + 前后端
-# 或分步：
-.\scripts\sync-worktree-env.ps1
-docker compose --env-file .env up -d
-.\scripts\start-dev.ps1
-```
-
-Linux / macOS / Git Bash：
-
-```bash
-chmod +x scripts/*.sh
-./scripts/dev-up.sh                       # 一键 sync + docker + 前后端
-# 或分步：
-./scripts/sync-worktree-env.sh
-docker compose --env-file .env up -d
-./scripts/start-dev.sh
-```
-
-`start-dev.ps1` / `start-dev.sh` / `reset-db.ps1` / `reset-db.sh` 启动时会自动 sync；手动改分支后建议显式执行一次 `sync-worktree-env`。
-
-#### 隔离原则
-
-- **代码在 Git 里合并，数据库永不合并**；每个 worktree 对应独立 Docker 卷，互不可见。
-- **在哪个分支写代码，就用哪个分支的 `.env` 与端口**；禁止用 main 的 3307 卷测试 feature 分支代码。
-- **禁止**在未确认目录/分支时对 `docker compose down -v`（会删错卷）。
-- **禁止**把 A 分支 mysqldump 导入 B 分支端口（除非明确在做数据迁移）。
-- `.env` 不入库；端口分配须同步 `worktree-db.ps1` 与 `worktree-db.sh`。
-
-#### Git 合并时（不能弄混）
-
-| 场景 | 正确做法 |
+| 层级 | 优先检查 |
 |------|----------|
-| feature 新增 `migration-*.sql` | 脚本保持幂等（`IF NOT EXISTS` / `INSERT IGNORE` / UPDATE 修复中文）；合并后各 worktree **各自重启后端**，迁移只作用于**本卷** |
-| 修改 `schema.sql` 种子 | 只影响**新初始化**的空卷；已有卷靠 migration 或 `reset-db.ps1` / `reset-db.sh` |
-| `main` 合并进 feature | 先 `git merge`，再 `sync-worktree-env`，再启后端；不要用 main 的 Docker 卷测 feature |
-| PR / 代理说明 | 若变更 DB 结构，注明「各 worktree 需重启后端；是否需 reset-db 由开发者自判」 |
-| 代理执行 | 在 feature worktree 开发时连接该分支注册端口；合入 main 时在 **main 目录**验证，不跨端口读库 |
+| 前端组件 | `frontend/src/components/`、`frontend/src/layouts/` |
+| 前端逻辑 | `frontend/src/composables/`、`frontend/src/utils/`、`frontend/src/constants/` |
+| 前端 API/类型 | `frontend/src/api/`、`frontend/src/types/` |
+| 后端通用 | `backend/src/main/java/com/storage/config/`、`exception/`、`dto/`、`web/` |
+| 后端业务 | `service/`、`mapper/`、`query/`、`converter/`、`excel/` |
+| 数据库 | `backend/src/main/resources/db/` |
 
-#### 一次性迁移说明
+仓库域 CRUD 页必须优先复用：
 
-从旧版共用 `material-ledger-*` 容器 / `storage_mysql_data` 卷迁移时：Windows 运行 `scripts/cleanup-legacy-docker.ps1`，再执行 `sync-worktree-env` + `docker compose --env-file .env up -d` 创建 `storage-{slug}_*` 新卷。若需保留 main 现有数据，迁移前先 `mysqldump` 备份再导入新 `storage-main-mysql` 容器。
+- `CrudListPage`
+- `CrudToolbar`
+- `CrudDetailDrawer`
+- `CrudRowActions`
+- `usePaginatedCrudList`
+- `useExcelImportExport`
+- `useLinkedFilterOptions`
+- `useWarehouseMaterialFilters`
+- `useWritePermission`
+- `confirmDelete`
+- `tableIndex`
+- `warehouseMaterialTable`
 
-### 第八期 DevX
+参考实现：
 
-日常开发优先使用 Windows [`scripts/dev-up.ps1`](scripts/dev-up.ps1) / [`dev-up.cmd`](dev-up.cmd)，或 Linux/macOS [`scripts/dev-up.sh`](scripts/dev-up.sh)（sync + Docker + wait MySQL + start-dev）。
+- 主参考：`frontend/src/views/material-ledger/MaterialLedgerView.vue`
+- 次参考：`frontend/src/views/system/UserManageView.vue`
 
-| 脚本 | 用途 |
-|------|------|
-| `dev-up.ps1` / `dev-up.sh` | 一键启动完整开发环境 |
-| `health-check.ps1` / `health-check.sh` | 只读自检（分支、.env、容器、中文、前后端）；退出码 0/1 |
-| `cleanup-legacy-docker.ps1` / `cleanup-legacy-docker.sh` | 清理第七期前 `material-ledger-*` 遗留容器 |
-| `wait-mysql.ps1` / `wait-mysql.sh` | 轮询 MySQL `SELECT 1`，供 dev-up/reset-db 复用 |
-| `sync-worktree-env.ps1` / `sync-worktree-env.sh` | 按分支生成本地 `.env` |
-| `start-dev.ps1` / `start-dev.sh` | 启动后端 + 前端（自动 sync，可选联动 Docker） |
-| `reset-db.ps1` / `reset-db.sh` | 重置当前 worktree Docker 数据卷并重建数据库 |
+硬性要求：
 
-**代理执行要求（DevX）**：
+- 仓库域同类 CRUD 若骨架和数据流重复度预计达到 80%，必须复用公共层，只在 view 中保留列配置、表单字段和资源 API 绑定。
+- 禁止复制粘贴超过 30 行结构相同代码而不抽象；确实不抽象时必须在说明中写理由。
+- 禁止把通用逻辑长期留在某个 view、Controller 或 Service 内。
+- 禁止为单个页面硬编码本应来自 `filter-options`、字典接口或主数据表的下拉值。
 
-- 切换 worktree 或启动开发环境前，建议先跑 `health-check.ps1`；失败时先排查，**不要**擅自 `docker compose down -v`。
-- 物料台账中文乱码：重启后端触发 `migration-fix-chinese-data.sql`（含 `material_ledger` 幂等 UPDATE）；仍异常再用 `reset-db.ps1` / `reset-db.sh`。
-- 遇端口占用且存在 `material-ledger-*`：先 `cleanup-legacy-docker.ps1`，再 `dev-up`。
+## 分层职责
 
-## 目录结构
+- `views`：路由入口、状态编排、组件组合；不要塞大段重复 UI 或请求逻辑。
+- `components`：可复用 UI 下沉到 `components/common/` 或 `components/warehouse/`。
+- `api` + `types`：每个资源一个模块；分页、筛选、导出签名保持一致。
+- `service`：业务规则、事务、权限、库存不变量；不要只靠前端判断。
+- `query` / `converter` / `excel` / `web`：查询条件、DTO 转换、Excel 契约、响应构建等通用能力优先放这里。
+- 数据库字段同义只保留一套命名，例如 `generic_name`、`bin_location`、`project_ref`。
 
-```
-Storage/
-├── frontend/                 # Vue3 + TS + Ant Design Vue 4
-│   └── src/
-│       ├── api/
-│       │   ├── http.ts           # 共享 axios（withCredentials + 401 拦截）
-│       │   ├── auth.ts           # 登录/注册/登出/当前用户
-│       │   ├── menu.ts           # 导航树
-│       │   ├── system/           # 用户/角色/客户管理 API
-│       │   ├── materialLedger.ts # 物料台账 API
-│       │   ├── materialIo.ts     # 物料出入库 API
-│       │   ├── safetyStock.ts    # 安全库存 API
-│       │   ├── warehouseStats.ts # 库存统计 API
-│       │   ├── file.ts           # 通用文件上传 API
-│       │   ├── warehouseBin.ts   # Bin位管理 API
-│       │   └── warehouseBom.ts   # 物料清单 API
-│       ├── composables/
-│       │   ├── useAuth.ts              # 登录态 composable（hasPermission）
-│       │   ├── useWorkbenchTabs.ts       # 顶部 Tab 状态
-│       │   ├── usePaginatedCrudList.ts   # 分页 CRUD 列表通用逻辑
-│       │   ├── useExcelImportExport.ts   # Excel 导入导出
-│       │   ├── useLinkedFilterOptions.ts # 联动筛选底层
-│       │   ├── useWarehouseMaterialFilters.ts # 6 字段物料筛选 composable
-│       │   ├── useMaterialLedgerDeepLink.ts # 出入库台账深链筛选
-│       │   ├── useMaterialIoList.ts      # 出入库分页列表
-│       │   ├── useSafetyStockList.ts   # 安全库存分页列表
-│       │   ├── useCrudRouteDetail.ts     # 通用深链打开详情
-│       │   ├── useMaterialIoRouteDetail.ts # 出入库流水深链打开详情
-│       │   ├── useMaterialLedgerRouteDetail.ts # 台账深链打开详情
-│       │   ├── useMaterialLedgerList.ts  # 台账分页列表（台账页+选择器）
-│       │   ├── useWritePermission.ts     # 写权限门禁
-│       │   ├── useCrudDetailDrawer.ts    # 详情抽屉
-│       │   ├── useMaterialIoStock.ts     # 出入库可用库存计算
-│       │   └── useMaterialIoSafetyHint.ts # 出库安全库存预警
-│       ├── components/
-│       │   ├── layout/           # SideMenu（动态菜单）、TabBar
-│       │   ├── common/           # ComingSoonPage、CrudListPage、CrudToolbar、CrudDetailDrawer、CrudRowActions
-│       │   ├── system/           # RoleManagePanel、MenuManagePanel、CustomerFormModal
-│       │   └── warehouse/        # …、MaterialIoFilterPanel、MaterialIoContextBar、MaterialIoBatchFormModal、SafetyStockDetailDescriptions
-│       ├── constants/
-│       │   ├── filter.ts         # 筛选常量（ALL_OPTION）
-│       │   ├── materialIoPurpose.ts # 出入库用途枚举 SSOT
-│       │   └── shellRouteRegistry.ts # 壳层占位路由 SSOT
-│       ├── assets/auth/          # 登录页静态资源
-│       ├── layouts/AppLayout.vue
-│       ├── router/
-│       │   ├── index.ts          # createRouter + 注册守卫
-│       │   ├── routes.ts         # 路由表（含 system/*）
-│       │   ├── guards.ts         # beforeEach 登录与 permission 拦截
-│       │   └── meta.d.ts         # RouteMeta 类型扩展
-│       ├── types/
-│       │   ├── common.ts         # PageResult、ImportResult 等通用类型
-│       │   ├── auth.ts
-│       │   ├── system.ts
-│       │   ├── materialLedger.ts
-│       │   ├── materialIo.ts
-│       │   ├── safetyStock.ts
-│       │   ├── warehouseStats.ts
-│       │   ├── customer.ts
-│       │   ├── file.ts
-│       │   ├── warehouseBin.ts
-│       │   └── warehouseBom.ts
-│       ├── utils/                # download、format、confirmDelete、importResult、tableIndex、warehouseMaterialTable、materialLedgerRouteQuery、materialIoRouteQuery、materialIoShareUrl、selectOptions、icons、loginRemember
-│       ├── views/auth/
-│       │   └── LoginView.vue     # 登录/注册
-│       ├── views/system/         # SystemManageLayout、UserManageView、CustomerManageView
-│       ├── views/platform/       # ShellPlaceholderView
-│       ├── views/warehouse/      # MaterialIoView、SafetyStockView、InventoryStatsView；config/BinManageView、BomManageView
-│       └── views/material-ledger/
-│           └── MaterialLedgerView.vue
-├── backend/                  # Spring Boot 3 + MyBatis Plus
-│   └── src/main/java/com/storage/
-│       ├── controller/       # Auth、System、Material、MaterialIo、SafetyStock、WarehouseStats、WarehouseBin/Bom、File、MenuNav
-│       ├── config/           # CORS、Shiro、MinIO、WebMvc
-│       ├── shiro/            # Realm、ShiroConfig、SubjectBindingFilter
-│       ├── converter/        # DTO ↔ Entity 转换
-│       ├── dto/
-│       ├── entity/
-│       ├── excel/            # Excel 列契约与 POI 工具
-│       ├── exception/        # 全局异常（可复用）
-│       ├── mapper/
-│       ├── query/            # 查询条件构建
-│       ├── service/            # 业务 Service；含 MaterialStockMutationService（库存锁定/增减）
-│       └── web/              # Excel 响应构建
-├── docker-compose.yml        # MySQL 8 + MinIO（端口/凭据/卷由 .env 参数化，含 healthcheck）
-├── dev-up.cmd                # 一键环境 + 前后端（第八期推荐入口）
-├── scripts/
-│   ├── worktree-db.ps1/.sh   # Worktree 分支→端口/容器/卷注册表（SSOT）
-│   ├── sync-worktree-env.ps1/.sh # 按当前分支生成本地 .env
-│   ├── dev-up.ps1/.sh        # sync + docker + wait-mysql + start-dev
-│   ├── health-check.ps1/.sh  # 开发环境只读自检
-│   ├── cleanup-legacy-docker.ps1/.sh # 清理 material-ledger-* 遗留容器
-│   ├── wait-mysql.ps1/.sh    # MySQL 就绪轮询
-│   ├── start-dev.ps1/.sh     # 启动前后端（自动 sync + 注入 DB 环境变量）
-│   └── reset-db.ps1/.sh      # 重置当前 worktree 的 Docker 卷
-├── .env.example
-├── AGENTS.md
-└── README.md
-```
+## 环境变量门禁
 
-## 变更日志
+- 连接串、端口、密钥、桶名、CORS 来源禁止硬编码在 Java / TypeScript / Vue 业务代码中。
+- 配置 SSOT：
+  - `.env.example`
+  - `scripts/worktree-db.ps1`
+  - `scripts/worktree-db.sh`
+  - `backend/src/main/resources/application.yml`
+  - `frontend/vite.config.ts`
+  - `docker-compose.yml`
+- 新增配置项时必须同步模板、脚本生成逻辑、应用读取处和文档说明。
+- `docker-compose.yml` 必须读取 `.env` 中的 `MYSQL_*`、`MINIO_*`；healthcheck 禁止明文密码参数。
+- 脚本访问 MySQL 必须读取 `MYSQL_USER`、`MYSQL_PASSWORD`、`MYSQL_DB`，禁止写死 `-pstorage123`。
+- `CORS_ALLOWED_ORIGINS` 必须随前端端口或可信前端域名配置，禁止在 Java 配置中写死 `5173`。
 
-| 日期 | 变更 |
-|------|------|
-| 2026-06-23 | 初始化 Git 仓库、.gitignore、AGENTS.md、README.md；首次推送到 GitHub |
-| 2026-06-23 | 物料台账首版：前后端工程、MySQL 种子数据、完整壳层 UI、分页查询 API |
-| 2026-06-23 | 物料台账二版：查看详情抽屉、按筛选条件导出 Excel、列表页 UI 优化 |
-| 2026-06-23 | 物料台账三版：CRUD、Excel 导入、批量导出/删除、筛选联动、种子数据精简 |
-| 2026-06-23 | 新增模块复用与可维护性门禁；main 合并物料台账 v2/v3 并同步至功能分支 |
-| 2026-06-23 | 复用基础层：前端 http/types/utils/constants、后端 converter/query/excel/web |
-| 2026-06-24 | 补充项目生命周期管理系统总体架构、一级域划分与仓库管理边界 |
-| 2026-06-24 | 登录页 UI 第一期：`/login` 独立页、设计稿还原、路由默认入口 |
-| 2026-06-24 | 鉴权第二期：Apache Shiro Session、用户/角色/菜单表、API 保护、前端登录打通 |
-| 2026-06-24 | MinIO 对象存储基础设施与 `POST /api/files/upload` |
-| 2026-06-24 | 系统管理第四期：用户/角色嵌套路由 Tab、授权只读面板、用户/角色 Excel、客户管理占位、移除菜单管理 UI |
-| 2026-06-24 | 登录页第五期：左栏科技插画、localStorage 记住账号、URL Tab 同步、注册 3-32/密码≥6 校验、登录交互优化 |
-| 2026-06-24 | 第六期平台壳层 UI：`migration-phase6-platform-shell.sql` 完整导航种子、仓库 4 项（配置管理含 Bin位/物料清单）、占位路由与 `ComingSoonPage`、新建 `feat/config-mgmt` worktree |
-| 2026-06-24 | 第七期壳层 UI 补全：动态 TabBar（`useWorkbenchTabs`）、壳层 `/platform/*` 占位路由、`migration-phase7-ui-shell-paths.sql`、侧栏默认展开 |
-| 2026-06-25 | Worktree 数据库隔离：`worktree-db.ps1` 五分支独立端口/卷、`sync-worktree-env.ps1`、参数化 `docker-compose.yml`、AGENTS 合并规范 |
-| 2026-06-25 | 第八期 DevX：`dev-up`、`health-check`、`cleanup-legacy-docker`、`wait-mysql`、`material_ledger` 中文修复、MySQL healthcheck |
-| 2026-06-25 | AGENTS：仓库同类 CRUD 20% 复用门禁与协作式 AI（补全式、可审查）原则 |
-| 2026-06-25 | 第九期系统管理 RBAC 补全：恢复菜单管理 Tab（`/system/users/menus`）、`MenuManagePanel` CRUD、用户表单多角色分配 |
-| 2026-06-25 | 第十期 CRUD 复用层：`usePaginatedCrudList`、`useExcelImportExport`、`useLinkedFilterOptions`、`CrudListPage`、`CrudToolbar`；物料台账/用户/角色列表页迁移至公共层 |
-| 2026-06-25 | 第十一期 Bin位管理：`warehouse_bin` 表与 CRUD/Excel API、`BinManageView`；台账 Bin 下拉改读主数据、保存/导入校验；`GET /api/materials/bin-codes` |
-| 2026-06-25 | 第十一期 11.2 物料清单：`warehouse_bom` 表与 CRUD/Excel API、`BomManageView`（品类联动筛选；图片列占位；从台账 DISTINCT 回填种子） |
-| 2026-06-25 | 第十一期 11.3 台账 ↔ 清单：`GET /api/materials/bom-catalog`、表单「从清单选择」、四元组严格校验、清单删除台账引用保护 |
-| 2026-06-25 | 第十一期 11.4 物料清单 MinIO 图片：`image_object_key` 字段、`BomFormModal` 上传/预览/清除、列表与详情缩略图；上传权限 OR `warehouse:bom:write` |
-| 2026-06-25 | 第十二期物料台账编辑链路：修复 `warehouse_bom.image_object_key` 迁移（MySQL 兼容）；编辑弹窗独立加载选项与 bom-catalog；`MaterialLedgerView` 写权限门禁对齐 Bin/用户管理 |
-| 2026-06-25 | 第十三期 CRUD 复用层补全：`confirmBatchDelete`、`useWritePermission`、`useCrudDetailDrawer`、`CrudDetailDrawer`、`CrudRowActions`、`getTableRowIndex`；台账/Bin/清单三页迁移；台账 Bin 筛选改走 `filter-options.binLocations` |
-| 2026-06-25 | 第十三期物料出入库：`material_io_record` 表与 CRUD/Excel API、`MaterialIoView` 批量入库/出库、`MaterialLedgerPickerModal`、`warehouse:material-io:write`；`material_ledger.stock_quantity` 唯一由出入库模块写入 |
-| 2026-06-26 | 第十四期物料出入库完善：筛选联动 bug 修复、Excel 原子导入 `importBatch`、台账选择器 composables 升级、批量表单库存列/实时库存、台账删除 IO 引用保护、`CrudToolbar` 模板只读下载 |
-| 2026-06-26 | 第十五期物料出入库优化：H2 集成测试、`useMaterialIoStock`、可用库存列、编辑禁改类型、出库选择器零库存拦截、`materialLedgerId` 深链追溯、台账详情跳转出入库、删除占位页 |
-| 2026-06-26 | 第十六期物料出入库复用与契约：`useWarehouseMaterialFilters`/`WarehouseMaterialFilterPanel` 消除三处筛选重复、`useMaterialLedgerDeepLink`、`MaterialIdentityDescriptions`、出库 InputNumber max、IO↔台账互跳、台账只读模板下载；后端禁改 ioType、批量重复物料拦截、`MaterialLedgerService.findByMaterialKey` |
-| 2026-06-26 | 第十七期追溯闭环与测试：`useMaterialLedgerRouteDetail` 台账 `?materialLedgerId=` 自动打开详情；`importBatch`/Excel 导入重复物料拦截；`MaterialIoImportServiceIntegrationTest` + Service 层 ioType/查询/重复测试扩展 |
-| 2026-06-26 | 第十八期追溯体验与复用深化：深链 `?materialLedgerId=` 新增预填、上下文条补全、IO↔台账读权限对称；编辑禁改物料（前后端）；`warehouseMaterialTable`/`materialLedgerRouteQuery`/`useMaterialLedgerList`/`MaterialIoDetailDescriptions`；台账页与选择器共用列表 composable |
-| 2026-06-26 | 第十九期流水深链与质量基建：`useMaterialIoRouteDetail` + `?id=` 打开出入库详情；`MaterialStockMutationService` 库存逻辑下沉；Vitest 基建 + `useMaterialIoStock` 单测 |
-| 2026-06-26 | 第二十期列表复用与深链闭环：`useMaterialIoList` 抽取瘦身 `MaterialIoView`；`?id=` 列表 `ids` 定位 + 查看 URL 同步；Excel 导入出库超库存行级 `ImportResultVO`；`MaterialStockMutationServiceTest` + 深链/route Vitest 扩展 |
-| 2026-06-26 | 第二十一期追溯快捷与契约瘦身：上下文条一键新增入库/出库、`useCrudRouteDetail`、`MaterialIoUpdateDTO`、详情复制链接 |
-| 2026-06-26 | 第二十二期安全库存管理：`safety_stock` 表与 API、`SafetyStockView`、预警黄行、导出/编辑 upsert、`warehouse:safety-stock:write`、H2 集成测试 |
-| 2026-06-29 | 第二十三期出入库业务语义：`purpose` 用途枚举、出库必填、列表筛选/Excel；`GET /api/material-io/safety-hints` 出库预警；新增补录 `operatedAt`；`useMaterialIoSafetyHint` |
-| 2026-06-29 | 第二十六期客户管理与忘记密码：`sys_customer` CRUD/Excel、`CustomerManageView`、`POST /api/auth/forgot-password`、登录页 `?tab=forgot` |
-| 2026-06-29 | 第二十四期出入库 UI 优化：`MaterialIoFilterPanel`、`MaterialIoContextBar`、工具栏「更多」、用途 Tag 列、新增弹窗顶栏/条件列/预警列、安全确认 checkbox |
-| 2026-06-29 | 第二十七期差距收敛：文档与客户占位表述同步、台账路由读权限、死代码清理、注册可选邮箱 + admin 种子邮箱、库存统计 `recentDays` 选择器、台账/Bin/客户 import 集成测试、GitHub Actions CI |
-| 2026-06-29 | 第二十八期开发与调试规范：AGENTS/README 环境变量门禁、IDEA 断点工作流、双端校验 checklist、断点表；`BACKEND_PORT` / `FRONTEND_PORT` / `VITE_API_PROXY` 参数化，脚本保留应用端口并读取 MySQL 环境变量 |
-| 2026-06-29 | 第二十九期质量门禁与安全加固：Docker/CORS 凭据参数化、迁移关闭 `continue-on-error` 并改条件 DDL、忘记密码统一提示与限流、Auth Controller 集成测试、CI 增加前端 build、路由懒加载 + AntD 组件按需导入、清理 Vite 脚手架残留 |
-| 2026-06-30 | 第三十期忘记密码邮件链接重置：Google SMTP 环境变量预留、`password_reset_token`、`POST /api/auth/reset-password`、登录页 `?tab=reset&token=...` |
-| 2026-06-30 | 第三十一期模块复用复查与废弃物清理：复核仓库/系统同类列表页公共层复用，移除未引用 `_shared/warehouseListScaffold.ts` 注释脚手架，文档改记录真实公共模块 |
-| 2026-06-30 | 第三十二期安全门禁复查与上传加固：复核环境变量、CORS、Session、忘记密码、迁移脚本与敏感信息门禁；文件上传增加 JPG/PNG/WebP/GIF 魔数校验 |
-| 2026-06-30 | 第三十三期系统环境变量一致性审核：核对 `.env.example` 与 `Format-WorktreeEnvContent` 变量清单一致；`start-dev.ps1` 显式注入 Session/Admin/Upload/Mail/PasswordReset 环境变量；补齐文档 SSOT |
-| 2026-06-30 | 第三十四期跨平台 DevX：补齐 Linux/macOS/Git Bash 版 `worktree-db.sh`、`sync-worktree-env.sh`、`dev-up.sh`、`start-dev.sh`、`wait-mysql.sh`、`reset-db.sh`、`health-check.sh`、`cleanup-legacy-docker.sh`，README/AGENTS 同步双平台启动入口 |
+## 数据库迁移门禁
+
+- `spring.sql.init.continue-on-error=false`；迁移失败必须阻断启动。
+- MySQL 不支持的 `ADD COLUMN IF NOT EXISTS`、`CREATE INDEX IF NOT EXISTS` 必须用 `INFORMATION_SCHEMA` 条件 DDL guard。
+- 迁移脚本不得 `USE storage` 或写死库名，必须使用连接串当前库。
+- `schema.sql` 只负责新空卷初始化；已有卷结构变更必须通过 `migration-*.sql` 幂等落地。
+- 涉及 DB 结构变更时，说明是否需要重启后端、是否影响已有卷、是否需要 reset-db。
+
+## API 与校验门禁
+
+新增或修改写 API 时必须满足：
+
+- DTO 使用 Jakarta 校验注解：`@NotBlank`、`@Size`、`@Min` 等。
+- Controller 对请求体使用 `@Valid @RequestBody`；嵌套列表使用 `@Valid` + `@NotEmpty`。
+- 枚举、状态、用途等字段必须在 DTO 或 Service 层白名单校验。
+- Service 层必须校验引用存在、权限、库存、重复物料、删除保护等业务规则。
+- `MethodArgumentNotValidException` 等参数错误应返回 400 和明确 `message`，不得 500。
+- 至少补一条非法 body 或关键业务不变量测试；涉及前端表单时补前端测试或构建验证。
+
+## 安全门禁
+
+- 开发默认凭据（如 `admin123`、`storage123`、`minioadmin123`）仅限本地开发；生产部署必须轮换。
+- `.env` 和真实 SMTP 密码不得入库；`MAIL_PASSWORD` 应使用应用专用密码或部署侧密钥。
+- 忘记密码 token 只允许明文出现在邮件链接中，数据库只存哈希；过期和使用后必须失效。
+- 注册、忘记密码、重置密码等公网入口必须配合 HTTPS、可信 CORS、Session Cookie 安全配置和限流策略。
+- 文件上传安全校验以后端为准，至少校验大小、MIME 白名单和文件魔数；前端限制只做体验。
+- 生产环境必须评估是否关闭开放注册和 admin 自动重置密码。
+
+## 测试与验证
+
+- 后端常规验证：在 `backend` 目录运行 `mvn test "-Dspring.profiles.active=test"`。
+- 前端常规验证：在 `frontend` 目录运行 `npm run test`；涉及构建、路由、组件自动导入时运行 `npm run build`。
+- 修改 Service / Controller 后，在说明中写明建议断点位置和验证请求。
+- 修改配置、脚本或端口时，说明 `.env.example`、worktree 脚本、`application.yml`、`vite.config.ts`、Docker/README 是否同步。
+
+## Worktree 与脚本规则
+
+- 各 worktree 的数据库隔离靠端口、容器名和 Docker 卷；注册表在 `scripts/worktree-db.ps1` 与 `scripts/worktree-db.sh`，两者必须同步。
+- `.env` 不入库；切换分支或 worktree 后必须先同步本地 `.env` 再启动依赖服务。
+- 代码在 Git 合并，数据库卷不合并；不要跨分支共用另一个 worktree 的数据库端口验证。
+- 禁止在未确认目录、分支、compose project 和卷名时执行会删除卷的操作。
+- Windows PowerShell 脚本与 Bash 脚本是同等维护对象；新增脚本能力时两端尽量同步。
+
+## 协作与 AI 使用原则
+
+- 开发前先说明复用结论和拟改文件范围；仓库域 CRUD 必须对照参考实现。
+- 单次变更聚焦一个子模块或一层，避免一个提交同时大规模改多个 CRUD 页面。
+- 维护者应逐文件审查 diff；不清楚内容的代码不得合入。
+- 合入标准是可维护、可对比、差异可解释，不是“能跑就行”。
