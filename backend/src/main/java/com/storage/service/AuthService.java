@@ -1,13 +1,17 @@
 package com.storage.service;
 
+import com.storage.config.PasswordResetProperties;
 import com.storage.dto.AuthSessionVO;
 import com.storage.dto.AuthUserVO;
+import com.storage.dto.ForgotPasswordResetDTO;
 import com.storage.dto.ForgotPasswordDTO;
 import com.storage.dto.LoginRequestDTO;
 import com.storage.dto.RegisterRequestDTO;
+import com.storage.entity.PasswordResetToken;
 import com.storage.entity.SysRole;
 import com.storage.entity.SysUser;
 import com.storage.exception.BusinessException;
+import com.storage.mapper.PasswordResetTokenMapper;
 import com.storage.mapper.SysMenuMapper;
 import com.storage.mapper.SysRoleMapper;
 import com.storage.mapper.SysUserMapper;
@@ -22,29 +26,61 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.util.Base64;
+import java.util.HexFormat;
 import java.util.List;
+import java.util.Locale;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 @Service
 @RequiredArgsConstructor
 public class AuthService {
 
+    private static final String FORGOT_PASSWORD_IDENTITY_ERROR = "账号或邮箱不正确，或账号未绑定邮箱";
+    private static final String RESET_PASSWORD_TOKEN_ERROR = "重置链接无效或已过期";
+    private static final int FORGOT_PASSWORD_MAX_FAILURES = 5;
+    private static final Duration FORGOT_PASSWORD_FAILURE_WINDOW = Duration.ofMinutes(15);
+    private static final String LOGIN_IDENTITY_ERROR = "账号或密码错误";
+    private static final int LOGIN_MAX_FAILURES = 5;
+    private static final Duration LOGIN_FAILURE_WINDOW = Duration.ofMinutes(15);
+
     private final SysUserMapper sysUserMapper;
     private final SysRoleMapper sysRoleMapper;
     private final SysMenuMapper sysMenuMapper;
+    private final PasswordResetTokenMapper passwordResetTokenMapper;
+    private final PasswordResetMailService passwordResetMailService;
+    private final PasswordResetProperties passwordResetProperties;
     private final BCryptPasswordEncoder passwordEncoder;
     private final UserRealm userRealm;
+    private final SecureRandom secureRandom = new SecureRandom();
+    private final ConcurrentMap<String, ForgotPasswordFailures> forgotPasswordFailures = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, LoginFailures> loginFailures = new ConcurrentHashMap<>();
 
     public AuthSessionVO login(LoginRequestDTO request) {
-        SysUser user = sysUserMapper.selectByUsername(request.getUsername());
+        String username = request.getUsername().trim();
+        String failureKey = normalizeLoginKey(username);
+        assertLoginAllowed(failureKey);
+
+        SysUser user = sysUserMapper.selectByUsername(username);
         if (user == null || user.getStatus() == null || user.getStatus() != 1) {
-            throw new BusinessException("账号或密码错误");
+            recordLoginFailure(failureKey);
+            throw new BusinessException(LOGIN_IDENTITY_ERROR);
         }
         if (!userRealm.matchesPassword(request.getPassword(), user.getPasswordHash())) {
-            throw new BusinessException("账号或密码错误");
+            recordLoginFailure(failureKey);
+            throw new BusinessException(LOGIN_IDENTITY_ERROR);
         }
 
         UsernamePasswordToken token = new UsernamePasswordToken(
-                request.getUsername(),
+                username,
                 request.getPassword(),
                 false
         );
@@ -52,8 +88,10 @@ public class AuthService {
         try {
             subject.login(token);
         } catch (AuthenticationException ex) {
-            throw new BusinessException("账号或密码错误");
+            recordLoginFailure(failureKey);
+            throw new BusinessException(LOGIN_IDENTITY_ERROR);
         }
+        loginFailures.remove(failureKey);
         return buildSession(user);
     }
 
@@ -105,18 +143,51 @@ public class AuthService {
 
     @Transactional
     public void forgotPassword(ForgotPasswordDTO request) {
-        SysUser user = sysUserMapper.selectByUsername(request.getUsername().trim());
+        String username = request.getUsername().trim();
+        String failureKey = normalizeForgotPasswordKey(username);
+        assertForgotPasswordAllowed(failureKey);
+
+        SysUser user = sysUserMapper.selectByUsername(username);
         if (user == null || user.getStatus() == null || user.getStatus() != 1) {
-            throw new BusinessException("账号或邮箱不正确");
+            recordForgotPasswordFailure(failureKey);
+            throw new BusinessException(FORGOT_PASSWORD_IDENTITY_ERROR);
         }
         if (!StringUtils.hasText(user.getEmail())) {
-            throw new BusinessException("该账号未绑定邮箱，请联系管理员在用户管理中重置密码");
+            recordForgotPasswordFailure(failureKey);
+            throw new BusinessException(FORGOT_PASSWORD_IDENTITY_ERROR);
         }
         if (!user.getEmail().trim().equalsIgnoreCase(request.getEmail().trim())) {
-            throw new BusinessException("账号或邮箱不正确");
+            recordForgotPasswordFailure(failureKey);
+            throw new BusinessException(FORGOT_PASSWORD_IDENTITY_ERROR);
+        }
+
+        String rawToken = generateResetToken();
+        PasswordResetToken token = new PasswordResetToken();
+        token.setUserId(user.getId());
+        token.setTokenHash(hashToken(rawToken));
+        token.setExpiresAt(LocalDateTime.now().plusMinutes(passwordResetProperties.getTokenTtlMinutes()));
+        passwordResetTokenMapper.insert(token);
+
+        passwordResetMailService.sendResetLink(user, rawToken);
+        forgotPasswordFailures.remove(failureKey);
+    }
+
+    @Transactional
+    public void resetPassword(ForgotPasswordResetDTO request) {
+        PasswordResetToken token = passwordResetTokenMapper.selectByTokenHashForUpdate(hashToken(request.getToken().trim()));
+        if (token == null || token.getUsedAt() != null || token.getExpiresAt().isBefore(LocalDateTime.now())) {
+            throw new BusinessException(RESET_PASSWORD_TOKEN_ERROR);
+        }
+        SysUser user = sysUserMapper.selectById(token.getUserId());
+        if (user == null || user.getStatus() == null || user.getStatus() != 1) {
+            throw new BusinessException(RESET_PASSWORD_TOKEN_ERROR);
         }
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
         sysUserMapper.updateById(user);
+
+        token.setUsedAt(LocalDateTime.now());
+        passwordResetTokenMapper.updateById(token);
+        forgotPasswordFailures.remove(normalizeForgotPasswordKey(user.getUsername()));
     }
 
     public AuthSessionVO currentSession() {
@@ -148,5 +219,78 @@ public class AuthService {
                 .roles(roles)
                 .permissions(permissions)
                 .build();
+    }
+
+    private String generateResetToken() {
+        byte[] bytes = new byte[32];
+        secureRandom.nextBytes(bytes);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+
+    private String hashToken(String rawToken) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            return HexFormat.of().formatHex(digest.digest(rawToken.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException ex) {
+            throw new IllegalStateException("SHA-256 algorithm is unavailable", ex);
+        }
+    }
+
+    private void assertForgotPasswordAllowed(String failureKey) {
+        ForgotPasswordFailures failures = forgotPasswordFailures.get(failureKey);
+        if (failures == null || failures.isExpired()) {
+            return;
+        }
+        if (failures.count() >= FORGOT_PASSWORD_MAX_FAILURES) {
+            throw new BusinessException("密码找回尝试次数过多，请 15 分钟后再试");
+        }
+    }
+
+    private void recordForgotPasswordFailure(String failureKey) {
+        forgotPasswordFailures.compute(failureKey, (key, failures) -> {
+            if (failures == null || failures.isExpired()) {
+                return new ForgotPasswordFailures(1, Instant.now());
+            }
+            return new ForgotPasswordFailures(failures.count() + 1, failures.firstFailedAt());
+        });
+    }
+
+    private void assertLoginAllowed(String failureKey) {
+        LoginFailures failures = loginFailures.get(failureKey);
+        if (failures == null || failures.isExpired()) {
+            return;
+        }
+        if (failures.count() >= LOGIN_MAX_FAILURES) {
+            throw new BusinessException("登录失败次数过多，请 15 分钟后再试");
+        }
+    }
+
+    private void recordLoginFailure(String failureKey) {
+        loginFailures.compute(failureKey, (key, failures) -> {
+            if (failures == null || failures.isExpired()) {
+                return new LoginFailures(1, Instant.now());
+            }
+            return new LoginFailures(failures.count() + 1, failures.firstFailedAt());
+        });
+    }
+
+    private String normalizeForgotPasswordKey(String username) {
+        return username.toLowerCase(Locale.ROOT);
+    }
+
+    private String normalizeLoginKey(String username) {
+        return username.toLowerCase(Locale.ROOT);
+    }
+
+    private record ForgotPasswordFailures(int count, Instant firstFailedAt) {
+        boolean isExpired() {
+            return firstFailedAt.plus(FORGOT_PASSWORD_FAILURE_WINDOW).isBefore(Instant.now());
+        }
+    }
+
+    private record LoginFailures(int count, Instant firstFailedAt) {
+        boolean isExpired() {
+            return firstFailedAt.plus(LOGIN_FAILURE_WINDOW).isBefore(Instant.now());
+        }
     }
 }

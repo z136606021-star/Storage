@@ -19,5 +19,9 @@ export interface LoginRequest {
 export interface ForgotPasswordRequest {
   username: string
   email: string
+}
+
+export interface ResetPasswordRequest {
+  token: string
   newPassword: string
 }

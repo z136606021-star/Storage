@@ -1,6 +1,7 @@
 package com.storage.controller;
 
 import com.storage.dto.AuthSessionVO;
+import com.storage.dto.ForgotPasswordResetDTO;
 import com.storage.dto.ForgotPasswordDTO;
 import com.storage.dto.LoginRequestDTO;
 import com.storage.dto.RegisterRequestDTO;
@@ -36,6 +37,12 @@ public class AuthController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void forgotPassword(@Valid @RequestBody ForgotPasswordDTO request) {
         authService.forgotPassword(request);
+    }
+
+    @PostMapping("/reset-password")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void resetPassword(@Valid @RequestBody ForgotPasswordResetDTO request) {
+        authService.resetPassword(request);
     }
 
     @PostMapping("/logout")

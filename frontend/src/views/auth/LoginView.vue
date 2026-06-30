@@ -9,7 +9,7 @@ import loginBg from '@/assets/auth/login-bg.png'
 import loginLogo from '@/assets/auth/login-logo.png'
 import loginDecoTech from '@/assets/auth/login-deco-tech.png'
 import { useAuth } from '@/composables/useAuth'
-import { forgotPassword } from '@/api/auth'
+import { forgotPassword, resetPassword } from '@/api/auth'
 import { getErrorMessage } from '@/api/http'
 import {
   clearRememberedUsername,
@@ -17,7 +17,7 @@ import {
   saveRememberedUsername,
 } from '@/utils/loginRemember'
 
-type AuthTab = 'login' | 'register' | 'forgot'
+type AuthTab = 'login' | 'register' | 'forgot' | 'reset'
 
 const route = useRoute()
 const router = useRouter()
@@ -29,6 +29,9 @@ function resolveTabFromQuery(tab: unknown): AuthTab {
   }
   if (tab === 'forgot') {
     return 'forgot'
+  }
+  if (tab === 'reset') {
+    return 'reset'
   }
   return 'login'
 }
@@ -53,6 +56,10 @@ const registerForm = reactive({
 const forgotForm = reactive({
   username: '',
   email: '',
+})
+
+const resetForm = reactive({
+  token: '',
   newPassword: '',
   confirmPassword: '',
 })
@@ -62,6 +69,9 @@ const panelHeading = computed(() => {
     return '欢迎注册'
   }
   if (activeTab.value === 'forgot') {
+    return '找回密码'
+  }
+  if (activeTab.value === 'reset') {
     return '重置密码'
   }
   return '欢迎登录'
@@ -118,6 +128,9 @@ const forgotRules = computed<Record<string, Rule[]>>(() => ({
     { required: true, message: '请输入邮箱', trigger: 'blur' },
     { type: 'email', message: '邮箱格式不正确', trigger: 'blur' },
   ],
+}))
+
+const resetRules = computed<Record<string, Rule[]>>(() => ({
   newPassword: [
     { required: true, message: '请输入新密码', trigger: 'blur' },
     { min: 6, max: 64, message: '密码长度为 6-64 个字符', trigger: 'blur' },
@@ -126,7 +139,7 @@ const forgotRules = computed<Record<string, Rule[]>>(() => ({
     { required: true, message: '请确认新密码', trigger: 'blur' },
     {
       validator: async (_rule, value) => {
-        if (value !== forgotForm.newPassword) {
+        if (value !== resetForm.newPassword) {
           throw new Error('两次输入的密码不一致')
         }
       },
@@ -156,8 +169,12 @@ const registerCanSubmit = computed(() => {
 const forgotCanSubmit = computed(() => (
   forgotForm.username.trim().length > 0
   && forgotForm.email.trim().length > 0
-  && forgotForm.newPassword.length >= 6
-  && forgotForm.confirmPassword === forgotForm.newPassword
+))
+
+const resetCanSubmit = computed(() => (
+  resetForm.token.trim().length > 0
+  && resetForm.newPassword.length >= 6
+  && resetForm.confirmPassword === resetForm.newPassword
 ))
 
 function syncTabToUrl(tab: AuthTab) {
@@ -165,6 +182,7 @@ function syncTabToUrl(tab: AuthTab) {
     query: {
       ...route.query,
       tab,
+      token: tab === 'reset' ? route.query.token : undefined,
     },
   })
 }
@@ -178,6 +196,9 @@ watch(
   () => route.query.tab,
   (tab) => {
     activeTab.value = resolveTabFromQuery(tab)
+    if (activeTab.value === 'reset') {
+      resetForm.token = typeof route.query.token === 'string' ? route.query.token : ''
+    }
   },
 )
 
@@ -187,6 +208,9 @@ onMounted(() => {
     loginForm.username = remembered
     rememberPassword.value = true
   }
+  if (activeTab.value === 'reset') {
+    resetForm.token = typeof route.query.token === 'string' ? route.query.token : ''
+  }
 })
 
 async function handleForgotPassword() {
@@ -195,12 +219,27 @@ async function handleForgotPassword() {
     await forgotPassword({
       username: forgotForm.username.trim(),
       email: forgotForm.email.trim(),
-      newPassword: forgotForm.newPassword,
+    })
+    message.success('重置邮件已发送，请在邮箱中打开链接')
+    switchTab('login')
+  } catch (error) {
+    message.error(getErrorMessage(error, '重置密码失败'))
+  } finally {
+    submitting.value = false
+  }
+}
+
+async function handleResetPassword() {
+  submitting.value = true
+  try {
+    await resetPassword({
+      token: resetForm.token.trim(),
+      newPassword: resetForm.newPassword,
     })
     message.success('密码已重置，请使用新密码登录')
-    forgotForm.newPassword = ''
-    forgotForm.confirmPassword = ''
-    switchTab('login')
+    resetForm.newPassword = ''
+    resetForm.confirmPassword = ''
+    await router.replace({ path: '/login', query: { tab: 'login' } })
   } catch (error) {
     message.error(getErrorMessage(error, '重置密码失败'))
   } finally {
@@ -275,7 +314,7 @@ async function handleRegister() {
       <section class="login-form-panel">
         <h2 class="login-form-panel__heading">{{ panelHeading }}</h2>
 
-        <div v-if="activeTab !== 'forgot'" class="login-tabs" role="tablist" aria-label="登录方式">
+        <div v-if="activeTab !== 'forgot' && activeTab !== 'reset'" class="login-tabs" role="tablist" aria-label="登录方式">
           <button
             type="button"
             class="login-tabs__item"
@@ -351,13 +390,34 @@ async function handleRegister() {
               <template #prefix><UserOutlined class="login-form__icon" /></template>
             </a-input>
           </a-form-item>
+          <a-button
+            type="primary"
+            html-type="submit"
+            size="large"
+            block
+            class="login-form__submit"
+            :loading="submitting"
+            :disabled="!forgotCanSubmit"
+          >
+            发送重置邮件
+          </a-button>
+        </a-form>
+
+        <a-form
+          v-else-if="activeTab === 'reset'"
+          class="login-form"
+          layout="vertical"
+          :model="resetForm"
+          :rules="resetRules"
+          @finish="handleResetPassword"
+        >
           <a-form-item name="newPassword">
-            <a-input-password v-model:value="forgotForm.newPassword" size="large" placeholder="请输入新密码（至少 6 位）" autocomplete="new-password">
+            <a-input-password v-model:value="resetForm.newPassword" size="large" placeholder="请输入新密码（至少 6 位）" autocomplete="new-password">
               <template #prefix><LockOutlined class="login-form__icon" /></template>
             </a-input-password>
           </a-form-item>
           <a-form-item name="confirmPassword">
-            <a-input-password v-model:value="forgotForm.confirmPassword" size="large" placeholder="请再次输入新密码" autocomplete="new-password">
+            <a-input-password v-model:value="resetForm.confirmPassword" size="large" placeholder="请再次输入新密码" autocomplete="new-password">
               <template #prefix><LockOutlined class="login-form__icon" /></template>
             </a-input-password>
           </a-form-item>
@@ -368,7 +428,7 @@ async function handleRegister() {
             block
             class="login-form__submit"
             :loading="submitting"
-            :disabled="!forgotCanSubmit"
+            :disabled="!resetCanSubmit"
           >
             重置密码
           </a-button>

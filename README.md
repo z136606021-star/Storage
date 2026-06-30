@@ -1,19 +1,23 @@
 # 仓库管理系统
 
-项目管理平台中 **资源管理 → 仓库管理** 模块，包含物料台账、物料出入库、安全库存管理与配置管理（Bin位、物料清单）子系统。
+项目管理平台中 **资源管理 → 仓库管理** 模块，包含物料台账、物料出入库、安全库存、库存统计、配置管理（Bin位/物料清单）与系统管理（用户/角色/菜单/客户）相关能力。
 
 ## 技术栈
 
-- **前端**：Vue 3 + TypeScript + Vite + Ant Design Vue 4
+- **前端**：Vue 3 + TypeScript + Vite + Ant Design Vue 4（组件自动按需导入）
 - **后端**：Java 17+ + Spring Boot 3 + MyBatis Plus + Apache Shiro
 - **数据库**：MySQL 8
 - **对象存储**：MinIO
+
+## 项目结构说明
+
+本仓库根目录为 `Storage`；后端 Maven artifact/module 名称为 `storage-backend`，源码位于 [backend](backend)，前端源码位于 [frontend](frontend)。IDE 中看到的 `Storage` / `storage-backend` 模块分别对应仓库根与后端模块。
 
 ## 快速启动
 
 ### 推荐：一键启动（Windows，第八期 DevX）
 
-需已安装 Docker、Java 17+、Maven、Node.js 18+。在项目根目录：
+需已安装 Docker、Java 17+、Maven、Node.js 20+。在项目根目录：
 
 ```powershell
 .\scripts\dev-up.ps1
@@ -50,6 +54,12 @@
 docker compose --env-file .env up -d
 ```
 
+若本机 PowerShell 执行策略阻止 `.ps1`，可使用：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\sync-worktree-env.ps1
+```
+
 `sync-worktree-env.ps1` 会根据**当前 git 分支**生成本地 `.env`（不入库），为各 worktree 分配独立端口、容器名与数据卷。
 
 将自动创建 `storage` 数据库并导入 [backend/src/main/resources/db/schema.sql](backend/src/main/resources/db/schema.sql) 中的表结构与种子数据。
@@ -79,7 +89,7 @@ docker compose --env-file .env down -v
 docker compose --env-file .env up -d
 ```
 
-已有物料数据、仅需补齐鉴权/系统管理表时，后端启动时会自动执行 `db/migration-*.sql`（`CREATE/ALTER IF NOT EXISTS` + `INSERT IGNORE` + 中文数据修复）。迁移脚本须为 **UTF-8** 编码；`application.yml` 已配置 `spring.sql.init.encoding=UTF-8`。
+已有物料数据、仅需补齐鉴权/系统管理表时，后端启动时会自动执行 `db/migration-*.sql`（条件 DDL + `INSERT IGNORE` + 中文数据修复）。迁移脚本须为 **UTF-8** 编码；`application.yml` 已配置 `spring.sql.init.encoding=UTF-8`，且 `continue-on-error=false`，迁移失败会阻断启动以避免静默漏表/漏列。
 
 Windows 也可执行 [scripts/reset-db.ps1](scripts/reset-db.ps1)。
 
@@ -90,7 +100,34 @@ Windows 也可执行 [scripts/reset-db.ps1](scripts/reset-db.ps1)。
 
 其他 worktree 端口见上表；以 `.\scripts\sync-worktree-env.ps1` 生成的 `.env` 为准。
 
+应用端口（各 worktree 通常相同，见 `.env`）：
+
+- `BACKEND_PORT`：后端 HTTP 端口（默认 `8080`）
+- `FRONTEND_PORT`：Vite 开发端口（默认 `5173`）
+- `VITE_API_PROXY`：前端 `/api` 代理目标（默认 `http://localhost:8080`）
+- `CORS_ALLOWED_ORIGINS`：后端允许的前端来源（默认跟随 `FRONTEND_PORT`）
+
+`sync-worktree-env.ps1` 会按分支重写 MySQL/MinIO 端口、容器名和卷名，但会保留已有 `.env` 或当前进程中的数据库/MinIO 凭据、`BACKEND_PORT` / `FRONTEND_PORT` / `VITE_API_PROXY` / `CORS_ALLOWED_ORIGINS`，便于本地避开端口冲突和使用自定义本地密码。
+
 ### 2. 启动后端
+
+#### 推荐：IntelliJ IDEA 断点调试（日常开发）
+
+功能开发与排错**优先**在 IDEA 中单步调试，而非每次 `mvn package` 进容器或仅靠 `mvn spring-boot:run` 看日志。
+
+1. 确保 Docker 已运行：`.\scripts\sync-worktree-env.ps1` → `docker compose --env-file .env up -d`
+2. IDEA 打开 `backend` 模块，新建 **Spring Boot** Run/Debug Configuration：
+   - Main class：`com.storage.StorageApplication`
+   - Working directory：`backend` 目录
+   - 环境变量：安装 [EnvFile](https://plugins.jetbrains.com/plugin/7861-envfile) 插件并勾选项目根目录 `.env`；或手动填入 `MYSQL_*`、`MINIO_*`、`BACKEND_PORT`
+3. 在 `*Controller` / `*Service` 打断点（见 [AGENTS.md](AGENTS.md)「开发与调试规范 → 断点推荐位置」）
+4. 以 **Debug** 启动后端
+5. 另开终端：`cd frontend && npm run dev`
+6. 浏览器或 Postman 复现请求，单步跟进
+
+**注意**：IDEA Debug 运行后端时，勿执行 `dev-up.ps1` / `start-dev.ps1` 重启后端——脚本会识别 IntelliJ 进程并跳过，但重复启动仍可能占端口。
+
+#### 备选：命令行启动
 
 需 Java 17+ 与 Maven。在 `backend` 目录：
 
@@ -99,11 +136,11 @@ cd backend
 mvn spring-boot:run
 ```
 
-后端默认地址：`http://localhost:8080`
+后端默认地址：`http://localhost:8080`（或 `.env` 中 `BACKEND_PORT`）
 
 ### 3. 启动前端
 
-需 Node.js 18+。在 `frontend` 目录：
+需 Node.js 20+。在 `frontend` 目录：
 
 ```bash
 cd frontend
@@ -111,15 +148,28 @@ npm install
 npm run dev
 ```
 
-前端默认地址：`http://localhost:5173`，开发环境通过 Vite 代理将 `/api` 转发至后端。
+前端默认地址：`http://localhost:5173`（或 `.env` 中 `FRONTEND_PORT`），开发环境通过 Vite 代理将 `/api` 转发至 `VITE_API_PROXY`（默认后端 8080）。
+
+### Postman / curl 边界测试
+
+前端表单 `rules` 仅为体验；**后端校验才是安全门禁**。改 API 后建议用 Postman 直接打接口（可绕过前端）：
+
+1. `POST /api/auth/login` 获取 Session Cookie
+2. 故意发送非法 body，例如：注册空用户名、客户必填字段缺失、出库数量超过库存
+3. 期望 **HTTP 400** 与 JSON `message` 字段；不应 500 或静默成功
+
+校验失败入口断点：`GlobalExceptionHandler.handleValidation`；业务规则断点：对应 `*Service.save` / `update`。
 
 **页面入口**：
 
-- 默认打开 `/login`（Apache Shiro Session 鉴权）；注册 Tab：`/login?tab=register`
+- 默认打开 `/login`（Apache Shiro Session 鉴权）；注册 Tab：`/login?tab=register`；忘记密码申请 Tab：`/login?tab=forgot`；邮件链接重置 Tab：`/login?tab=reset&token=...`
 - 支持开放注册，新用户默认 `USER` 角色（仅物料台账只读）；注册账号 3-32 字符、密码至少 6 位
+- 注册支持可选邮箱；忘记密码通过账号 + 邮箱申请邮件一次性链接，链接默认 30 分钟有效，后端统一错误提示并限流（同一账号 15 分钟最多 5 次失败）
+- 邮件配置通过 `.env` 预留：`APP_PUBLIC_BASE_URL`、`PASSWORD_RESET_TOKEN_TTL_MINUTES`、`MAIL_HOST`、`MAIL_PORT`、`MAIL_USERNAME`、`MAIL_PASSWORD`、`MAIL_FROM`、`MAIL_SMTP_AUTH`、`MAIL_SMTP_STARTTLS_ENABLE`；Gmail 默认 `smtp.gmail.com:587` + STARTTLS，`MAIL_PASSWORD` 使用 Google 应用专用密码
 - 「记住密码」仅 localStorage 保存账号（不存密码）
 - 未登录访问业务页会自动跳转到登录页
 - 默认管理员：`admin` / `admin123`（可管理用户/角色/菜单）
+- 系统管理新建用户默认初始密码后缀：`@123`（即 `{username}@123`）
 
 **若仍直接进入物料台账而非登录页**：重新运行 `start-dev` 即可（脚本会自动结束占用 5173 的旧 Vite 进程）。
 
@@ -131,9 +181,9 @@ npm run dev
 powershell -ExecutionPolicy Bypass -File .\scripts\start-dev.ps1
 ```
 
-将分别打开两个终端窗口运行后端（8080）与前端（5173）。**脚本会先等待后端就绪，再启动前端**，避免登录时 `ECONNREFUSED`。
+将分别打开两个终端窗口运行后端与前端，端口读取 `.env` 的 `BACKEND_PORT` / `FRONTEND_PORT`。**脚本会先等待后端就绪，再启动前端**，避免登录时 `ECONNREFUSED`。
 
-**端口冲突**：若 8080 / 5173 已被本项目的 `mvn spring-boot:run` 或 `npm run dev` 占用，脚本会**自动结束旧进程**后再启动，无需手动 `taskkill`。改过后端代码后，直接重新运行此脚本即可加载新代码。若端口被其他程序占用，脚本会报错并提示手动处理。
+**端口冲突**：若 `.env` 中配置的应用端口已被本项目的 `mvn spring-boot:run` 或 `npm run dev` 占用，脚本会**自动结束旧进程**后再启动，无需手动 `taskkill`。改过后端代码后，直接重新运行此脚本即可加载新代码。若端口被其他程序占用，脚本会报错并提示手动处理；也可先改 `.env` 的 `BACKEND_PORT` / `FRONTEND_PORT` / `VITE_API_PROXY` 再运行脚本。
 
 可选参数：
 
@@ -161,7 +211,7 @@ curl -X POST http://localhost:8080/api/files/upload \
 - [x] 路由守卫与 API 401 拦截（Cookie 会话）+ **路由 permission 校验**
 - [x] **系统管理**：用户管理（含角色/菜单子 Tab、多角色分配、授权只读面板、Excel 导入导出）+ **菜单管理 Tab（CRUD）** + **客户管理 CRUD**（Excel 导入导出）+ SideMenu 动态导航（侧栏：用户管理、客户管理）
 - [x] MinIO 对象存储基础设施 + `POST /api/files/upload`
-- [x] **第六期平台壳层**：DB 导航种子（个人中心/项目/采购/设计/技能/经验/财务 + 仓库 4 项含配置管理）、占位路由、`ComingSoonPage` 复用组件
+- [x] **第六期平台壳层**：DB 导航种子（个人中心/项目/采购/设计/技能/经验/财务 + 仓库 5 项含库存统计与配置管理）、占位路由、`ComingSoonPage` 复用组件
 - [x] **第七期壳层 UI 补全**：动态 TabBar（ADMIN 预置个人中心/项目中心）、壳层 `/platform/*` 路由、侧栏点击无 toast
 - [x] **第八期 DevX**：`dev-up` 一键环境、`health-check` 自检、`cleanup-legacy-docker`、MySQL 就绪等待、`material_ledger` 中文修复迁移
 - [x] 完整平台壳层（侧栏动态导航 + 顶部可关闭页签 + 退出登录）
@@ -187,15 +237,31 @@ curl -X POST http://localhost:8080/api/files/upload \
 - [x] **第十九期流水深链与质量基建**：`?id=` 打开出入库详情、`MaterialStockMutationService`、Vitest + `useMaterialIoStock` 单测
 - [x] **第二十期列表复用与深链闭环**：`useMaterialIoList`、深链列表定位与 URL 同步、Excel 导入出库超库存行级报错、深链/库存单测扩展
 - [x] **第二十一期追溯快捷与契约瘦身**：上下文条新增入库/出库、`useCrudRouteDetail`、`MaterialIoUpdateDTO`、详情复制链接
+- [x] **第二十二期安全库存管理**：`safety_stock` 表、预警黄行、导出/编辑 upsert、`SafetyStockView`、`warehouse:safety-stock:write`
 - [x] **第二十三期出入库业务语义补全**：`purpose` 用途枚举、出库必填、列表筛选/Excel；`GET /api/material-io/safety-hints` 出库预警；新增补录 `operatedAt`；`useMaterialIoSafetyHint`
 - [x] **第二十四期出入库 UI 优化**：`MaterialIoFilterPanel`、`MaterialIoContextBar`、工具栏「更多」、新增弹窗条件列与预警列、安全确认 checkbox
 - [x] **第二十五期库存统计与项目关联**：`GET /api/warehouse-stats/overview`、`InventoryStatsView`、`project_ref` 项目编号、出入库工具栏新增下拉
 - [x] **第二十六期客户管理与忘记密码**：`sys_customer` CRUD/Excel、`CustomerManageView`、`POST /api/auth/forgot-password`、登录页 `?tab=forgot`
-- [x] **第二十二期安全库存管理**：`safety_stock` 表、预警黄行、导出/编辑 upsert、`SafetyStockView`、`warehouse:safety-stock:write`
+- [x] **第三十期忘记密码邮件链接重置**：Google SMTP 环境变量预留、`password_reset_token`、`POST /api/auth/reset-password`、登录页 `?tab=reset&token=...`
+- [x] **第二十七期差距收敛**：文档与客户占位表述同步、台账路由读权限、注册可选邮箱 + admin 种子邮箱、库存统计 `recentDays` 选择器、台账/Bin/客户 import 集成测试、GitHub Actions CI
+- [x] **第二十八期开发与调试规范**：环境变量门禁、IDEA 断点工作流、前后端双端校验 checklist、启动脚本端口参数化
+- [x] **第二十九期质量门禁与安全加固**：Docker/CORS 凭据参数化、迁移 fail-fast + 条件 DDL、忘记密码统一提示与限流、Auth Controller 集成测试、CI 增加前端 build、路由懒加载 + AntD 按需导入
+
+## 安全与生产部署要点
+
+- 本仓库默认凭据（`admin123`、`storage123`、`minioadmin123`）仅用于本地开发，生产部署必须轮换为强密码
+- `POST /api/auth/register` 是否对公网开放须由部署侧显式评估；忘记密码接口已改为邮件一次性链接，但仍需配合 HTTPS、可信前端域名与限流策略
+- 忘记密码 token 仅明文出现在邮件链接中，数据库保存 SHA-256 哈希，默认 30 分钟过期且使用后失效；失败限流为单实例内存级（15 分钟 5 次），多实例生产需迁移到 Redis/网关限流
+- Google SMTP 默认按 Gmail 直连预留：`smtp.gmail.com:587` + STARTTLS；`MAIL_PASSWORD` 使用 Google 应用专用密码，不提交真实邮箱密码。公司 Workspace relay 可通过环境变量切换到 `smtp-relay.gmail.com`
+- Session 生产环境需启用 HTTPS，并设置 `SESSION_COOKIE_SECURE=true`；`CORS_ALLOWED_ORIGINS` 必须仅配置可信前端域名
+- 默认管理员密码自动重置能力仅建议本地排障开启，生产应关闭该初始化开关，避免启动时回退弱密码
+- GitHub Actions CI：[`CI workflow`](https://github.com/z136606021-star/Storage/blob/main/.github/workflows/ci.yml)（后端测试 + 前端测试/构建）
 
 后端测试：`cd backend && mvn test "-Dspring.profiles.active=test"`
 
 前端测试：`cd frontend && npm run test`
+
+前端构建：`cd frontend && npm run build`（CI 同步执行，用于捕获类型与模板错误）
 
 ## 远端仓库
 

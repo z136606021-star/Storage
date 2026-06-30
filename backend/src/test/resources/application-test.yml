@@ -11,6 +11,11 @@ spring:
     driver-class-name: org.h2.Driver
     username: sa
     password:
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: test@example.com
+    password: test-password
 
 mybatis-plus:
   configuration:
@@ -21,6 +26,9 @@ mybatis-plus:
       id-type: auto
 
 storage:
+  password-reset:
+    public-base-url: http://localhost:5173
+    token-ttl-minutes: 30
   minio:
     endpoint: http://localhost:9000
     access-key: minioadmin

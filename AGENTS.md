@@ -8,13 +8,13 @@
 - **上层平台**：项目生命周期管理系统（项目管理平台）
 - **所属模块**：项目管理平台 → 资源管理 → 仓库管理
 - **远端仓库**：https://github.com/z136606021-star/Storage.git
-- **当前阶段**：… + **第二十五期库存统计与项目关联** + **第二十六期客户管理与忘记密码**
+- **当前阶段**：**第二十九期质量门禁与安全加固（已落地）**，并完成第二十七/二十八期差距收敛与开发规范固化
 
 ## 技术栈
 
 | 层级 | 技术 |
 |------|------|
-| 前端 | Vue 3、TypeScript、Vite、Ant Design Vue 4、Vue Router、Axios |
+| 前端 | Vue 3、TypeScript、Vite、Ant Design Vue 4、Vue Router、Axios、unplugin-vue-components |
 | 后端 | Java 17+、Spring Boot 3.3、MyBatis Plus 3.5、Apache POI、Apache Shiro 2 |
 | 数据库 | MySQL 8 |
 | 对象存储 | MinIO |
@@ -49,12 +49,12 @@
 
 | 子系统 | 状态 | 路由 | 组件 | API |
 |--------|------|------|------|-----|
-| 登录页 | Shiro Session 鉴权 + 开放注册 + **忘记密码**（账号+邮箱校验重置）+ **第五期 UI/UX 优化** | `/login`、`/login?tab=register`、`/login?tab=forgot` | `LoginView.vue`、`utils/loginRemember.ts` | `POST /api/auth/login`、`POST /api/auth/register`、`POST /api/auth/forgot-password`、`POST /api/auth/logout`、`GET /api/auth/me` |
+| 登录页 | Shiro Session 鉴权 + 开放注册（邮箱可选）+ **忘记密码邮件链接重置**（账号+邮箱申请、一次性 token 链接、统一错误提示、失败限流）+ **第五期 UI/UX 优化** | `/login`、`/login?tab=register`、`/login?tab=forgot`、`/login?tab=reset&token=...` | `LoginView.vue`、`utils/loginRemember.ts` | `POST /api/auth/login`、`POST /api/auth/register`、`POST /api/auth/forgot-password`、`POST /api/auth/reset-password`、`POST /api/auth/logout`、`GET /api/auth/me` |
 | 系统管理 | 用户管理（含角色/菜单子 Tab、多角色、授权只读面板）+ **客户管理 CRUD**（Excel 导入导出）+ Excel 导入导出已实现 | `/system/users`、`/system/users/roles`、`/system/users/menus`、`/system/customers` | `SystemManageLayout.vue`、`UserManageView.vue`、`RoleManagePanel.vue`、`MenuManagePanel.vue`、`CustomerManageView.vue`、`CustomerFormModal.vue` | 用户：`GET/POST/PUT/DELETE /api/system/users`、…；**客户**：`GET/POST/PUT/DELETE /api/system/customers`、`DELETE .../batch`、`GET .../export`、`POST .../import`；角色/菜单同前 |
 | 文件上传（MinIO） | 基础设施 + 通用上传 API；**物料清单图片已接入** | — | — | `POST /api/files/upload`（`platform:file:upload` 或 `warehouse:bom:write`） |
 | 物料台账 | CRUD + 导入 + 批量操作 + 筛选联动 + **Bin/清单主数据校验** + **从清单选择** + **写权限门禁**（`warehouse:material-ledger:write`）+ **出入库流水删除保护** + **详情跳转出入库** + **只读模板下载** + **`?materialLedgerId=` 深链打开详情** | `/warehouse/material-ledger` | `MaterialLedgerView.vue`、`MaterialLedgerFormModal.vue` | `GET/POST/PUT/DELETE /api/materials`、`DELETE /api/materials/batch`、`GET /api/materials/filter-options`、`GET /api/materials/bin-codes`、`GET /api/materials/bom-catalog`、`GET /api/materials/{id}`、`GET /api/materials/export`、`GET /api/materials/import-template`、`POST /api/materials/import` |
-| 物料出入库 | CRUD + 批量入库/出库 + 筛选联动 + **原子 Excel 导入** + **台账选择器** + **深链追溯** + **写权限门禁**；**唯一更新库存**；编辑 PUT 仅 `quantity/remark/purpose/projectRef`；**用途枚举** + **项目编号**（用途=项目领用时必填）+ **安全库存预警** + **补录 operatedAt**；**第二十四期 UI**：`MaterialIoFilterPanel` / `MaterialIoContextBar`、工具栏「更多」、**新增入库/出库下拉**、新增弹窗条件列与预警列 | `/warehouse/material-io` | `MaterialIoView.vue`、`MaterialIoBatchFormModal.vue`、`MaterialIoFilterPanel.vue`、`MaterialIoContextBar.vue`、`MaterialLedgerPickerModal.vue` | 同第二十三期 + `project_ref` |
-| 库存统计 | 台账/库存/预警汇总 + 近 N 日出入库笔数与数量 + 预警物料预览（`warehouse:stats:read`） | `/warehouse/inventory-stats` | `InventoryStatsView.vue` | `GET /api/warehouse-stats/overview` |
+| 物料出入库 | CRUD + 批量入库/出库 + 筛选联动 + **原子 Excel 导入** + **台账选择器** + **深链追溯** + **写权限门禁**；**唯一更新库存**；编辑 PUT 仅 `quantity/remark/purpose/projectRef`；**用途枚举** + **项目编号**（用途=项目领用时必填）+ **安全库存预警** + **补录 operatedAt**；**第二十四期 UI**：`MaterialIoFilterPanel` / `MaterialIoContextBar`、工具栏「更多」、**新增入库/出库下拉**、新增弹窗条件列与预警列 | `/warehouse/material-io` | `MaterialIoView.vue`、`MaterialIoBatchFormModal.vue`、`MaterialIoFilterPanel.vue`、`MaterialIoContextBar.vue`、`MaterialLedgerPickerModal.vue` | `GET /api/material-io`、`GET /api/material-io/filter-options`、`GET /api/material-io/{id}`、`POST /api/material-io/batch`、`PUT /api/material-io/{id}`、`DELETE /api/material-io/{id}`、`DELETE /api/material-io/batch`、`GET /api/material-io/export`、`GET /api/material-io/import-template`、`POST /api/material-io/import`、`GET /api/material-io/safety-hints`（含 `project_ref`） |
+| 库存统计 | 台账/库存/预警汇总 + 近 N 日出入库笔数与数量 + 预警物料预览（`warehouse:stats:read`，支持 `recentDays`） | `/warehouse/inventory-stats` | `InventoryStatsView.vue` | `GET /api/warehouse-stats/overview`（`recentDays`） |
 | 安全库存管理 | 列表（全部台账 LEFT JOIN）+ 8 字段筛选 + 预警黄行 + 导出/批量导出 + 查看/编辑（`warehouse:safety-stock:write`）；预警期 = 开关开启且库存 < 安全库存数；详情跳转台账/出入库（读权限门禁）；无新增/删除/导入 | `/warehouse/safety-stock` | `SafetyStockView.vue`、`SafetyStockFormModal.vue`、`SafetyStockDetailDescriptions.vue` | `GET /api/safety-stock`、`GET /api/safety-stock/filter-options`、`GET /api/safety-stock/{materialLedgerId}`、`PUT /api/safety-stock/{materialLedgerId}`、`GET /api/safety-stock/export` |
 | Bin位管理 | CRUD + 导入导出 + 台账引用校验已实现 | `/warehouse/config/bin` | `BinManageView.vue`、`BinFormModal.vue` | `GET/POST/PUT/DELETE /api/warehouse-bins`、`DELETE /api/warehouse-bins/batch`、`GET /api/warehouse-bins/codes`、`GET /api/warehouse-bins/{id}`、`GET /api/warehouse-bins/export`、`GET /api/warehouse-bins/import-template`、`POST /api/warehouse-bins/import` |
 | 物料清单管理 | CRUD + 品类联动筛选 + 导入导出 + **MinIO 图片上传/预览** + 台账引用删除保护 | `/warehouse/config/bom` | `BomManageView.vue`、`BomFormModal.vue` | `GET/POST/PUT/DELETE /api/warehouse-boms`、`DELETE /api/warehouse-boms/batch`、`GET /api/warehouse-boms/filter-options`、`GET /api/warehouse-boms/{id}`、`GET /api/warehouse-boms/export`、`GET /api/warehouse-boms/import-template`、`POST /api/warehouse-boms/import`；图片经 `POST /api/files/upload` 上传，DB 存 `image_object_key`，API 动态返回 `imageUrl` |
@@ -67,7 +67,7 @@
 - **动态 TabBar**：[useWorkbenchTabs.ts](frontend/src/composables/useWorkbenchTabs.ts) + [TabBar.vue](frontend/src/components/layout/TabBar.vue)；ADMIN 登录预置「个人中心」「项目中心」，访问业务页自动追加 Tab，可切换/关闭；USER 仅预置物料台账 Tab。
 - **壳层路由注册表**：[shellRouteRegistry.ts](frontend/src/constants/shellRouteRegistry.ts) 与 `migration-phase7-ui-shell-paths.sql` 对齐 DB `sys_menu.path`。
 - **对象存储**：MinIO（`docker-compose`）；`FileStorageService` + `POST /api/files/upload`；物料清单保存 `image_object_key`，列表/详情 API 附带预签 `imageUrl`。
-- **路由守卫**：`requiresAuth` 业务路由未登录时重定向 `/login`；登录页静态资源见 `frontend/src/assets/auth/`；**记住密码**用 `utils/loginRemember.ts` 仅存账号至 localStorage（不传 Shiro RememberMe）；Tab 可通过 `?tab=register` 或 `?tab=forgot` 切换。
+- **路由守卫**：`requiresAuth` 业务路由未登录时重定向 `/login`；登录页静态资源见 `frontend/src/assets/auth/`；**记住密码**用 `utils/loginRemember.ts` 仅存账号至 localStorage（不传 Shiro RememberMe）；Tab 可通过 `?tab=register`、`?tab=forgot` 或 `?tab=reset&token=...` 切换；忘记密码为邮件一次性链接重置，失败统一提示并限流。
 
 ### 物料台账字段
 
@@ -90,6 +90,83 @@
 2. **子系统实现**：新页面实现后更新「子系统范围」表
 3. **不提交敏感信息**：数据库密码、API Key 等不入库
 4. **保持 README 同步**：启动方式变化时更新 [README.md](README.md)
+
+## 开发与调试规范
+
+> **强制要求**：代理与维护者须遵循本节；「能跑」不等于可合入。**DEBUG 与测试耗时通常大于写代码**。
+
+### 环境变量门禁
+
+- 连接串、端口、密钥、桶名等**禁止硬编码**在 Java / TypeScript / Vue 业务代码中。
+- SSOT：根目录 [`.env.example`](.env.example)（模板）+ [`scripts/worktree-db.ps1`](scripts/worktree-db.ps1)（分支 MySQL/MinIO 端口；保留已有数据库/MinIO 凭据、`BACKEND_PORT` / `FRONTEND_PORT` / `VITE_API_PROXY` / `CORS_ALLOWED_ORIGINS` / `APP_PUBLIC_BASE_URL` / `MAIL_*` / `PASSWORD_RESET_TOKEN_TTL_MINUTES`）+ [`application.yml`](backend/src/main/resources/application.yml)（`${VAR:default}` 占位）+ [`vite.config.ts`](frontend/vite.config.ts)（读根目录 `.env` 的 `VITE_API_PROXY` / `FRONTEND_PORT`）。
+- 新增配置项：先扩展 `.env.example` 与 `Format-WorktreeEnvContent`，再在 `application.yml` / `vite.config.ts` / 脚本中引用；默认值仅作本地 fallback。
+- 禁止在代码或文档中维护与 worktree 注册表不一致的另一套连接信息。
+- 脚本内访问 MySQL 必须读取 `MYSQL_USER` / `MYSQL_PASSWORD` / `MYSQL_DB`，禁止写死 `-pstorage123` 或明文密码参数。
+- `docker-compose.yml` 必须读取 `.env` 中的 `MYSQL_*` / `MINIO_*`；healthcheck 禁止硬编码密码参数。
+- `CORS_ALLOWED_ORIGINS` 必须随 `FRONTEND_PORT` 或本地前端域名同步，禁止在 Java 配置中写死 5173。
+
+### 数据库迁移门禁
+
+- `spring.sql.init.continue-on-error=false`；迁移失败必须阻断启动，禁止靠吞错实现幂等。
+- MySQL 不支持的 `ADD COLUMN IF NOT EXISTS` / `CREATE INDEX IF NOT EXISTS` 必须用 `INFORMATION_SCHEMA` 条件 DDL guard。
+- 迁移脚本不得 `USE storage` 或写死库名，必须使用连接串中的当前库（`DATABASE()`）。
+- `schema.sql` 只负责新空卷初始化；已有卷结构变更必须通过 `migration-*.sql` 幂等落地。
+
+### 推荐日常开发拓扑
+
+- **基础设施**：`.\scripts\sync-worktree-env.ps1` → `docker compose --env-file .env up -d`（仅 MySQL + MinIO）
+- **后端调试**：IntelliJ IDEA **Debug** 启动 `com.storage.StorageApplication`（读根目录 `.env` 或 Run Configuration 环境变量）
+- **前端**：`cd frontend && npm run dev`（Vite 代理至 `VITE_API_PROXY`）
+- [`dev-up.ps1`](scripts/dev-up.ps1) / [`start-dev.ps1`](scripts/start-dev.ps1) 适用于快速冒烟；脚本端口读取 `.env` 的 `BACKEND_PORT` / `FRONTEND_PORT`；**功能开发与排错优先 IDEA 断点**，非每次 `mvn package` 进容器
+- [`start-dev.ps1`](scripts/start-dev.ps1) 会跳过 IntelliJ 父进程上的 Java/node；**IDEA Debug 运行后端时勿用 dev-up 重启后端**
+
+### 前后端表单校验（Postman 须绕不过）
+
+| 层级 | 要求 | 参考 |
+|------|------|------|
+| 前端 | Ant Design Vue `rules`，改善 UX | `LoginView.vue`、各 `*FormModal.vue` |
+| DTO | Jakarta `@NotBlank` / `@Size` / `@Min` 等 | `*SaveDTO.java` |
+| Controller | `@Valid @RequestBody`（或嵌套 `@Valid`） | `AuthController`、`MaterialIoController` |
+| Service | 引用存在、库存、重复物料、权限等业务规则 | `MaterialIoService`、`MaterialLedgerService` |
+| 异常 | `MethodArgumentNotValidException` → 400 | `GlobalExceptionHandler.handleValidation` |
+| 测试 | 至少一条非法 body 集成测试（不依赖前端） | `*IntegrationTest.java` |
+
+**新增或修改写 API 时合入前 checklist**：
+
+1. DTO 注解与 Controller `@Valid` 已加
+2. 嵌套列表 DTO 已加 `@Valid` + `@NotEmpty`，枚举/状态字段在 DTO 或 Service 层白名单校验
+3. Service 业务校验已加（不仅靠前端）
+4. Postman / curl 发空字段、非法枚举、超长字符串、越权/越库存数据 → 期望 **400/403** 与明确 `message`
+5. `mvn test -Dspring.profiles.active=test` 通过；涉及前端表单时补 `cd frontend && npm run test`；涉及模板/路由/构建配置时补 `cd frontend && npm run build`
+
+### 断点推荐位置
+
+| 场景 | 文件 | 位置 |
+|------|------|------|
+| API 入口 | `*Controller.java` | `POST` / `PUT` 映射方法第一行 |
+| Bean 校验失败 | `GlobalExceptionHandler` | `handleValidation` |
+| 参数类型/JSON 解析失败 | `GlobalExceptionHandler` | 对应 `handle*` 方法 |
+| 业务规则 | `*Service.java` | `save` / `update` / `importBatch` |
+| 库存变更 | `MaterialStockMutationService` | 增减库存方法 |
+| DTO 转换 | `*Converter.java` | `toEntity` / `toVO` |
+| 鉴权 | `AuthService` | `login` / `register` / `forgotPassword` |
+
+### 代理质量要求
+
+- 不得仅写前端 `rules` 而省略后端校验与集成测试。
+- 不得用「打包进容器再测」替代本地 IDEA 单步调试说明。
+- 改 Service / Controller 后须在说明中写明断点位置和测试用例/请求如何验证。
+- 新增配置或端口时须说明 `.env.example`、`worktree-db.ps1`、`application.yml`、`vite.config.ts` / 启动脚本是否同步，避免只改一处。
+
+### 安全与生产部署门禁
+
+- 开发默认凭据（`admin123`、`storage123`、`minioadmin123`）仅限本地开发；生产必须在部署前轮换。
+- `POST /api/auth/register` 是否对公网开放须由部署侧显式评估；`POST /api/auth/forgot-password` / `POST /api/auth/reset-password` 已使用邮件一次性链接，但仍需配合 HTTPS、可信前端域名与限流策略。
+- 忘记密码为“账号+邮箱申请邮件链接，token 重置密码”模型；token 仅明文出现在邮件链接中，数据库保存 SHA-256 哈希，默认 30 分钟过期且使用后失效；失败限流为单实例内存级（15 分钟 5 次），多实例生产需升级到 Redis 或网关限流。
+- Google SMTP 默认按 Gmail 直连预留：`smtp.gmail.com:587` + STARTTLS；`MAIL_PASSWORD` 使用 Google 应用专用密码，不得提交真实邮箱密码。公司 Workspace relay 可通过环境变量切换至 `smtp-relay.gmail.com`。
+- Session Cookie 生产环境必须启用 HTTPS 并开启 `SESSION_COOKIE_SECURE=true`；`CORS_ALLOWED_ORIGINS` 仅允许可信前端来源。
+- `AdminPasswordInitializer` 仅用于本地排障；生产应关闭自动重置 admin 密码，避免服务重启回退弱口令。
+- 文件上传安全校验必须以后端为准（大小/MIME 白名单），前端限制仅用于体验优化，不能替代服务端校验。
 
 ## 模块复用与可维护性门禁
 
@@ -270,6 +347,8 @@ docker compose --env-file .env up -d
 | `cleanup-legacy-docker.ps1` | 清理第七期前 `material-ledger-*` 遗留容器 |
 | `wait-mysql.ps1` | 轮询 MySQL 端口与 `SELECT 1`，供 dev-up/reset-db 复用 |
 | `sync-worktree-env.ps1` | 按分支生成本地 `.env` |
+| `start-dev.ps1` | 启动后端 + 前端（自动 sync，可选联动 Docker） |
+| `reset-db.ps1` | 重置当前 worktree Docker 数据卷并重建数据库 |
 
 **代理执行要求（DevX）**：
 
@@ -363,7 +442,7 @@ Storage/
 │       ├── query/            # 查询条件构建
 │       ├── service/            # 业务 Service；含 MaterialStockMutationService（库存锁定/增减）
 │       └── web/              # Excel 响应构建
-├── docker-compose.yml        # MySQL 8 + MinIO（端口/卷由 .env 参数化，含 healthcheck）
+├── docker-compose.yml        # MySQL 8 + MinIO（端口/凭据/卷由 .env 参数化，含 healthcheck）
 ├── dev-up.cmd                # 一键环境 + 前后端（第八期推荐入口）
 ├── scripts/
 │   ├── worktree-db.ps1       # Worktree 分支→端口/容器/卷注册表（SSOT）
@@ -422,3 +501,6 @@ Storage/
 | 2026-06-29 | 第二十六期客户管理与忘记密码：`sys_customer` CRUD/Excel、`CustomerManageView`、`POST /api/auth/forgot-password`、登录页 `?tab=forgot` |
 | 2026-06-29 | 第二十四期出入库 UI 优化：`MaterialIoFilterPanel`、`MaterialIoContextBar`、工具栏「更多」、用途 Tag 列、新增弹窗顶栏/条件列/预警列、安全确认 checkbox |
 | 2026-06-29 | 第二十七期差距收敛：文档与客户占位表述同步、台账路由读权限、死代码清理、注册可选邮箱 + admin 种子邮箱、库存统计 `recentDays` 选择器、台账/Bin/客户 import 集成测试、GitHub Actions CI |
+| 2026-06-29 | 第二十八期开发与调试规范：AGENTS/README 环境变量门禁、IDEA 断点工作流、双端校验 checklist、断点表；`BACKEND_PORT` / `FRONTEND_PORT` / `VITE_API_PROXY` 参数化，脚本保留应用端口并读取 MySQL 环境变量 |
+| 2026-06-29 | 第二十九期质量门禁与安全加固：Docker/CORS 凭据参数化、迁移关闭 `continue-on-error` 并改条件 DDL、忘记密码统一提示与限流、Auth Controller 集成测试、CI 增加前端 build、路由懒加载 + AntD 组件按需导入、清理 Vite 脚手架残留 |
+| 2026-06-30 | 第三十期忘记密码邮件链接重置：Google SMTP 环境变量预留、`password_reset_token`、`POST /api/auth/reset-password`、登录页 `?tab=reset&token=...` |

@@ -4,6 +4,7 @@ DROP TABLE IF EXISTS material_ledger;
 DROP TABLE IF EXISTS warehouse_bom;
 DROP TABLE IF EXISTS warehouse_bin;
 DROP TABLE IF EXISTS sys_customer;
+DROP TABLE IF EXISTS password_reset_token;
 DROP TABLE IF EXISTS sys_user;
 
 CREATE TABLE sys_user (
@@ -17,6 +18,17 @@ CREATE TABLE sys_user (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (username)
+);
+
+CREATE TABLE password_reset_token (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    token_hash VARCHAR(64) NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    used_at TIMESTAMP NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (token_hash),
+    CONSTRAINT fk_password_reset_user FOREIGN KEY (user_id) REFERENCES sys_user (id) ON DELETE CASCADE
 );
 
 CREATE TABLE sys_customer (

@@ -24,7 +24,12 @@ public class WebMvcConfig implements WebMvcConfigurer {
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(new ApiAuthInterceptor(objectMapper))
                 .addPathPatterns("/api/**")
-                .excludePathPatterns("/api/auth/login", "/api/auth/register", "/api/auth/forgot-password");
+                .excludePathPatterns(
+                        "/api/auth/login",
+                        "/api/auth/register",
+                        "/api/auth/forgot-password",
+                        "/api/auth/reset-password"
+                );
     }
 
     private static class ApiAuthInterceptor implements HandlerInterceptor {
