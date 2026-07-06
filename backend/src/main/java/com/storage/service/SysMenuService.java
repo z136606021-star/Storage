@@ -133,6 +133,8 @@ public class SysMenuService {
                     .key(String.valueOf(menu.getId()))
                     .label(menu.getName())
                     .icon(menu.getIcon())
+                    .permission(menu.getPermission())
+                    .componentKey(menu.getComponentKey())
                     .children(childNodes)
                     .build();
         }
@@ -144,6 +146,8 @@ public class SysMenuService {
                 .key(String.valueOf(menu.getId()))
                 .label(menu.getName())
                 .path(menu.getPath())
+                .permission(menu.getPermission())
+                .componentKey(menu.getComponentKey())
                 .icon(menu.getIcon())
                 .children(childNodes.isEmpty() ? null : childNodes)
                 .build();
@@ -167,6 +171,12 @@ public class SysMenuService {
         }
         if ("MENU".equals(dto.getMenuType()) && !StringUtils.hasText(dto.getPermission())) {
             throw new BusinessException("菜单类型为 MENU 时必须填写权限标识");
+        }
+        if ("MENU".equals(dto.getMenuType())
+                && Integer.valueOf(1).equals(dto.getVisible())
+                && StringUtils.hasText(dto.getPath())
+                && !StringUtils.hasText(dto.getComponentKey())) {
+            throw new BusinessException("可见路由菜单必须填写组件 Key");
         }
         if (StringUtils.hasText(dto.getPermission())) {
             long count = excludeId == null
@@ -195,6 +205,7 @@ public class SysMenuService {
         menu.setName(dto.getName());
         menu.setPermission(StringUtils.hasText(dto.getPermission()) ? dto.getPermission() : null);
         menu.setPath(StringUtils.hasText(dto.getPath()) ? dto.getPath() : null);
+        menu.setComponentKey(StringUtils.hasText(dto.getComponentKey()) ? dto.getComponentKey() : null);
         menu.setIcon(StringUtils.hasText(dto.getIcon()) ? dto.getIcon() : null);
         menu.setVisible(dto.getVisible());
         menu.setSortOrder(dto.getSortOrder());
@@ -209,6 +220,7 @@ public class SysMenuService {
                 .name(menu.getName())
                 .permission(menu.getPermission())
                 .path(menu.getPath())
+                .componentKey(menu.getComponentKey())
                 .icon(menu.getIcon())
                 .visible(menu.getVisible())
                 .sortOrder(menu.getSortOrder())

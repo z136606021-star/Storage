@@ -1,0 +1,45 @@
+@import './variables.less';
+
+// 成功色主按钮（新增等）
+.btn-success-primary() {
+  background: @color-success;
+  border-color: @color-success;
+
+  &:hover {
+    background: @color-success-hover !important;
+    border-color: @color-success-hover !important;
+  }
+}
+
+// 侧栏选中菜单项
+.menu-item-selected-primary() {
+  background-color: @color-primary !important;
+  color: @color-bg-base !important;
+
+  .ant-menu-title-content {
+    color: @color-bg-base !important;
+  }
+}
+
+// 表格行高亮
+.row-highlight() {
+  background-color: @color-bg-spotlight !important;
+}
+
+// 筛选表单项标签
+.filter-form-label() {
+  width: @filter-label-width;
+  flex: none;
+  text-align: right;
+
+  > label {
+    font-size: @font-size-sm;
+    color: @color-text-secondary;
+  }
+}
+
+// 详情描述块标签列
+.detail-label-cell() {
+  width: 96px;
+  background: @color-bg-elevated;
+}

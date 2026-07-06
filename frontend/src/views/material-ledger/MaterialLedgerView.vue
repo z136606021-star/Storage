@@ -342,8 +342,11 @@ setupRouteWatch()
   </CrudDetailDrawer>
 </template>
 
-<style scoped>
+<style scoped lang="less">
+@import '@/styles/variables.less';
+@import '@/styles/mixins.less';
+
 :deep(.ledger-row-highlight) td {
-  background-color: #e6f4ff;
+  .row-highlight();
 }
 </style>

@@ -1,18 +1,26 @@
 import axios from 'axios'
-import { useAuth } from '@/composables/useAuth'
+import { ACCESS_TOKEN_KEY, useAuthStore } from '@/stores/auth'
 
 export const http = axios.create({
   baseURL: '/api',
   timeout: 15000,
-  withCredentials: true,
+})
+
+http.interceptors.request.use((config) => {
+  const auth = useAuthStore()
+  const token = auth.accessToken || globalThis.localStorage?.getItem(ACCESS_TOKEN_KEY)
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
 })
 
 http.interceptors.response.use(
   (response) => response,
   (error) => {
     if (axios.isAxiosError(error) && error.response?.status === 401) {
-      const { clearSession } = useAuth()
-      clearSession()
+      const auth = useAuthStore()
+      auth.clearSession()
       const path = window.location.pathname
       if (!path.startsWith('/login')) {
         const redirect = encodeURIComponent(path + window.location.search)

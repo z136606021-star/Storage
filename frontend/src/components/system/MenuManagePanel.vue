@@ -23,6 +23,7 @@ const formState = reactive<SysMenuSave>({
   name: '',
   permission: '',
   path: '',
+  componentKey: '',
   icon: '',
   visible: 1,
   sortOrder: 0,
@@ -33,6 +34,7 @@ const columns = [
   { title: '类型', key: 'menuType', width: 90 },
   { title: '权限标识', dataIndex: 'permission', key: 'permission', ellipsis: true },
   { title: '路由', dataIndex: 'path', key: 'path', ellipsis: true, width: 180 },
+  { title: '组件 Key', dataIndex: 'componentKey', key: 'componentKey', ellipsis: true, width: 160 },
   { title: '显示', key: 'visible', width: 70 },
   { title: '排序', dataIndex: 'sortOrder', key: 'sortOrder', width: 70 },
   { title: '操作', key: 'actions', width: 200 },
@@ -101,6 +103,7 @@ function resetForm(parentId: number | null = null) {
   formState.name = ''
   formState.permission = ''
   formState.path = ''
+  formState.componentKey = ''
   formState.icon = ''
   formState.visible = 1
   formState.sortOrder = 0
@@ -119,6 +122,7 @@ function openEdit(record: SysMenu) {
   formState.name = record.name
   formState.permission = record.permission ?? ''
   formState.path = record.path ?? ''
+  formState.componentKey = record.componentKey ?? ''
   formState.icon = record.icon ?? ''
   formState.visible = record.visible
   formState.sortOrder = record.sortOrder
@@ -138,12 +142,22 @@ async function handleSubmit() {
     message.warning('菜单类型为 MENU 时必须填写权限标识')
     return
   }
+  if (
+    formState.menuType === 'MENU'
+    && formState.visible === 1
+    && formState.path?.trim()
+    && !formState.componentKey?.trim()
+  ) {
+    message.warning('可见路由菜单必须填写组件 Key')
+    return
+  }
   const payload: SysMenuSave = {
     parentId: formState.parentId,
     menuType: formState.menuType,
     name: formState.name.trim(),
     permission: formState.permission?.trim() || undefined,
     path: formState.path?.trim() || undefined,
+    componentKey: formState.componentKey?.trim() || undefined,
     icon: formState.icon?.trim() || undefined,
     visible: formState.visible,
     sortOrder: formState.sortOrder,
@@ -233,6 +247,9 @@ onMounted(loadData)
         <template v-else-if="column.key === 'path'">
           {{ displayValue((record as SysMenu).path) }}
         </template>
+        <template v-else-if="column.key === 'componentKey'">
+          {{ displayValue((record as SysMenu).componentKey) }}
+        </template>
         <template v-else-if="column.key === 'visible'">
           {{ (record as SysMenu).visible === 1 ? '是' : '否' }}
         </template>
@@ -285,6 +302,13 @@ onMounted(loadData)
         </a-form-item>
         <a-form-item label="路由路径">
           <a-input v-model:value="formState.path" placeholder="如 /warehouse/material-ledger，动作权限可留空" />
+        </a-form-item>
+        <a-form-item
+          v-if="formState.menuType === 'MENU' && formState.path?.trim()"
+          label="组件 Key"
+          :required="formState.visible === 1"
+        >
+          <a-input v-model:value="formState.componentKey" placeholder="如 MaterialLedger 或 ShellPlaceholder" />
         </a-form-item>
         <a-form-item label="图标">
           <a-input v-model:value="formState.icon" placeholder="Ant Design 图标名，如 SettingOutlined" />

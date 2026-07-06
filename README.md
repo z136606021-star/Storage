@@ -4,7 +4,7 @@
 
 ## 技术栈
 
-- **前端**：Vue 3 + TypeScript + Vite + Ant Design Vue 4（组件自动按需导入）
+- **前端**：Vue 3 + TypeScript + Vite + Ant Design Vue 4（组件自动按需导入）+ Less（样式预处理器）
 - **后端**：Java 17+ + Spring Boot 3 + MyBatis Plus + Apache Shiro
 - **数据库**：MySQL 8
 - **对象存储**：MinIO
@@ -15,32 +15,26 @@
 
 ## 快速启动
 
-### 推荐：一键启动（跨平台，第八期 DevX）
+### 推荐：Docker Compose 一句命令
 
-需已安装 Docker、Java 17+、Maven、Node.js 20+。在项目根目录：
+需已安装 Docker。默认部署流程统一为 `docker compose up -d`，不再依赖手动启动前后端进程或重置数据库卷。
 
-Linux / macOS / Git Bash：
+开发环境（包含开发端口映射）：
 
 ```bash
-chmod +x scripts/*.sh
-./scripts/dev-up.sh
+docker compose --env-file .env -f docker-compose.yml -f docker-compose-dev.yml up -d --build
 ```
 
-Windows PowerShell：
+生产部署（最小暴露面）：
 
-```powershell
-.\scripts\dev-up.ps1
+```bash
+docker compose --env-file .env -f docker-compose.yml up -d --build
 ```
 
-或双击 [dev-up.cmd](dev-up.cmd)。将自动：**sync 分支 .env → 启动 Docker → 等待 MySQL 就绪 → 启动前后端**。
+也可使用统一入口脚本：
 
-可选参数：
-
-- `-ResetDb`：先重置当前 worktree 数据库卷再启动
-- `-SkipDocker`：跳过 Docker（数据库已运行时）
-- `-Install`：强制执行 `npm install`
-
-Bash 版参数名为 `--reset-db` / `--skip-docker` / `--install` / `--no-kill`。
+- Windows：`.\scripts\deploy-cli.ps1 -Profile dev` / `-Profile prod`
+- Linux/macOS/Git Bash：`./scripts/deploy-cli.sh --profile dev` / `--profile prod`
 
 环境自检：
 
@@ -95,31 +89,12 @@ powershell -ExecutionPolicy Bypass -File .\scripts\sync-worktree-env.ps1
 
 切换 worktree 或分支后务必先执行 `sync-worktree-env.ps1`（Windows）或 `sync-worktree-env.sh`（Linux/macOS/Git Bash），再 `docker compose --env-file .env up -d`。详见 [AGENTS.md](AGENTS.md)「Worktree 数据库隔离」。
 
-若修改了种子数据或表结构（如鉴权表），需重建**当前 worktree** 的数据库卷后重新导入：
+已有数据库卷升级时，必须通过增量迁移演进结构，禁止把 `down -v` / 清空卷作为常规升级路径。迁移脚本须为 **UTF-8** 编码；`application.yml` 已配置 `spring.sql.init.encoding=UTF-8`，且 `continue-on-error=false`，迁移失败会阻断启动以避免静默漏表/漏列。
 
-```powershell
-.\scripts\reset-db.ps1
-```
+默认连接信息见 [.env.example](.env.example)：
 
-Linux / macOS / Git Bash：
-
-```bash
-./scripts/reset-db.sh
-```
-
-或手动：
-
-```powershell
-docker compose --env-file .env down -v
-docker compose --env-file .env up -d
-```
-
-已有物料数据、仅需补齐鉴权/系统管理表时，后端启动时会自动执行 `db/migration-*.sql`（条件 DDL + `INSERT IGNORE` + 中文数据修复）。迁移脚本须为 **UTF-8** 编码；`application.yml` 已配置 `spring.sql.init.encoding=UTF-8`，且 `continue-on-error=false`，迁移失败会阻断启动以避免静默漏表/漏列。
-
-默认连接信息见 [.env.example](.env.example)（main 分支示例）：
-
-- MySQL: `localhost:3307` / `storage` / `storage` / `storage123`
-- MinIO API: `http://localhost:9000`（控制台 `http://localhost:9001`，`minioadmin` / `minioadmin123`）
+- 宿主机访问 MySQL/MinIO 走映射端口（dev compose）
+- 容器内服务互联使用服务名：`mysql:3306`、`http://minio:9000`（不要用 `localhost`）
 
 其他 worktree 端口见上表；以 `scripts/sync-worktree-env.ps1` 或 `scripts/sync-worktree-env.sh` 生成的 `.env` 为准。
 
@@ -127,10 +102,12 @@ docker compose --env-file .env up -d
 
 - `BACKEND_PORT`：后端 HTTP 端口（默认 `8080`）
 - `FRONTEND_PORT`：Vite 开发端口（默认 `5173`）
-- `VITE_API_PROXY`：前端 `/api` 代理目标（默认 `http://localhost:8080`）
+- `VITE_API_PROXY`：仅本地 Vite 开发模式使用；Compose Nginx 部署不依赖该值
 - `CORS_ALLOWED_ORIGINS`：后端允许的前端来源（默认跟随 `FRONTEND_PORT`）
+- `JWT_SECRET`：JWT HMAC 签名密钥（本地默认仅用于开发，生产必须改为部署侧强密钥）
+- `JWT_TTL_MINUTES`：JWT access token 有效期分钟数（默认 `120`）
 
-`sync-worktree-env.ps1` / `sync-worktree-env.sh` 会按分支重写 MySQL/MinIO 端口、容器名和卷名，但会保留已有 `.env` 或当前进程中的数据库/MinIO 凭据、`BACKEND_PORT` / `FRONTEND_PORT` / `VITE_API_PROXY` / `CORS_ALLOWED_ORIGINS` / `SESSION_COOKIE_*` / `RESET_ADMIN_PASSWORD_ON_STARTUP` / `UPLOAD_*` / `APP_PUBLIC_BASE_URL` / `PASSWORD_RESET_TOKEN_TTL_MINUTES` / `MAIL_*`，便于本地避开端口冲突和使用自定义本地密码。
+`sync-worktree-env.ps1` / `sync-worktree-env.sh` 会按分支重写 MySQL/MinIO 端口、容器名和卷名，但会保留已有 `.env` 或当前进程中的数据库/MinIO 凭据、`BACKEND_PORT` / `FRONTEND_PORT` / `VITE_API_PROXY` / `CORS_ALLOWED_ORIGINS` / `SESSION_COOKIE_*` / `RESET_ADMIN_PASSWORD_ON_STARTUP` / `JWT_*` / `UPLOAD_*` / `APP_PUBLIC_BASE_URL` / `PASSWORD_RESET_TOKEN_TTL_MINUTES` / `MAIL_*`，便于本地避开端口冲突和使用自定义本地密码。
 
 ### 2. 启动后端
 
@@ -148,7 +125,7 @@ docker compose --env-file .env up -d
 5. 另开终端：`cd frontend && npm run dev`
 6. 浏览器或 Postman 复现请求，单步跟进
 
-**注意**：IDEA Debug 运行后端时，勿执行 `dev-up` / `start-dev` 脚本重启后端，避免重复启动占端口。
+**注意**：IDEA Debug 运行后端时，不要与 Compose 内后端容器同时占用同一端口；如需本地断点，建议暂时停止 `backend` 容器。
 
 #### 备选：命令行启动
 
@@ -177,7 +154,7 @@ npm run dev
 
 前端表单 `rules` 仅为体验；**后端校验才是安全门禁**。改 API 后建议用 Postman 直接打接口（可绕过前端）：
 
-1. `POST /api/auth/login` 获取 Session Cookie
+1. `POST /api/auth/login` 获取 JWT access token，后续请求携带 `Authorization: Bearer <token>`
 2. 故意发送非法 body，例如：注册空用户名、客户必填字段缺失、出库数量超过库存
 3. 期望 **HTTP 400** 与 JSON `message` 字段；不应 500 或静默成功
 
@@ -185,7 +162,7 @@ npm run dev
 
 **页面入口**：
 
-- 默认打开 `/login`（Apache Shiro Session 鉴权）；注册 Tab：`/login?tab=register`；忘记密码申请 Tab：`/login?tab=forgot`；邮件链接重置 Tab：`/login?tab=reset&token=...`
+- 默认打开 `/login`（当前为 Shiro + JWT 鉴权，前端通过 Pinia + localStorage 保存 access token）；注册 Tab：`/login?tab=register`；忘记密码申请 Tab：`/login?tab=forgot`；邮件链接重置 Tab：`/login?tab=reset&token=...`
 - 支持开放注册，新用户默认 `USER` 角色（仅物料台账只读）；注册账号 3-32 字符、密码至少 6 位
 - 注册支持可选邮箱；忘记密码通过账号 + 邮箱申请邮件一次性链接，链接默认 30 分钟有效，后端统一错误提示并限流（同一账号 15 分钟最多 5 次失败）
 - 邮件配置通过 `.env` 预留：`APP_PUBLIC_BASE_URL`、`PASSWORD_RESET_TOKEN_TTL_MINUTES`、`MAIL_HOST`、`MAIL_PORT`、`MAIL_USERNAME`、`MAIL_PASSWORD`、`MAIL_FROM`、`MAIL_SMTP_AUTH`、`MAIL_SMTP_STARTTLS_ENABLE`；Gmail 默认 `smtp.gmail.com:587` + STARTTLS，`MAIL_PASSWORD` 使用 Google 应用专用密码
@@ -194,35 +171,27 @@ npm run dev
 - 默认管理员：`admin` / `admin123`（可管理用户/角色/菜单）
 - 系统管理新建用户默认初始密码后缀：`@123`（即 `{username}@123`）
 
-**若仍直接进入物料台账而非登录页**：重新运行 `start-dev` 即可（脚本会自动结束占用 5173 的旧 Vite 进程）。
+**动态菜单与路由**：
 
-### 一键启动前后端（仅应用，Docker 已运行）
+- 业务路由由后端菜单树驱动：`sys_menu.path` 决定路由路径，`permission` 决定访问权限，`component_key` 决定前端懒加载组件。
+- 前端固定路由仅保留登录、根布局和必要重定向；登录或刷新恢复后由 Pinia menu store 拉取 `/api/menus/nav-tree` 并动态注册业务路由。
+- 菜单管理新增“组件 Key”字段；可见且有路由路径的 `MENU` 必须填写组件 Key，隐藏动作权限可不填写。
+- 当前可用组件 Key：`MaterialLedger`、`MaterialIo`、`SafetyStock`、`InventoryStats`、`BinManage`、`BomManage`、`SystemManageLayout`、`UserManage`、`RoleManagePanel`、`MenuManagePanel`、`CustomerManage`、`ShellPlaceholder`。
 
-双击 [start-dev.cmd](start-dev.cmd)，或在 PowerShell 中执行：
+### 样式约定（Less）
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\start-dev.ps1
-```
+- 统一预处理器为 **Less**；全局入口为 [frontend/src/style.less](frontend/src/style.less)。
+- 公共 token 与 mixins 位于 [frontend/src/styles/](frontend/src/styles/)（`variables.less`、`mixins.less`、`index.less`）。
+- 新增或改动带样式的组件时，使用 `<style scoped lang="less">`，优先复用 `@color-*`、`@spacing-*`、`@radius-*` 等变量，以及 `btn-success-primary`、`row-highlight`、`filter-form-label` 等 mixin。
+- 存量纯 CSS 业务页按页面改动顺带迁移，避免一次性大面积样式 diff。
 
-Linux / macOS / Git Bash：
+### Compose 部署访问方式
 
-```bash
-./scripts/start-dev.sh
-```
+启动完成后：
 
-Windows 版会分别打开两个终端窗口运行后端与前端；Bash 版会在当前终端运行后端、后台运行前端并在退出时收尾。端口读取 `.env` 的 `BACKEND_PORT` / `FRONTEND_PORT`。
-
-**端口冲突**：若 `.env` 中配置的应用端口已被本项目的 `mvn spring-boot:run` 或 `npm run dev` 占用，脚本会**自动结束旧进程**后再启动，无需手动 `taskkill`。改过后端代码后，直接重新运行此脚本即可加载新代码。若端口被其他程序占用，脚本会报错并提示手动处理；也可先改 `.env` 的 `BACKEND_PORT` / `FRONTEND_PORT` / `VITE_API_PROXY` 再运行脚本。
-
-可选参数：
-
-- `-Install`：强制执行 `npm install`
-- `-WithDocker`：同时执行 `docker compose --env-file .env up -d` 并等待 MySQL 就绪
-- `-NoKill`：端口被占用时仅警告，不自动结束进程
-
-Bash 版参数名为 `--install` / `--with-docker` / `--no-kill`。
-
-`start-dev.ps1` / `start-dev.sh` 会将 `.env` 中的数据库、MinIO、CORS、Session、admin 初始化、上传、邮件与密码重置变量显式注入后端进程，避免子进程遗漏本地配置。
+- 前端入口：`http://localhost:${APP_PORT}`（或 dev profile 下 `http://localhost:${FRONTEND_PORT}`）
+- 前端请求 `/api/**` 由 Nginx 反向代理至 `backend:8080`
+- 无需手动启动 `mvn spring-boot:run` / `npm run dev` 即可完成完整部署访问
 
 ### 手动测试文件上传（MinIO）
 
@@ -230,18 +199,18 @@ Bash 版参数名为 `--install` / `--with-docker` / `--no-kill`。
 
 ```bash
 curl -X POST http://localhost:8080/api/files/upload \
-  -b cookies.txt -c cookies.txt \
+  -H "Authorization: Bearer <token>" \
   -F "file=@README.md"
 ```
 
-先调用 `POST /api/auth/login` 获取 Session Cookie，再携带 Cookie 上传。MinIO 控制台：`http://localhost:9001`（`minioadmin` / `minioadmin123`）。
+先调用 `POST /api/auth/login` 获取 `accessToken`，再用 Bearer token 携带凭证上传。MinIO 控制台：`http://localhost:9001`（`minioadmin` / `minioadmin123`）。
 
 物料清单图片可在 **配置管理 → 物料清单** 新增/编辑弹窗中上传（JPG/PNG/WebP/GIF，≤5MB）；后端会校验大小、MIME 白名单与图片魔数，保存后列表与详情展示缩略图。Excel 导入导出不含图片列。
 
 ## 当前功能
 
-- [x] 登录页 + Shiro Session 登录/登出/当前用户 + **开放注册** + **第五期优化**（左栏插画、记住账号、URL Tab、注册校验、交互打磨）
-- [x] 路由守卫与 API 401 拦截（Cookie 会话）+ **路由 permission 校验**
+- [x] 登录页 + Shiro JWT 登录/登出/当前用户 + Pinia 全局 auth store + **开放注册** + **第五期优化**（左栏插画、记住账号、URL Tab、注册校验、交互打磨）
+- [x] 路由守卫与 API 401 拦截（Bearer token）+ **路由 permission 校验**
 - [x] **系统管理**：用户管理（含角色/菜单子 Tab、多角色分配、授权只读面板、Excel 导入导出）+ **菜单管理 Tab（CRUD）** + **客户管理 CRUD**（Excel 导入导出）+ SideMenu 动态导航（侧栏：用户管理、客户管理）
 - [x] MinIO 对象存储基础设施 + `POST /api/files/upload`
 - [x] **第六期平台壳层**：DB 导航种子（个人中心/项目/采购/设计/技能/经验/财务 + 仓库 5 项含库存统计与配置管理）、占位路由、`ComingSoonPage` 复用组件
@@ -278,11 +247,28 @@ curl -X POST http://localhost:8080/api/files/upload \
 - [x] **第三十期忘记密码邮件链接重置**：Google SMTP 环境变量预留、`password_reset_token`、`POST /api/auth/reset-password`、登录页 `?tab=reset&token=...`
 - [x] **第二十七期差距收敛**：文档与客户占位表述同步、台账路由读权限、注册可选邮箱 + admin 种子邮箱、库存统计 `recentDays` 选择器、台账/Bin/客户 import 集成测试、GitHub Actions CI
 - [x] **第二十八期开发与调试规范**：环境变量门禁、IDEA 断点工作流、前后端双端校验 checklist、启动脚本端口参数化
-- [x] **第三十四期跨平台 DevX**：补齐 Linux/macOS/Git Bash 版 `dev-up.sh` / `start-dev.sh` / `sync-worktree-env.sh` / `wait-mysql.sh` / `reset-db.sh` / `health-check.sh` / `cleanup-legacy-docker.sh`
+- [x] **第三十四期跨平台 DevX**：补齐 Linux/macOS/Git Bash 版 `deploy-cli.sh` / `sync-worktree-env.sh` / `wait-mysql.sh` / `health-check.sh` / `cleanup-legacy-docker.sh`
 - [x] **第二十九期质量门禁与安全加固**：Docker/CORS 凭据参数化、迁移 fail-fast + 条件 DDL、忘记密码统一提示与限流、Auth Controller 集成测试、CI 增加前端 build、路由懒加载 + AntD 按需导入
 - [x] **第三十一期模块复用复查与废弃物清理**：复核仓库/系统同类列表页仍复用公共 CRUD/composable/utils 层，清理未引用脚手架注释文件与 Vite 模板残留
 - [x] **第三十二期安全门禁复查与上传加固**：复核环境变量、CORS、Session、忘记密码、迁移脚本与敏感信息门禁；上传增加图片魔数校验
 - [x] **第三十三期系统环境变量一致性审核**：`.env.example` 与 `worktree-db.ps1` 变量清单一致；启动脚本显式注入后端运行环境变量；文档补齐 SSOT
+- [x] **第三十五期 Pinia + JWT 鉴权迁移**：Pinia auth store、JWT access token、本地刷新恢复、Bearer 请求注入、无状态 Shiro JWT 认证链路
+- [x] **第三十六期动态菜单与动态路由**：菜单 `component_key` 契约、Pinia menu store、登录后动态注册业务路由、菜单管理维护组件 Key
+- [x] **第三十七期样式预处理器统一**：引入 Less、`frontend/src/styles/` 公共 token/mixins、布局与 CRUD 公共层迁移、代表业务页验证
+
+## 协作约定（多模型）
+
+在 Cursor 中建议按任务属性分工，而不是固定单模型完成所有环节：
+
+- `Composer 2.5`：执行与验证主力（改代码、跑命令、调试、补测试、闭环验收）
+- `GPT-5.5`：规划主力（需求拆解、方案比较、风险识别、验收标准）
+- `Claude Sonnet`：文档主力（README/ROADMAP/PR 描述/发布说明/复盘）
+
+推荐流水线：
+
+1. `GPT-5.5` 输出计划与边界；
+2. `Composer 2.5` 按计划实施并验证；
+3. `Claude Sonnet` 产出文档与沟通材料。
 
 ## 安全与生产部署要点
 
@@ -290,7 +276,7 @@ curl -X POST http://localhost:8080/api/files/upload \
 - `POST /api/auth/register` 是否对公网开放须由部署侧显式评估；忘记密码接口已改为邮件一次性链接，但仍需配合 HTTPS、可信前端域名与限流策略
 - 忘记密码 token 仅明文出现在邮件链接中，数据库保存 SHA-256 哈希，默认 30 分钟过期且使用后失效；失败限流为单实例内存级（15 分钟 5 次），多实例生产需迁移到 Redis/网关限流
 - Google SMTP 默认按 Gmail 直连预留：`smtp.gmail.com:587` + STARTTLS；`MAIL_PASSWORD` 使用 Google 应用专用密码，不提交真实邮箱密码。公司 Workspace relay 可通过环境变量切换到 `smtp-relay.gmail.com`
-- Session 生产环境需启用 HTTPS，并设置 `SESSION_COOKIE_SECURE=true`；`CORS_ALLOWED_ORIGINS` 必须仅配置可信前端域名
+- 当前鉴权主路径为 Shiro + JWT；access token 存储在前端 localStorage。生产环境需启用 HTTPS，`JWT_SECRET` 必须使用部署侧强密钥，`CORS_ALLOWED_ORIGINS` 必须仅配置可信前端域名，并持续防护 XSS 风险
 - 默认管理员密码自动重置能力仅建议本地排障开启，生产应关闭该初始化开关，避免启动时回退弱密码
 - 文件上传以后端校验为准：当前限制 JPG/PNG/WebP/GIF、默认 ≤5MB，并校验图片魔数，前端限制仅用于体验优化
 - GitHub Actions CI：[`CI workflow`](https://github.com/z136606021-star/Storage/blob/main/.github/workflows/ci.yml)（后端测试 + 前端测试/构建）
@@ -306,5 +292,7 @@ curl -X POST http://localhost:8080/api/files/upload \
 https://github.com/z136606021-star/Storage.git
 
 历史变更记录见 [CHANGELOG.md](CHANGELOG.md)。
+
+后续优化路线见 [ROADMAP.md](ROADMAP.md)。
 
 协作者与 AI 代理请参阅 [AGENTS.md](AGENTS.md)。新增功能前须按 `AGENTS.md` 的「模块复用与可维护性门禁」检查并优先复用 `CrudListPage`、`usePaginatedCrudList`、`useExcelImportExport`、`api/http.ts`、`types/common.ts`、`utils/`、`converter/`、`query/`、`excel/` 等公共层。

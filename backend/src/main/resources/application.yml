@@ -8,7 +8,7 @@ spring:
       mode: always
       continue-on-error: false
       encoding: UTF-8
-      schema-locations: classpath:db/migration-auth.sql,classpath:db/migration-phase3-system.sql,classpath:db/migration-phase4-system-ui.sql,classpath:db/migration-fix-chinese-data.sql,classpath:db/migration-phase6-platform-shell.sql,classpath:db/migration-phase7-ui-shell-paths.sql,classpath:db/migration-phase11-warehouse-bin.sql,classpath:db/migration-phase11-warehouse-bom.sql,classpath:db/migration-phase11-warehouse-bom-image.sql,classpath:db/migration-phase12-warehouse-bom-image-fix.sql,classpath:db/migration-phase13-material-io.sql,classpath:db/migration-phase22-safety-stock.sql,classpath:db/migration-phase23-material-io-semantic.sql,classpath:db/migration-phase25-inventory-stats-project-ref.sql,classpath:db/migration-phase26-customer.sql,classpath:db/migration-phase27-admin-register-email.sql,classpath:db/migration-phase30-password-reset-token.sql
+      schema-locations: classpath:db/migration-auth.sql,classpath:db/migration-phase3-system.sql,classpath:db/migration-phase4-system-ui.sql,classpath:db/migration-fix-chinese-data.sql,classpath:db/migration-phase6-platform-shell.sql,classpath:db/migration-phase7-ui-shell-paths.sql,classpath:db/migration-phase11-warehouse-bin.sql,classpath:db/migration-phase11-warehouse-bom.sql,classpath:db/migration-phase11-warehouse-bom-image.sql,classpath:db/migration-phase12-warehouse-bom-image-fix.sql,classpath:db/migration-phase13-material-io.sql,classpath:db/migration-phase22-safety-stock.sql,classpath:db/migration-phase23-material-io-semantic.sql,classpath:db/migration-phase25-inventory-stats-project-ref.sql,classpath:db/migration-phase26-customer.sql,classpath:db/migration-phase27-admin-register-email.sql,classpath:db/migration-phase30-password-reset-token.sql,classpath:db/migration-phase36-dynamic-routes.sql
   datasource:
     url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3307}/${MYSQL_DB:storage}?useUnicode=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_unicode_ci&serverTimezone=Asia/Shanghai
     username: ${MYSQL_USER:storage}
@@ -51,6 +51,9 @@ storage:
   auth:
     default-password-suffix: "@123"
     reset-admin-password-on-startup: ${RESET_ADMIN_PASSWORD_ON_STARTUP:true}
+  jwt:
+    secret: ${JWT_SECRET:dev-only-change-this-jwt-secret-at-least-32-bytes}
+    ttl-minutes: ${JWT_TTL_MINUTES:120}
   password-reset:
     public-base-url: ${APP_PUBLIC_BASE_URL:http://localhost:5173}
     token-ttl-minutes: ${PASSWORD_RESET_TOKEN_TTL_MINUTES:30}

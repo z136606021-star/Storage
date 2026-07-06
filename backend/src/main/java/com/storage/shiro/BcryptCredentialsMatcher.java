@@ -12,6 +12,9 @@ public class BcryptCredentialsMatcher implements CredentialsMatcher {
 
     @Override
     public boolean doCredentialsMatch(AuthenticationToken token, AuthenticationInfo info) {
+        if (token instanceof JwtAuthenticationToken) {
+            return true;
+        }
         Object credentials = token.getCredentials();
         if (credentials == null) {
             return false;

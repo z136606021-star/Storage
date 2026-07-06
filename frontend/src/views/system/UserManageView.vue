@@ -427,15 +427,18 @@ onMounted(async () => {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="less">
+@import '@/styles/variables.less';
+@import '@/styles/mixins.less';
+
 .page {
-  padding: 0 16px 16px;
+  padding: 0 @spacing-lg @spacing-lg;
   min-height: 100%;
 }
 
 .page-body {
   display: flex;
-  gap: 16px;
+  gap: @spacing-lg;
   align-items: flex-start;
 }
 
@@ -447,25 +450,25 @@ onMounted(async () => {
 .auth-panel {
   width: 280px;
   flex-shrink: 0;
-  border: 1px solid #f0f0f0;
-  border-radius: 6px;
-  padding: 12px;
-  background: #fafafa;
+  border: 1px solid @color-border;
+  border-radius: @radius-md;
+  padding: @spacing-md;
+  background: @color-bg-elevated;
   max-height: calc(100vh - 200px);
   overflow: auto;
 }
 
 .auth-panel-title {
   font-weight: 600;
-  margin-bottom: 12px;
+  margin-bottom: @spacing-md;
 }
 
 .auth-empty {
-  color: #999;
-  font-size: 13px;
+  color: @color-text-disabled;
+  font-size: @font-size-sm;
 }
 
 :deep(.row-selected) {
-  background: #e6f4ff !important;
+  .row-highlight();
 }
 </style>

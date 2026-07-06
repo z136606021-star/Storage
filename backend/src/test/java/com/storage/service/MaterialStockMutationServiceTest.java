@@ -26,7 +26,7 @@ class MaterialStockMutationServiceTest {
     private MaterialLedgerMapper materialLedgerMapper;
 
     @InjectMocks
-    private MaterialStockMutationService materialStockMutationService;
+    private MaterialStockMutationServiceImpl materialStockMutationService;
 
     private MaterialLedger ledger;
 

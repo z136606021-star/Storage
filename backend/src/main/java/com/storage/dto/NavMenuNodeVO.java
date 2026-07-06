@@ -15,6 +15,10 @@ public class NavMenuNodeVO {
 
     private String path;
 
+    private String permission;
+
+    private String componentKey;
+
     private String icon;
 
     private List<NavMenuNodeVO> children;

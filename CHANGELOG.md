@@ -49,3 +49,14 @@
 | 2026-06-30 | 第三十三期系统环境变量一致性审核：核对 `.env.example` 与 `Format-WorktreeEnvContent` 变量清单一致；`start-dev.ps1` 显式注入 Session/Admin/Upload/Mail/PasswordReset 环境变量；补齐文档 SSOT |
 | 2026-06-30 | 第三十四期跨平台 DevX：补齐 Linux/macOS/Git Bash 版 `worktree-db.sh`、`sync-worktree-env.sh`、`dev-up.sh`、`start-dev.sh`、`wait-mysql.sh`、`reset-db.sh`、`health-check.sh`、`cleanup-legacy-docker.sh`，README/AGENTS 同步双平台启动入口 |
 | 2026-06-30 | 精简 AGENTS：仅保留代理准则与质量门禁，启动说明留 README，历史流水迁移到 CHANGELOG |
+| 2026-06-30 | 整理后续架构优化方案：Pinia、动态路由、样式预处理器、Service 接口化与模块化原则 |
+| 2026-06-30 | 明确鉴权优化目标为 Shiro + JWT，当前 Shiro Session Cookie 仅作为待迁移遗留实现记录 |
+| 2026-06-30 | 第三十五期 Pinia + JWT 鉴权迁移：前端引入 Pinia auth store 与 localStorage access token，后端改为 Shiro + JWT Bearer token 认证，配置 SSOT 同步 `JWT_SECRET` / `JWT_TTL_MINUTES` |
+| 2026-06-30 | 第三十六期动态菜单与动态路由：`sys_menu.component_key` 契约、导航树返回组件 Key、前端 Pinia menu store 动态 `addRoute`、菜单管理维护组件 Key |
+| 2026-07-06 | Docker 部署路线纠偏：新增 `docker-compose-dev.yml`、`deploy-cli.ps1/.sh`、后端/前端 Dockerfile 与 Nginx 反代配置；移除 reset-db 脚本；README/ROADMAP 改为 `docker compose up -d` 主路径并明确禁止日常 `down -v` 清卷升级 |
+| 2026-07-06 | 第三十七期样式预处理器统一：前端引入 Less 依赖；新增 `frontend/src/styles/` 公共变量与 mixins；全局 `style.less` 入口；迁移 `AppLayout`、侧栏/TabBar、CrudListPage/CrudToolbar/CrudDetailDrawer 及 `MaterialLedgerView`、`UserManageView` 代表页 |
+| 2026-07-06 | P6 Service 接口化试点（第一阶段）：`SafetyStockService` 抽取为接口，`SafetyStockServiceImpl` 承接实现；`SafetyStockController`、`WarehouseStatsService` 依赖接口；`SafetyStockExportService` 保持独立 |
+| 2026-07-06 | P6 Service 接口化试点（第二阶段）：`MaterialStockMutationService` 抽取为接口，`MaterialStockMutationServiceImpl` 承接实现；`MaterialIoService`、`MaterialIoImportService` 依赖接口；`ImportStockSimulationRow` 保留在接口契约 |
+| 2026-07-06 | P6 Service 接口化试点（第三阶段）：`MaterialLedgerService` 抽取为接口，`MaterialLedgerServiceImpl` 承接实现；`MaterialLedgerController`、`MaterialIoService`、`MaterialIoImportService`、`SafetyStockServiceImpl` 依赖接口；`MaterialLedgerImportService`、`MaterialLedgerExportService` 保持独立 |
+| 2026-07-06 | P6 Service 接口化试点（第四阶段）：`MaterialIoService` 抽取为接口，`MaterialIoServiceImpl` 承接实现；`MaterialIoController`、`MaterialIoImportService` 依赖接口；`importBatch` 保留在接口契约；`MaterialIoImportService`、`MaterialIoExportService`、`MaterialStockMutationService` 保持独立 |
+| 2026-07-06 | P6 Service 接口化试点（第五阶段）：`AuthService` 抽取为接口，`AuthServiceImpl` 承接实现；`AuthController`、`FileController`、`SysMenuService`、`SysUserService`、`MaterialIoServiceImpl` 依赖接口；`currentUser()` 保留在接口契约；`PasswordResetMailService`、`JwtService`、`UserRealm` 保持独立 |

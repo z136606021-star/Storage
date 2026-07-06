@@ -45,17 +45,19 @@ function handleClose() {
   </a-drawer>
 </template>
 
-<style scoped>
+<style scoped lang="less">
+@import '@/styles/variables.less';
+@import '@/styles/mixins.less';
+
 :deep(.detail-block + .detail-block) {
-  margin-top: 16px;
+  margin-top: @spacing-lg;
 }
 
 :deep(.detail-block .ant-descriptions-header) {
-  margin-bottom: 8px;
+  margin-bottom: @spacing-sm;
 }
 
 :deep(.detail-block .ant-descriptions-item-label) {
-  width: 96px;
-  background: #fafafa;
+  .detail-label-cell();
 }
 </style>

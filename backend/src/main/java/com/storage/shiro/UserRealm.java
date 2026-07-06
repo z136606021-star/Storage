@@ -25,7 +25,7 @@ public class UserRealm extends AuthorizingRealm {
 
     @Override
     public boolean supports(AuthenticationToken token) {
-        return token instanceof UsernamePasswordToken;
+        return token instanceof UsernamePasswordToken || token instanceof JwtAuthenticationToken;
     }
 
     @Override
@@ -42,13 +42,16 @@ public class UserRealm extends AuthorizingRealm {
 
     @Override
     protected AuthenticationInfo doGetAuthenticationInfo(AuthenticationToken token) throws AuthenticationException {
-        UsernamePasswordToken usernamePasswordToken = (UsernamePasswordToken) token;
-        String username = usernamePasswordToken.getUsername();
-        SysUser user = sysUserMapper.selectByUsername(username);
+        SysUser user = token instanceof JwtAuthenticationToken jwtToken
+                ? sysUserMapper.selectById((Long) jwtToken.getPrincipal())
+                : sysUserMapper.selectByUsername(((UsernamePasswordToken) token).getUsername());
         if (user == null || user.getStatus() == null || user.getStatus() != 1) {
             throw new UnknownAccountException("账号或密码错误");
         }
-        return new SimpleAuthenticationInfo(user, user.getPasswordHash(), getName());
+        Object credentials = token instanceof JwtAuthenticationToken
+                ? token.getCredentials()
+                : user.getPasswordHash();
+        return new SimpleAuthenticationInfo(user, credentials, getName());
     }
 
     public boolean matchesPassword(String rawPassword, String encodedPassword) {

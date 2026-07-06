@@ -1,0 +1,121 @@
+package com.storage.controller;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.storage.dto.LoginRequestDTO;
+import com.storage.dto.SysMenuSaveDTO;
+import com.storage.entity.SysUser;
+import com.storage.mapper.SysMenuMapper;
+import com.storage.mapper.SysUserMapper;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.web.servlet.MockMvc;
+
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+@SpringBootTest
+@AutoConfigureMockMvc
+@ActiveProfiles("test")
+class SysMenuControllerIntegrationTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @Autowired
+    private SysUserMapper sysUserMapper;
+
+    @Autowired
+    private SysMenuMapper sysMenuMapper;
+
+    @Autowired
+    private BCryptPasswordEncoder passwordEncoder;
+
+    @BeforeEach
+    void setUp() {
+        sysUserMapper.delete(null);
+    }
+
+    @Test
+    void createVisibleRouteMenu_withoutComponentKey_returns400() throws Exception {
+        String token = loginAsAdmin("menuadmin1");
+        SysMenuSaveDTO dto = new SysMenuSaveDTO();
+        dto.setMenuType("MENU");
+        dto.setName("动态菜单");
+        dto.setPermission("dynamic:menu:read");
+        dto.setPath("/dynamic/menu");
+        dto.setVisible(1);
+        dto.setSortOrder(10);
+
+        mockMvc.perform(post("/api/system/menus")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("可见路由菜单必须填写组件 Key"));
+    }
+
+    @Test
+    void createHiddenActionMenu_withoutComponentKey_returnsCreatedMenu() throws Exception {
+        String token = loginAsAdmin("menuadmin2");
+        SysMenuSaveDTO dto = new SysMenuSaveDTO();
+        dto.setMenuType("MENU");
+        dto.setName("隐藏动作权限");
+        dto.setPermission("dynamic:menu:write");
+        dto.setVisible(0);
+        dto.setSortOrder(20);
+
+        mockMvc.perform(post("/api/system/menus")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.permission").value("dynamic:menu:write"))
+                .andExpect(jsonPath("$.componentKey").doesNotExist());
+    }
+
+    @Test
+    void navTree_returnsComponentKeyForAuthorizedVisibleMenu() throws Exception {
+        String token = loginAsAdmin("menuadmin3");
+
+        mockMvc.perform(get("/api/menus/nav-tree")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].componentKey").value("MaterialLedger"))
+                .andExpect(jsonPath("$[0].permission").value("warehouse:material-ledger:read"));
+    }
+
+    private String loginAsAdmin(String username) throws Exception {
+        SysUser user = new SysUser();
+        user.setUsername(username);
+        user.setDisplayName("菜单管理员-" + username);
+        user.setEmail(username + "@example.com");
+        user.setPasswordHash(passwordEncoder.encode("oldpass"));
+        user.setStatus(1);
+        sysUserMapper.insert(user);
+        sysMenuMapper.insertUserRole(user.getId(), 1L);
+
+        LoginRequestDTO login = new LoginRequestDTO();
+        login.setUsername(username);
+        login.setPassword("oldpass");
+
+        String response = mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(login)))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        return objectMapper.readTree(response).get("accessToken").asText();
+    }
+}

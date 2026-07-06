@@ -1,5 +1,6 @@
 import type { Router } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
+import { useMenuStore } from '@/stores/menu'
 
 const LOGIN_PATH = '/login'
 
@@ -21,6 +22,7 @@ export function setupAuthGuard(router: Router) {
   router.beforeEach(async (to) => {
     const auth = useAuth()
     await auth.initialize()
+    const menu = useMenuStore()
 
     if (isPublicRoute(to.path)) {
       if (auth.isAuthenticated()) {
@@ -33,6 +35,13 @@ export function setupAuthGuard(router: Router) {
     const needsAuth = to.matched.some((record) => record.meta.requiresAuth)
     if ((needsAuth || !isPublicRoute(to.path)) && !auth.isAuthenticated()) {
       return buildLoginRedirect(to.fullPath)
+    }
+
+    if (auth.isAuthenticated()) {
+      const registeredRoutes = await menu.ensureDynamicRoutes(router)
+      if (registeredRoutes && to.path !== '/') {
+        return { path: to.fullPath, replace: true }
+      }
     }
 
     const requiredPermission = to.matched

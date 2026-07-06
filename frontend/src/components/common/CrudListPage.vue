@@ -145,25 +145,28 @@ function handleTableChange(page: TablePaginationConfig) {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="less">
+@import '@/styles/variables.less';
+@import '@/styles/mixins.less';
+
 .crud-list-page {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: @spacing-sm;
 }
 
 .filter-card,
 .table-card {
-  border-radius: 2px;
+  border-radius: @radius-sm;
 }
 
 .filter-card :deep(.ant-card-body),
 .table-card :deep(.ant-card-body) {
-  padding: 12px 16px;
+  padding: @spacing-md @spacing-lg;
 }
 
 .filters-inline {
-  margin-bottom: 12px;
+  margin-bottom: @spacing-md;
 }
 
 .filter-form {
@@ -178,26 +181,19 @@ function handleTableChange(page: TablePaginationConfig) {
   width: 100%;
   margin-inline-end: 0;
   margin-bottom: 0;
-}
 
-.filter-item :deep(.ant-form-item-row) {
-  flex-wrap: nowrap;
-}
+  :deep(.ant-form-item-row) {
+    flex-wrap: nowrap;
+  }
 
-.filter-item :deep(.ant-form-item-label) {
-  width: 52px;
-  flex: none;
-  text-align: right;
-}
+  :deep(.ant-form-item-label) {
+    .filter-form-label();
+  }
 
-.filter-item :deep(.ant-form-item-label > label) {
-  font-size: 13px;
-  color: rgba(0, 0, 0, 0.65);
-}
-
-.filter-item :deep(.ant-form-item-control) {
-  flex: 1;
-  min-width: 0;
+  :deep(.ant-form-item-control) {
+    flex: 1;
+    min-width: 0;
+  }
 }
 
 .filter-control {
@@ -215,28 +211,30 @@ function handleTableChange(page: TablePaginationConfig) {
   justify-content: flex-end;
 }
 
-.table-card :deep(.ant-table-thead > tr > th) {
-  background: #fafafa;
-  font-weight: 500;
-  padding: 8px;
-  font-size: 13px;
-}
+.table-card {
+  :deep(.ant-table-thead > tr > th) {
+    background: @color-bg-elevated;
+    font-weight: 500;
+    padding: @spacing-sm;
+    font-size: @font-size-sm;
+  }
 
-.table-card :deep(.ant-table-tbody > tr > td) {
-  padding: 6px 8px;
-  font-size: 13px;
-}
+  :deep(.ant-table-tbody > tr > td) {
+    padding: 6px @spacing-sm;
+    font-size: @font-size-sm;
+  }
 
-.table-card :deep(.ant-pagination) {
-  margin: 12px 0 4px;
-}
+  :deep(.ant-pagination) {
+    margin: @spacing-md 0 @spacing-xs;
+  }
 
-.table-card :deep(.ant-table-cell) {
-  vertical-align: middle;
+  :deep(.ant-table-cell) {
+    vertical-align: middle;
+  }
 }
 
 .action-link {
-  padding: 0 4px;
+  padding: 0 @spacing-xs;
   height: auto;
 }
 </style>

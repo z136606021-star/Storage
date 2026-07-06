@@ -8,6 +8,7 @@ export interface AuthSession {
   user: AuthUser
   roles: string[]
   permissions: string[]
+  accessToken?: string | null
 }
 
 export interface LoginRequest {

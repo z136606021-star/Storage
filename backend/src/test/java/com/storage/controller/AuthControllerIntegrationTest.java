@@ -6,6 +6,7 @@ import com.storage.dto.ForgotPasswordResetDTO;
 import com.storage.dto.LoginRequestDTO;
 import com.storage.entity.PasswordResetToken;
 import com.storage.entity.SysUser;
+import com.storage.mapper.SysMenuMapper;
 import com.storage.mapper.PasswordResetTokenMapper;
 import com.storage.mapper.SysUserMapper;
 import com.storage.shiro.UserRealm;
@@ -51,6 +52,9 @@ class AuthControllerIntegrationTest {
     private SysUserMapper sysUserMapper;
 
     @Autowired
+    private SysMenuMapper sysMenuMapper;
+
+    @Autowired
     private PasswordResetTokenMapper passwordResetTokenMapper;
 
     @Autowired
@@ -67,6 +71,26 @@ class AuthControllerIntegrationTest {
         passwordResetTokenMapper.delete(null);
         sysUserMapper.delete(null);
         reset(mailSender);
+    }
+
+    @Test
+    void login_withValidCredentials_returnsAccessTokenAndSession() throws Exception {
+        SysUser user = insertActiveUser("loginok", "loginok@example.com", "oldpass");
+        sysMenuMapper.insertUserRole(user.getId(), 1L);
+
+        LoginRequestDTO dto = new LoginRequestDTO();
+        dto.setUsername("loginok");
+        dto.setPassword("oldpass");
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").isString())
+                .andExpect(jsonPath("$.user.username").value("loginok"))
+                .andExpect(jsonPath("$.roles[0]").value("ADMIN"))
+                .andExpect(jsonPath("$.permissions").isArray())
+                .andExpect(jsonPath("$.permissions[?(@ == 'warehouse:material-ledger:read')]").exists());
     }
 
     @Test
@@ -228,13 +252,58 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
-    void me_withoutSession_returns401() throws Exception {
+    void me_withoutToken_returns401() throws Exception {
         mockMvc.perform(get("/api/auth/me"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.message").exists());
     }
 
-    private void insertActiveUser(String username, String email, String password) {
+    @Test
+    void me_withBearerToken_returnsCurrentSession() throws Exception {
+        String token = loginAndExtractToken("meok", "meok@example.com", "oldpass", 1L);
+
+        mockMvc.perform(get("/api/auth/me")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").doesNotExist())
+                .andExpect(jsonPath("$.user.username").value("meok"))
+                .andExpect(jsonPath("$.roles[0]").value("ADMIN"));
+    }
+
+    @Test
+    void me_withFakeBearerToken_returns401() throws Exception {
+        mockMvc.perform(get("/api/auth/me")
+                        .header("Authorization", "Bearer fake-token"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").exists());
+    }
+
+    @Test
+    void register_returnsAccessTokenThatCanAccessMe() throws Exception {
+        var request = new com.storage.dto.RegisterRequestDTO();
+        request.setUsername("registerok");
+        request.setDisplayName("注册用户");
+        request.setPassword("newpass123");
+        request.setEmail("registerok@example.com");
+
+        String response = mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").isString())
+                .andExpect(jsonPath("$.roles[0]").value("USER"))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        String token = objectMapper.readTree(response).get("accessToken").asText();
+        mockMvc.perform(get("/api/auth/me")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.user.username").value("registerok"));
+    }
+
+    private SysUser insertActiveUser(String username, String email, String password) {
         SysUser user = new SysUser();
         user.setUsername(username);
         user.setDisplayName("接口用户-" + username);
@@ -242,6 +311,25 @@ class AuthControllerIntegrationTest {
         user.setPasswordHash(passwordEncoder.encode(password));
         user.setStatus(1);
         sysUserMapper.insert(user);
+        return user;
+    }
+
+    private String loginAndExtractToken(String username, String email, String password, Long roleId) throws Exception {
+        SysUser user = insertActiveUser(username, email, password);
+        sysMenuMapper.insertUserRole(user.getId(), roleId);
+
+        LoginRequestDTO dto = new LoginRequestDTO();
+        dto.setUsername(username);
+        dto.setPassword(password);
+
+        String response = mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        return objectMapper.readTree(response).get("accessToken").asText();
     }
 
     private SimpleMailMessage sentMail() {

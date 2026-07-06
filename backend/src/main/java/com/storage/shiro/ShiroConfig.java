@@ -6,7 +6,6 @@ import org.apache.shiro.mgt.SecurityManager;
 import org.apache.shiro.spring.LifecycleBeanPostProcessor;
 import org.apache.shiro.spring.security.interceptor.AuthorizationAttributeSourceAdvisor;
 import org.apache.shiro.web.mgt.DefaultWebSecurityManager;
-import org.apache.shiro.web.session.mgt.ServletContainerSessionManager;
 import org.springframework.aop.framework.autoproxy.DefaultAdvisorAutoProxyCreator;
 import org.springframework.beans.factory.config.MethodInvokingFactoryBean;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
@@ -33,8 +32,18 @@ public class ShiroConfig {
     public SecurityManager securityManager(UserRealm userRealm) {
         DefaultWebSecurityManager securityManager = new DefaultWebSecurityManager();
         securityManager.setRealm(userRealm);
-        securityManager.setSessionManager(new ServletContainerSessionManager());
+        securityManager.setSubjectDAO(subjectDAO());
         return securityManager;
+    }
+
+    @Bean
+    public org.apache.shiro.mgt.DefaultSubjectDAO subjectDAO() {
+        org.apache.shiro.mgt.DefaultSubjectDAO subjectDAO = new org.apache.shiro.mgt.DefaultSubjectDAO();
+        org.apache.shiro.mgt.DefaultSessionStorageEvaluator evaluator =
+                new org.apache.shiro.mgt.DefaultSessionStorageEvaluator();
+        evaluator.setSessionStorageEnabled(false);
+        subjectDAO.setSessionStorageEvaluator(evaluator);
+        return subjectDAO;
     }
 
     @Bean
@@ -46,9 +55,9 @@ public class ShiroConfig {
     }
 
     @Bean
-    public FilterRegistrationBean<Filter> shiroSubjectBindingFilter(SecurityManager securityManager) {
+    public FilterRegistrationBean<Filter> shiroSubjectBindingFilter(SecurityManager securityManager, JwtService jwtService) {
         FilterRegistrationBean<Filter> registration = new FilterRegistrationBean<>();
-        registration.setFilter(new ShiroSubjectBindingFilter(securityManager));
+        registration.setFilter(new ShiroSubjectBindingFilter(securityManager, jwtService));
         registration.addUrlPatterns("/*");
         registration.setName("shiroSubjectBindingFilter");
         registration.setOrder(1);

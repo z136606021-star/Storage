@@ -17,21 +17,23 @@ import TabBar from '@/components/layout/TabBar.vue'
   </a-layout>
 </template>
 
-<style scoped>
+<style scoped lang="less">
+@import '@/styles/variables.less';
+
 .app-layout {
   min-height: 100vh;
 }
 
 .app-sider {
-  background: #fff;
+  background: @color-bg-base;
 }
 
 .app-main {
-  background: #f0f2f5;
+  background: @color-bg-layout;
 }
 
 .app-content {
-  margin: 12px;
-  min-height: calc(100vh - 56px);
+  margin: @content-margin;
+  min-height: calc(100vh - @header-height);
 }
 </style>

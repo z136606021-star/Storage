@@ -24,6 +24,8 @@ public class SysMenu {
 
     private String path;
 
+    private String componentKey;
+
     private String icon;
 
     private Integer visible;

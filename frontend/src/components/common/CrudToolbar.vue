@@ -126,18 +126,15 @@ function onImport(file: File) {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="less">
+@import '@/styles/variables.less';
+@import '@/styles/mixins.less';
+
 .crud-toolbar {
-  margin-bottom: 8px;
+  margin-bottom: @spacing-sm;
 }
 
 .btn-add {
-  background: #52c41a;
-  border-color: #52c41a;
-}
-
-.btn-add:hover {
-  background: #73d13d !important;
-  border-color: #73d13d !important;
+  .btn-success-primary();
 }
 </style>

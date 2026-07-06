@@ -2,9 +2,9 @@
 import { h, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { AppstoreOutlined } from '@ant-design/icons-vue'
-import { fetchNavTree } from '@/api/menu'
 import { getErrorMessage } from '@/api/http'
 import { useAuth } from '@/composables/useAuth'
+import { useMenuStore } from '@/stores/menu'
 import type { NavMenuNode } from '@/types/system'
 import { resolveIcon } from '@/utils/icons'
 import { message } from 'ant-design-vue'
@@ -14,6 +14,7 @@ const DEFAULT_OPEN_KEYS = ['100', '110']
 const route = useRoute()
 const router = useRouter()
 const auth = useAuth()
+const menu = useMenuStore()
 
 const openKeys = ref<string[]>([])
 const selectedKeys = ref<string[]>([])
@@ -29,6 +30,8 @@ function mapNavNodes(nodes: NavMenuNode[]): Array<Record<string, unknown>> {
     const item: Record<string, unknown> = {
       key: node.key,
       label: node.label,
+      path: node.path,
+      componentKey: node.componentKey,
       icon: iconComponent ? () => h(iconComponent) : undefined,
     }
     if (node.children?.length) {
@@ -78,9 +81,9 @@ async function loadMenu() {
     return
   }
   try {
-    const { data } = await fetchNavTree()
+    await menu.ensureDynamicRoutes(router)
     pathByKey.value = {}
-    menuItems.value = mapNavNodes(data)
+    menuItems.value = mapNavNodes(menu.navTree)
     if (openKeys.value.length === 0) {
       openKeys.value = [...DEFAULT_OPEN_KEYS]
     }
@@ -104,6 +107,8 @@ function handleMenuClick({ key }: { key: string }) {
   const path = pathByKey.value[key]
   if (path) {
     router.push(path)
+  } else {
+    message.info('页面未配置')
   }
 }
 
@@ -130,33 +135,35 @@ onMounted(async () => {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="less">
+@import '@/styles/mixins.less';
+
 .side-menu {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: #fff;
-  border-right: 1px solid #f0f0f0;
+  background: @color-bg-base;
+  border-right: 1px solid @color-border;
 }
 
 .logo {
-  height: 56px;
+  height: @header-height;
   display: flex;
   align-items: center;
-  padding: 0 16px;
+  padding: 0 @spacing-lg;
   gap: 10px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid @color-border;
 }
 
 .logo-icon {
   font-size: 22px;
-  color: #1677ff;
+  color: @color-primary;
 }
 
 .logo-text {
-  font-size: 15px;
+  font-size: @font-size-lg;
   font-weight: 600;
-  color: rgba(0, 0, 0, 0.88);
+  color: @color-text;
   white-space: nowrap;
 }
 
@@ -164,14 +171,14 @@ onMounted(async () => {
   flex: 1;
   overflow: auto;
   border-inline-end: none !important;
-}
 
-.menu :deep(.ant-menu-item-selected) {
-  background-color: #1677ff !important;
-  color: #fff !important;
-}
+  :deep(.ant-menu-item-selected) {
+    background-color: @color-primary !important;
+    color: @color-bg-base !important;
+  }
 
-.menu :deep(.ant-menu-item-selected .ant-menu-title-content) {
-  color: #fff !important;
+  :deep(.ant-menu-item-selected .ant-menu-title-content) {
+    color: @color-bg-base !important;
+  }
 }
 </style>

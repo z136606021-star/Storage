@@ -69,24 +69,26 @@ async function handleLogout() {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="less">
+@import '@/styles/variables.less';
+
 .tab-bar {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
-  background: #fff;
-  padding: 8px 12px 0;
-  border-bottom: 1px solid #f0f0f0;
+  gap: @spacing-md;
+  background: @color-bg-base;
+  padding: @spacing-sm @spacing-md 0;
+  border-bottom: 1px solid @color-border;
 }
 
 .tabs {
   flex: 1;
   min-width: 0;
-}
 
-.tabs :deep(.ant-tabs-nav) {
-  margin-bottom: 0;
+  :deep(.ant-tabs-nav) {
+    margin-bottom: 0;
+  }
 }
 
 .tab-label {
@@ -97,23 +99,23 @@ async function handleLogout() {
 
 .tab-close {
   font-size: 10px;
-  color: rgba(0, 0, 0, 0.45);
-}
+  color: @color-text-tertiary;
 
-.tab-close:hover {
-  color: rgba(0, 0, 0, 0.88);
+  &:hover {
+    color: @color-text;
+  }
 }
 
 .tab-bar__actions {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding-top: 4px;
+  gap: @spacing-xs;
+  padding-top: @spacing-xs;
   white-space: nowrap;
 }
 
 .tab-bar__user {
-  color: rgba(0, 0, 0, 0.65);
-  font-size: 13px;
+  color: @color-text-secondary;
+  font-size: @font-size-sm;
 }
 </style>

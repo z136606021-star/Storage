@@ -57,6 +57,7 @@ export interface SysMenu {
   name: string
   permission: string | null
   path: string | null
+  componentKey?: string | null
   icon: string | null
   visible: number
   sortOrder: number
@@ -69,6 +70,7 @@ export interface SysMenuSave {
   name: string
   permission?: string
   path?: string
+  componentKey?: string
   icon?: string
   visible: number
   sortOrder: number
@@ -78,6 +80,8 @@ export interface NavMenuNode {
   key: string
   label: string
   path?: string
+  permission?: string | null
+  componentKey?: string | null
   icon?: string
   children?: NavMenuNode[]
 }

@@ -39,7 +39,7 @@ public class AdminPasswordInitializer implements ApplicationRunner {
                 sysUserMapper.updateById(admin);
             }
         } catch (DataAccessException ex) {
-            log.warn("跳过管理员密码初始化（sys_user 表可能尚未创建，请执行 docker compose down -v && docker compose up -d 重建数据库）");
+            log.warn("跳过管理员密码初始化（sys_user 表可能尚未创建，请检查数据库迁移日志并重试启动）");
         }
     }
 }

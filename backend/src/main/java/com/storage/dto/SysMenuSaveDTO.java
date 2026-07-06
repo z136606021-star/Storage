@@ -23,6 +23,9 @@ public class SysMenuSaveDTO {
     @Size(max = 128, message = "路由路径不能超过 128 个字符")
     private String path;
 
+    @Size(max = 128, message = "组件 Key 不能超过 128 个字符")
+    private String componentKey;
+
     @Size(max = 64, message = "图标名不能超过 64 个字符")
     private String icon;
 
