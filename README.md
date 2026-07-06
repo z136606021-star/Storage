@@ -91,25 +91,6 @@ powershell -ExecutionPolicy Bypass -File .\scripts\sync-worktree-env.ps1
 
 已有数据库卷升级时，Flyway 通过 `baseline-on-migrate` 兼容历史卷，仅执行新增版本脚本；禁止把 `down -v` / 清空卷作为常规升级路径。迁移脚本须为 **UTF-8** 编码；迁移失败会阻断启动以避免静默漏表/漏列。
 
-### 数据库迁移（Flyway）
-
-- 运行时脚本目录：[backend/src/main/resources/db/migration/](backend/src/main/resources/db/migration/)，命名 `V{version}__{description}.sql`（下一版本从 `V002__...` 起）。
-- 历史 `migration-*.sql` 与 [schema.sql](backend/src/main/resources/db/schema.sql) 仅作参考快照，不再参与启动时执行；H2 测试仍用 [schema-test.sql](backend/src/test/resources/db/schema-test.sql)。
-- 确认 Flyway 已接管（MySQL 已启动且 backend 至少成功启动过一次）：
-
-```sql
-SELECT installed_rank, version, description, type, success
-FROM flyway_schema_history
-ORDER BY installed_rank;
-```
-
-- 本地仅校验迁移链（PowerShell 需 `--%` 防止 JDBC URL 被 shell 截断）：
-
-```powershell
-cd backend
-mvn --% -q flyway:migrate flyway:validate -Dflyway.url=jdbc:mysql://localhost:3307/storage -Dflyway.user=storage -Dflyway.password=storage123 -Dflyway.baselineOnMigrate=true -Dflyway.baselineVersion=1
-```
-
 默认连接信息见 [.env.example](.env.example)：
 
 - 宿主机访问 MySQL/MinIO 走映射端口（dev compose）
