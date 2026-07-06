@@ -60,4 +60,5 @@
 | 2026-07-06 | P6 Service 接口化试点（第三阶段）：`MaterialLedgerService` 抽取为接口，`MaterialLedgerServiceImpl` 承接实现；`MaterialLedgerController`、`MaterialIoService`、`MaterialIoImportService`、`SafetyStockServiceImpl` 依赖接口；`MaterialLedgerImportService`、`MaterialLedgerExportService` 保持独立 |
 | 2026-07-06 | P6 Service 接口化试点（第四阶段）：`MaterialIoService` 抽取为接口，`MaterialIoServiceImpl` 承接实现；`MaterialIoController`、`MaterialIoImportService` 依赖接口；`importBatch` 保留在接口契约；`MaterialIoImportService`、`MaterialIoExportService`、`MaterialStockMutationService` 保持独立 |
 | 2026-07-06 | P6 Service 接口化试点（第五阶段）：`AuthService` 抽取为接口，`AuthServiceImpl` 承接实现；`AuthController`、`FileController`、`SysMenuService`、`SysUserService`、`MaterialIoServiceImpl` 依赖接口；`currentUser()` 保留在接口契约；`PasswordResetMailService`、`JwtService`、`UserRealm` 保持独立 |
+| 2026-07-06 | 路线图 P0–P7 落地：Docker Compose 一键部署、JWT/Pinia/动态路由/Less/Service 接口化、删除 reset-db 主路径、新增 `ROADMAP.md` 与多模型协作说明 |
 | 2026-07-06 | P8 Flyway 正式接管数据库版本管理：引入 `flyway-core`/`flyway-mysql`、关闭 `spring.sql.init` 主路径、`V001__baseline_schema.sql` baseline、Compose 移除 initdb schema 挂载、CI 增加 MySQL Flyway migrate/validate job；历史 `migration-*.sql`/`schema.sql` 降级为参考快照 |
