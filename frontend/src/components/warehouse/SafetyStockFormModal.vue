@@ -3,9 +3,9 @@ import { computed, reactive, ref, watch } from 'vue'
 import type { FormInstance } from 'ant-design-vue'
 import { message } from 'ant-design-vue'
 import { getErrorMessage } from '@/api/http'
-import { updateSafetyStock } from '@/api/safetyStock'
+import { updateSafetyStock } from '@/api/warehouse/safetyStock'
 import MaterialIdentityDescriptions from '@/components/warehouse/MaterialIdentityDescriptions.vue'
-import type { SafetyStockRecord, SafetyStockUpdatePayload } from '@/types/safetyStock'
+import type { SafetyStockRecord, SafetyStockUpdatePayload } from '@/types/warehouse/safetyStock'
 import { displayValue } from '@/utils/format'
 
 const props = defineProps<{
@@ -121,12 +121,14 @@ const rules = {
   </a-modal>
 </template>
 
-<style scoped>
+<style scoped lang="less">
+@import '@/styles/variables.less';
+
 .stock-block {
-  margin-top: 12px;
+  margin-top: @spacing-md;
 }
 
 .safety-stock-form {
-  margin-top: 16px;
+  margin-top: @spacing-lg;
 }
 </style>

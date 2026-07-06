@@ -5,7 +5,7 @@ import {
   useMaterialIoStock,
   type MaterialIoStockContext,
 } from '@/composables/useMaterialIoStock'
-import type { IoType, MaterialIoFormRow, MaterialIoRecord } from '@/types/materialIo'
+import type { IoType, MaterialIoFormRow, MaterialIoRecord } from '@/types/warehouse/materialIo'
 
 function createContext(
   ioType: IoType,

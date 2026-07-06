@@ -4,8 +4,8 @@ import { PlusOutlined } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
 import type { TableProps } from 'ant-design-vue'
 import dayjs, { type Dayjs } from 'dayjs'
-import { batchCreateMaterialIo, updateMaterialIo } from '@/api/materialIo'
-import { fetchMaterialLedgerDetail } from '@/api/materialLedger'
+import { batchCreateMaterialIo, updateMaterialIo } from '@/api/warehouse/materialIo'
+import { fetchMaterialLedgerDetail } from '@/api/warehouse/materialLedger'
 import { getErrorMessage } from '@/api/http'
 import MaterialLedgerPickerModal from '@/components/warehouse/MaterialLedgerPickerModal.vue'
 import { outboundPurposeOptions } from '@/constants/materialIoPurpose'
@@ -15,8 +15,8 @@ import {
   useMaterialIoSafetyHint,
 } from '@/composables/useMaterialIoSafetyHint'
 import { useMaterialIoStock } from '@/composables/useMaterialIoStock'
-import type { MaterialLedger } from '@/types/materialLedger'
-import type { IoType, MaterialIoFormRow, MaterialIoRecord } from '@/types/materialIo'
+import type { MaterialLedger } from '@/types/warehouse/materialLedger'
+import type { IoType, MaterialIoFormRow, MaterialIoRecord } from '@/types/warehouse/materialIo'
 import { displayValue } from '@/utils/format'
 import { materialIdentityColumns } from '@/utils/warehouseMaterialTable'
 
@@ -536,14 +536,17 @@ watch(ioType, (newType, oldType) => {
   />
 </template>
 
-<style scoped>
+<style scoped lang="less">
+@import '@/styles/variables.less';
+@import '@/styles/mixins.less';
+
 .form-header {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: @spacing-md;
+  margin-bottom: @spacing-md;
 }
 
 .form-header-edit {
@@ -554,33 +557,26 @@ watch(ioType, (newType, oldType) => {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 16px;
+  gap: @spacing-lg;
 }
 
 .operated-at-field {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: @spacing-sm;
 }
 
 .operated-at-label {
-  color: rgba(0, 0, 0, 0.88);
+  color: @color-text;
   white-space: nowrap;
 }
 
 .create-btn {
-  background: #52c41a;
-  border-color: #52c41a;
-}
-
-.create-btn:hover,
-.create-btn:focus {
-  background: #73d13d;
-  border-color: #73d13d;
+  .btn-success-primary();
 }
 
 .warning-summary {
-  margin-bottom: 8px;
+  margin-bottom: @spacing-sm;
 }
 
 .identity-cell {
@@ -589,14 +585,14 @@ watch(ioType, (newType, oldType) => {
 
 .material-picker-cell {
   cursor: pointer;
-  color: #1677ff;
+  color: @color-link;
 }
 
 .picker-hint {
-  color: #1677ff;
+  color: @color-link;
 }
 
 .picker-placeholder {
-  color: rgba(0, 0, 0, 0.25);
+  color: @color-text-quaternary;
 }
 </style>

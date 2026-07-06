@@ -1,5 +1,5 @@
 import type { Ref } from 'vue'
-import type { IoType, MaterialIoFormRow, MaterialIoRecord } from '@/types/materialIo'
+import type { IoType, MaterialIoFormRow, MaterialIoRecord } from '@/types/warehouse/materialIo'
 
 export interface MaterialIoStockContext {
   ioType: Ref<IoType>

@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { ReloadOutlined, SearchOutlined } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
 import dayjs from 'dayjs'
-import { exportSafetyStock, fetchSafetyStockDetail } from '@/api/safetyStock'
+import { exportSafetyStock, fetchSafetyStockDetail } from '@/api/warehouse/safetyStock'
 import CrudDetailDrawer from '@/components/common/CrudDetailDrawer.vue'
 import CrudListPage from '@/components/common/CrudListPage.vue'
 import CrudRowActions from '@/components/common/CrudRowActions.vue'
@@ -17,7 +17,7 @@ import { useSafetyStockList } from '@/composables/useSafetyStockList'
 import { useWritePermission } from '@/composables/useWritePermission'
 import { useAuth } from '@/composables/useAuth'
 import { ALL_OPTION } from '@/constants/filter'
-import type { SafetyStockRecord } from '@/types/safetyStock'
+import type { SafetyStockRecord } from '@/types/warehouse/safetyStock'
 import { displayValue } from '@/utils/format'
 import { getTableRowIndex } from '@/utils/tableIndex'
 import { materialIdentityColumns } from '@/utils/warehouseMaterialTable'
@@ -286,13 +286,15 @@ onMounted(async () => {
   />
 </template>
 
-<style scoped>
+<style scoped lang="less">
+@import '@/styles/variables.less';
+
 :deep(.safety-stock-warning-row) > td {
-  background-color: #fffbe6 !important;
+  background-color: @color-bg-warning !important;
 }
 
 :deep(.safety-stock-warning-row:hover) > td {
-  background-color: #fff1b8 !important;
+  background-color: @color-bg-warning-hover !important;
 }
 
 .filter-item {

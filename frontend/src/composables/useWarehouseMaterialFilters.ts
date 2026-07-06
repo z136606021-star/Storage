@@ -1,7 +1,7 @@
 import { computed, type UnwrapNestedRefs } from 'vue'
 import { useLinkedFilterOptions } from '@/composables/useLinkedFilterOptions'
 import { ALL_OPTION } from '@/constants/filter'
-import type { FilterOptions } from '@/types/materialLedger'
+import type { FilterOptions } from '@/types/warehouse/materialLedger'
 import { withAllOption } from '@/utils/selectOptions'
 
 export interface WarehouseMaterialQuery {

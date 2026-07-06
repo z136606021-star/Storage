@@ -3,7 +3,7 @@ import type { Component } from 'vue'
 type RouteComponentLoader = () => Promise<Component>
 
 export const routeComponentRegistry: Record<string, RouteComponentLoader> = {
-  MaterialLedger: () => import('@/views/material-ledger/MaterialLedgerView.vue'),
+  MaterialLedger: () => import('@/views/warehouse/MaterialLedgerView.vue'),
   MaterialIo: () => import('@/views/warehouse/MaterialIoView.vue'),
   SafetyStock: () => import('@/views/warehouse/SafetyStockView.vue'),
   InventoryStats: () => import('@/views/warehouse/InventoryStatsView.vue'),

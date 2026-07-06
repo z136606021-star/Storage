@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { MaterialLedger } from '@/types/materialLedger'
-import type { IoType } from '@/types/materialIo'
+import type { MaterialLedger } from '@/types/warehouse/materialLedger'
+import type { IoType } from '@/types/warehouse/materialIo'
 import { displayValue } from '@/utils/format'
 
 defineProps<{
@@ -42,24 +42,26 @@ const emit = defineEmits<{
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="less">
+@import '@/styles/variables.less';
+
 .material-io-context-bar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: @spacing-sm;
   width: 100%;
-  margin-bottom: 8px;
-  padding: 8px 12px;
-  background: #e6f4ff;
-  border: 1px solid #91caff;
-  border-radius: 4px;
+  margin-bottom: @spacing-sm;
+  padding: @spacing-sm @spacing-md;
+  background: @color-bg-spotlight;
+  border: 1px solid @color-border-info;
+  border-radius: @spacing-xs;
 }
 
 .context-label {
-  color: rgba(0, 0, 0, 0.65);
-  font-size: 13px;
+  color: @color-text-secondary;
+  font-size: @font-size-sm;
 }
 
 .clear-btn {

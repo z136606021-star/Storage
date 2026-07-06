@@ -11,7 +11,7 @@ import {
   exportMaterialIo,
   fetchMaterialIoDetail,
   importMaterialIo,
-} from '@/api/materialIo'
+} from '@/api/warehouse/materialIo'
 import CrudDetailDrawer from '@/components/common/CrudDetailDrawer.vue'
 import CrudListPage from '@/components/common/CrudListPage.vue'
 import CrudRowActions from '@/components/common/CrudRowActions.vue'
@@ -27,7 +27,7 @@ import { useMaterialIoList } from '@/composables/useMaterialIoList'
 import { useMaterialIoRouteDetail } from '@/composables/useMaterialIoRouteDetail'
 import { useWritePermission } from '@/composables/useWritePermission'
 import { useAuth } from '@/composables/useAuth'
-import type { IoType, MaterialIoRecord } from '@/types/materialIo'
+import type { IoType, MaterialIoRecord } from '@/types/warehouse/materialIo'
 import { confirmBatchDelete, confirmDelete } from '@/utils/confirmDelete'
 import { formatDateTime } from '@/utils/format'
 import {
@@ -419,18 +419,15 @@ setupIoRouteWatch()
   </CrudDetailDrawer>
 </template>
 
-<style scoped>
-.btn-add-io {
-  background: #52c41a;
-  border-color: #52c41a;
-}
+<style scoped lang="less">
+@import '@/styles/variables.less';
+@import '@/styles/mixins.less';
 
-.btn-add-io:hover {
-  background: #73d13d !important;
-  border-color: #73d13d !important;
+.btn-add-io {
+  .btn-success-primary();
 }
 
 :deep(.io-row-highlight) td {
-  background-color: #e6f4ff;
+  .row-highlight();
 }
 </style>

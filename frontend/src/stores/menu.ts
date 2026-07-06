@@ -1,7 +1,7 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import type { Router } from 'vue-router'
-import { fetchNavTree } from '@/api/menu'
+import { fetchNavTree } from '@/api/system/menu'
 import type { NavMenuNode } from '@/types/system'
 import { clearDynamicRoutes, registerDynamicRoutes } from '@/router/dynamicRoutes'
 

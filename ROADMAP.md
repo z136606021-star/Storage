@@ -1,6 +1,6 @@
 # 后续架构优化方案
 
-> 本文以待办清单维护后续优化路线。状态更新约定：`[x]` 已完成，`[~]` 进行中或持续执行的要求，`[ ]` 待开始。约定仅适用于 P0–P8 的执行清单；「当前事实」「设计原则参考」「维护规则」为背景说明与长期准则，不纳入勾选进度。每次完成阶段性实现、验证或范围调整时同步更新本文。
+> 本文以待办清单维护后续优化路线。状态更新约定：`[x]` 已完成，`[~]` 进行中或持续执行的要求，`[ ]` 待开始。约定仅适用于 P0–P10 的执行清单；「当前事实」「设计原则参考」「维护规则」为背景说明与长期准则，不纳入勾选进度。每次完成阶段性实现、验证或范围调整时同步更新本文。
 
 ## 当前状态总览
 
@@ -9,10 +9,12 @@
 - [x] P2：引入 Pinia 全局状态（auth/menu 等状态迁移）
 - [x] P3：Shiro + JWT 鉴权迁移（Bearer token 主路径）
 - [x] P4：动态菜单与动态路由（`component_key` + 动态注册业务路由）
-- [x] P5：样式预处理器统一（Less 公共 token + 布局/CRUD 层迁移）
-- [x] P6：Service 接口化试点（仓库域核心 Service + AuthService 已完成）
+- [x] P5：样式预处理器统一（27/27 个带 `<style>` 的 `.vue` 已迁 `lang="less"`；登录页品牌 token 已收敛）
+- [x] P6：Service 接口化试点（12 个主业务 Service 已拆接口+实现；Import/Export/基础设施类保持独立）
 - [~] P7：模块化检查清单（规则已落地，后续 PR 持续执行）
 - [x] P8：Flyway 正式接管数据库版本管理
+- [x] P9：业务域模块拆分（大仓小仓模式；Phase 0–11 已落地）
+- [ ] P10：Excel 声明式框架评估（当前手写 Apache POI；待试点 EasyExcel 等）
 
 ## P0：Docker 部署路线纠偏
 
@@ -95,16 +97,24 @@
 - [x] 菜单管理支持维护组件 Key。
 - [ ] 后续新增业务页时继续走 `component_key` 契约，不再硬编码完整业务路由表。
 
+### 已知例外
+
+- [~] `frontend/src/router/dynamicRoutes.ts` 中 `/system/users` 下的用户/角色/菜单子路由仍由 `systemManagementChildren()` 硬编码，尚未完全走 `component_key` 动态注册；后续可按菜单数据契约收敛。
+
 ## P5：样式预处理器统一
+
+> **当前完成度（2026-07-06 收敛）**：全仓库 27 个带 `<style>` 的 `.vue` 已全部迁 `<style scoped lang="less">`；补充登录页品牌色 token（`@color-login-*`）与 `@color-border-info`。
 
 - [x] 在 Less 与 Sass 中确定项目统一预处理器；采用 Less，与 Ant Design Vue 生态更贴近。
 - [x] 新增变量、mixins、布局间距、颜色语义等公共样式入口（`frontend/src/styles/`）。
 - [x] 全局入口迁移为 `style.less`；后续新组件默认使用 `<style scoped lang="less">`。
 - [x] 存量纯 CSS 先迁移公共布局、公共 CRUD 组件，再逐步迁移业务页。
 - [x] 代表页验证：`MaterialLedgerView`、`UserManageView` 已接入公共 token/mixins。
-- [ ] 其余业务页与弹窗组件按页面改动顺带迁移，避免一次性大面积 diff。
+- [x] 其余业务页与弹窗组件已分批迁移；`LoginView` 使用独立登录页语义 token，不硬套仓库业务色值。
 
 ## P6：Service 接口化试点
+
+> **当前完成度（2026-07-06 收尾）**：`service` 包内 29 个 `@Service` 类中，12 个主业务 Service 已拆为 `XxxService` 接口 + `XxxServiceImpl`（含 `WarehouseStatsService`、`system.customer.SysCustomerService`）；Import/Export、`JwtService`、`FileStorageService`、`PasswordResetMailService` 等保持直接实现类。
 
 ### 第一阶段（安全库存，已完成）
 
@@ -134,16 +144,36 @@
 ### 第五阶段（鉴权服务，已完成）
 
 - [x] 试点 `AuthService` → 接口 + `AuthServiceImpl` 实现类。
-- [x] `AuthController`、`FileController`、`SysMenuService`、`SysUserService`、`MaterialIoServiceImpl` 依赖接口注入。
+- [x] `AuthController`、`FileController`、`SysMenuServiceImpl`、`SysUserServiceImpl`、`MaterialIoServiceImpl` 依赖接口注入。
 - [x] `currentUser()` 保留在接口契约中，供跨服务获取 Shiro principal。
 - [x] `PasswordResetMailService`、`JwtService`、`UserRealm` 继续独立。
+
+### 第六阶段（Bin 位 / 物料清单，已完成）
+
+- [x] 试点 `WarehouseBinService`、`WarehouseBomService` → 接口 + `*ServiceImpl` 实现类。
+- [x] `WarehouseBinController`、`WarehouseBomController`、`MaterialLedgerServiceImpl`、`MaterialLedgerImportService`、各 Import Service 依赖接口注入。
+- [x] `WarehouseBinImportService`、`WarehouseBinExportService`、`WarehouseBomImportService`、`WarehouseBomExportService` 继续独立。
+
+### 第七阶段（系统管理，已完成）
+
+- [x] 试点 `SysMenuService`、`SysRoleService`、`SysUserService` → 接口 + `*ServiceImpl` 实现类。
+- [x] `SysMenuController`、`MenuNavController`、`SysRoleController`、`SysUserController` 依赖接口注入。
+- [x] `SysUserImportService` 保留 `@Lazy` 循环依赖处理；各 Import/Export Service 继续独立。
+- [x] 客户域仅保留 `com.storage.system.customer.*` 路由，旧扁平包 `SysCustomer*` 不再并存。
+
+### 第八阶段（库存统计 / 客户域，已完成）
+
+- [x] 试点 `WarehouseStatsService` → 接口 + `WarehouseStatsServiceImpl` 实现类。
+- [x] `WarehouseStatsController`、集成测试依赖接口注入。
+- [x] 试点 `system.customer.SysCustomerService` → 接口 + `SysCustomerServiceImpl` 实现类。
+- [x] `SysCustomerController`、`SysCustomerImportService` 依赖接口；`formatStatusLabel` / `parseStatus` 保留为接口 static 方法。
 
 ### 试点结论（已落地）
 
 - [x] 采用 `XxxService` 接口 + `XxxServiceImpl` 实现类命名。
 - [x] Controller 与上层服务依赖接口，事务和业务规则保留在实现类。
 - [x] 导入、导出、库存变更等独立能力保留独立接口，未重新耦合回大 Service。
-- [ ] 后续新增 Service 继续沿用该模式；如需进一步接口隔离（ISP），按业务能力单独规划。
+- [x] 后续新增主业务 Service 继续沿用该模式；Import/Export/基础设施类有意保持独立，不一刀切接口化。
 
 ## P7：模块化检查清单
 
@@ -173,6 +203,73 @@
 - [x] CI 增加 Flyway 迁移校验。
 - [x] 复测新库初始化、旧库升级、重复启动不重复执行迁移。
 
+## P9：业务域模块拆分（大仓小仓模式）
+
+### 当前事实
+
+- **路线已冻结**：采用单 JAR 内按业务包拆分（`com.storage.common.*` / `com.storage.system.*` / `com.storage.warehouse.*` / `com.storage.infrastructure.*`），暂不拆 Maven 多模块。
+- **跨域规则**：仓库域只能依赖系统域接口或只读契约，禁止直接依赖 `*Impl` 或系统 mapper；REST path、权限码、DTO JSON、Flyway 脚本不因拆包而变更。
+- **已完成（Phase 0–11）**：
+  - `@MapperScan` 按域精确扫描各 `*.mapper` 包（禁止扫描 `com.storage` 根包）。
+  - `com.storage.common.*`：共享 DTO/异常/Excel/Web。
+  - `com.storage.system.{customer,role,user,menu,auth}.*`：系统域垂直切片；`OperatorResolver` 供仓库域解析操作人。
+  - `com.storage.warehouse.{bin,bom,ledger,shared,safety,stats,io}.*`：仓库域垂直切片。
+  - `com.storage.infrastructure.file.*`：文件上传/MinIO 边界。
+  - 前端：`views/warehouse`、`views/system`；`api/warehouse`、`types/warehouse`、`api/system`、`types/system` 为 canonical 路径，根目录 shim 保留兼容。
+- **持续要求**：新增能力优先落入对应域包；PR 附带模块化与复用结论。
+
+### 目标
+
+- 按业务域拆分模块（参考大仓小仓模式）：至少区分 **仓库域**（`warehouse`：台账、出入库、安全库存、Bin、清单、统计等）与 **系统域**（`system`：用户、角色、菜单、客户、鉴权等），避免单包膨胀到上百个 Service 文件难以维护。
+- 各域内保持高内聚、低耦合；跨域依赖通过接口或稳定契约，不直接穿透实现细节。
+
+### 待办清单
+
+- [x] 调研并确定分包策略：单模块内按域顶层包拆分，不先拆 Maven 多模块。
+- [x] 制定分阶段迁移计划并落地首批样板（客户管理垂直切片 + common 层 + 前端轻量对齐）。
+- [x] 前端 `views` / `api` / `types` 按域对齐（仓库域目录 + shim；`component_key` 不变）。
+- [x] 文档与 AGENTS 复用门禁同步更新域边界说明。
+- [x] Phase 4：`com.storage.warehouse.bin.*`（Bin 位垂直切片）。
+- [x] Phase 5：`com.storage.infrastructure.file.*` 文件上传边界 + `com.storage.warehouse.bom.*`。
+- [x] Phase 6：`com.storage.warehouse.shared.*` 仓库共享 DTO + `com.storage.warehouse.ledger.*`。
+- [x] Phase 7：`com.storage.warehouse.safety.*` + `com.storage.warehouse.stats.*`。
+- [x] Phase 8：系统域操作人契约 + `com.storage.warehouse.io.*`（出入库与库存变更）。
+- [x] Phase 9：`com.storage.system.role.*` / `user.*` / `menu.*`（含 `MenuNavController`）。
+- [x] Phase 10：`com.storage.system.auth.*`（Auth、Shiro、PasswordReset）。
+- [x] Phase 11：前端 import 收敛、动态路由例外文档化、删除扁平包遗留。
+
+### 仓库域后续迁移顺序（Phase 4+）
+
+1. **低风险**：`WarehouseBin*`（域内依赖为主，仅只读引用 `MaterialLedgerMapper`）。
+2. **中风险**：文件基础设施边界 → `WarehouseBom*` → 仓库共享 DTO → `MaterialLedger*`。
+3. **中风险**：`SafetyStock*`、`WarehouseStats*`（依赖台账与安全库存聚合）。
+4. **高风险**：操作人契约 → `MaterialIo*`（库存变更、`AuthService` 跨域）。
+
+### 系统域后续迁移顺序
+
+1. `SysCustomer`（已完成）。
+2. `SysRole*`、`SysUser*`、`SysMenu*`（含 `MenuNavController`）。
+3. `Auth*`、`shiro/*`、`PasswordReset*`（全局鉴权，牵动所有 Controller 测试）。
+4. `FileStorageService` / `FileController` → `com.storage.infrastructure.file.*`（与 BOM 迁移配合，最终收口）。
+
+## P10：Excel 声明式框架评估
+
+### 当前事实
+
+- `backend/pom.xml` 仅引入 `org.apache.poi:poi-ooxml`，未使用 EasyExcel、EasyPOI 等声明式框架。
+- 各域 `*ImportService` / `*ExportService` 手写 POI 流程（建 sheet、表头、逐行读写、校验）；已有 `ExcelCellUtils` 与 `*ExcelColumn` 枚举做部分抽象，但 Export/Import 间仍有重复样板（如 `MaterialLedgerImportService` ~135 行、`MaterialIoImportService` ~219 行）。
+
+### 目标
+
+- 评估引入 EasyExcel（或同类声明式框架）替代手写 POI，缩短代码、提升可维护性与复用性；与 P6 试点模式一致，先单域验证再推广。
+
+### 待办清单
+
+- [ ] 对比 EasyExcel / EasyPOI 与当前 POI + `ExcelCellUtils` 的契合度（注解模型、校验、大文件、与现有 `ImportResultVO` 契约）。
+- [ ] 选定 1 个 Import 或 Export Service 做试点（建议从行数适中、列定义已枚举的 `MaterialLedgerExportService` 或 `SafetyStockExportService` 入手）。
+- [ ] 试点通过后制定其余 12 个 Import/Export Service 的迁移顺序与是否保留 `excel` 公共层。
+- [ ] 若引入新依赖，同步 CI 与 AGENTS 复用门禁说明。
+
 ## 设计原则参考
 
 > 以下为长期遵循的工程原则，非一次性任务，不使用勾选状态；新功能设计与代码评审时对照检查。
@@ -192,3 +289,4 @@
 - 如果事项开始但未完成，标记为 `[~]` 并补一句当前阻塞。
 - 新增方向时只加到 `ROADMAP.md`，不要把路线图正文塞回 `AGENTS.md`。
 - 重要完成项同步 `CHANGELOG.md`；用户可见启动/部署变化同步 `README.md`。
+- **持续清理未引用代码**：每个功能 PR 或阶段性重构时顺带删除废弃变量、未引用文件与脚手架残留（非一次性任务）；避免仅依赖单期「废弃物清理」后不再跟踪。

@@ -324,27 +324,24 @@ onMounted(loadData)
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="less">
+@import '@/styles/variables.less';
+@import '@/styles/mixins.less';
+
 .page {
-  padding: 0 16px 16px;
+  padding: 0 @spacing-lg @spacing-lg;
   min-height: 100%;
 }
 
 .action-bar {
-  margin-bottom: 12px;
+  margin-bottom: @spacing-md;
 }
 
 .btn-add {
-  background: #52c41a;
-  border-color: #52c41a;
-}
-
-.btn-add:hover {
-  background: #73d13d;
-  border-color: #73d13d;
+  .btn-success-primary();
 }
 
 :deep(.row-selected) {
-  background: #e6f4ff !important;
+  .row-highlight();
 }
 </style>

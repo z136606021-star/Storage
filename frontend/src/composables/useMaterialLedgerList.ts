@@ -1,12 +1,12 @@
 import { reactive } from 'vue'
-import { fetchFilterOptions, fetchMaterialLedgerPage } from '@/api/materialLedger'
+import { fetchFilterOptions, fetchMaterialLedgerPage } from '@/api/warehouse/materialLedger'
 import {
   assignDefaultMaterialFields,
   defaultMaterialQuery,
   useWarehouseMaterialFilters,
 } from '@/composables/useWarehouseMaterialFilters'
 import { usePaginatedCrudList } from '@/composables/usePaginatedCrudList'
-import type { MaterialLedger } from '@/types/materialLedger'
+import type { MaterialLedger } from '@/types/warehouse/materialLedger'
 import { buildMaterialQueryParams } from '@/utils/warehouseMaterialTable'
 
 export interface UseMaterialLedgerListOptions {

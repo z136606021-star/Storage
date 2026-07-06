@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { MaterialIoRecord } from '@/types/materialIo'
+import type { MaterialIoRecord } from '@/types/warehouse/materialIo'
 import { displayValue, formatDateTime } from '@/utils/format'
 import { formatIoTypeLabel, formatOperator, formatPurposeLabel, getIoTypeTagColor } from '@/utils/materialIo'
 import { buildMaterialIoShareUrl } from '@/utils/materialIoShareUrl'
@@ -85,17 +85,19 @@ async function handleCopyLink(record: MaterialIoRecord) {
   </a-descriptions>
 </template>
 
-<style scoped>
+<style scoped lang="less">
+@import '@/styles/variables.less';
+
 .ledger-link {
   padding: 0;
   height: auto;
 }
 
 .empty-dash {
-  color: rgba(0, 0, 0, 0.45);
+  color: @color-text-tertiary;
 }
 
 .detail-block + .detail-block {
-  margin-top: 16px;
+  margin-top: @spacing-lg;
 }
 </style>

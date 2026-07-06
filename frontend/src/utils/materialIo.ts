@@ -1,4 +1,4 @@
-import type { IoType, MaterialIoRecord } from '@/types/materialIo'
+import type { IoType, MaterialIoRecord } from '@/types/warehouse/materialIo'
 
 import { formatPurposeLabel } from '@/constants/materialIoPurpose'
 

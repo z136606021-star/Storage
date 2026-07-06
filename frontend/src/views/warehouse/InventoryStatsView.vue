@@ -2,10 +2,10 @@
 import { onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
-import { fetchWarehouseStatsOverview } from '@/api/warehouseStats'
+import { fetchWarehouseStatsOverview } from '@/api/warehouse/warehouseStats'
 import { getErrorMessage } from '@/api/http'
-import type { WarehouseStatsOverview } from '@/types/warehouseStats'
-import type { SafetyStockRecord } from '@/types/safetyStock'
+import type { WarehouseStatsOverview } from '@/types/warehouse/warehouseStats'
+import type { SafetyStockRecord } from '@/types/warehouse/safetyStock'
 import { displayValue } from '@/utils/format'
 import { materialIdentityColumns } from '@/utils/warehouseMaterialTable'
 
@@ -138,21 +138,23 @@ watch(recentDays, () => {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="less">
+@import '@/styles/variables.less';
+
 .inventory-stats-page {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: @spacing-lg;
 }
 
 .inventory-stats-toolbar {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: @spacing-sm;
 }
 
 .inventory-stats-toolbar__label {
-  color: rgba(0, 0, 0, 0.65);
+  color: @color-text-secondary;
 }
 
 .stat-card {
@@ -160,13 +162,13 @@ watch(recentDays, () => {
 }
 
 .stat-card-warning :deep(.ant-statistic-content-value) {
-  color: #faad14;
+  color: @color-warning;
 }
 
 .stat-link {
   padding: 0;
   height: auto;
-  margin-top: 4px;
+  margin-top: @spacing-xs;
 }
 
 .io-summary-row {
@@ -182,6 +184,6 @@ watch(recentDays, () => {
 }
 
 :deep(.warning-row td) {
-  background: #fffbe6;
+  background: @color-bg-warning;
 }
 </style>

@@ -12,7 +12,7 @@ import {
   fetchWarehouseBomDetail,
   fetchWarehouseBomPage,
   importWarehouseBoms,
-} from '@/api/warehouseBom'
+} from '@/api/warehouse/warehouseBom'
 import CrudDetailDrawer from '@/components/common/CrudDetailDrawer.vue'
 import CrudListPage from '@/components/common/CrudListPage.vue'
 import CrudRowActions from '@/components/common/CrudRowActions.vue'
@@ -23,7 +23,7 @@ import { useLinkedFilterOptions } from '@/composables/useLinkedFilterOptions'
 import { usePaginatedCrudList } from '@/composables/usePaginatedCrudList'
 import { useWritePermission } from '@/composables/useWritePermission'
 import { ALL_OPTION } from '@/constants/filter'
-import type { WarehouseBom } from '@/types/warehouseBom'
+import type { WarehouseBom } from '@/types/warehouse/warehouseBom'
 import { confirmBatchDelete, confirmDelete } from '@/utils/confirmDelete'
 import { displayValue, formatDateTime } from '@/utils/format'
 import { getTableRowIndex } from '@/utils/tableIndex'
@@ -376,7 +376,9 @@ onMounted(async () => {
   </CrudDetailDrawer>
 </template>
 
-<style scoped>
+<style scoped lang="less">
+@import '@/styles/variables.less';
+
 .filter-form {
   width: 100%;
 }

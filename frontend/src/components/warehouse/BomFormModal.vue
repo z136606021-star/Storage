@@ -5,8 +5,8 @@ import { message } from 'ant-design-vue'
 import { PlusOutlined } from '@ant-design/icons-vue'
 import { getErrorMessage } from '@/api/http'
 import { uploadFile } from '@/api/file'
-import { createWarehouseBom, updateWarehouseBom } from '@/api/warehouseBom'
-import type { WarehouseBom, WarehouseBomSavePayload } from '@/types/warehouseBom'
+import { createWarehouseBom, updateWarehouseBom } from '@/api/warehouse/warehouseBom'
+import type { WarehouseBom, WarehouseBomSavePayload } from '@/types/warehouse/warehouseBom'
 
 const props = defineProps<{
   open: boolean
@@ -202,11 +202,13 @@ async function handleSubmit() {
   </a-modal>
 </template>
 
-<style scoped>
+<style scoped lang="less">
+@import '@/styles/variables.less';
+
 .image-upload-row {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
+  gap: @spacing-sm;
 }
 
 .image-preview-wrap,
@@ -223,12 +225,12 @@ async function handleSubmit() {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: 8px;
+  border-radius: @radius-lg;
 }
 
 .upload-text {
-  margin-top: 8px;
+  margin-top: @spacing-sm;
   font-size: 12px;
-  color: rgba(0, 0, 0, 0.45);
+  color: @color-text-tertiary;
 }
 </style>

@@ -10,7 +10,7 @@ import WarehouseMaterialFilterPanel from '@/components/warehouse/WarehouseMateri
 
 import { useMaterialLedgerList } from '@/composables/useMaterialLedgerList'
 
-import type { MaterialLedger } from '@/types/materialLedger'
+import type { MaterialLedger } from '@/types/warehouse/materialLedger'
 
 import { displayValue } from '@/utils/format'
 
@@ -380,50 +380,29 @@ watch(
 
 
 
-<style scoped>
+<style scoped lang="less">
+@import '@/styles/variables.less';
 
 .picker-filter {
-
-  margin-bottom: 12px;
-
+  margin-bottom: @spacing-md;
   width: 100%;
-
 }
-
-
 
 .picker-table {
-
-  margin-top: 4px;
-
+  margin-top: @spacing-xs;
 }
-
-
 
 .picker-hint {
-
-  margin: 8px 0 0;
-
+  margin: @spacing-sm 0 0;
   font-size: 12px;
-
-  color: rgba(0, 0, 0, 0.45);
-
+  color: @color-text-tertiary;
 }
-
-
 
 :deep(.picker-row-zero-stock) td {
-
   color: rgba(0, 0, 0, 0.35);
-
 }
-
-
 
 .zero-stock {
-
   color: rgba(0, 0, 0, 0.35);
-
 }
-
 </style>

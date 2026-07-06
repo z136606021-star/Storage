@@ -1,7 +1,7 @@
 package com.storage.config;
 
-import com.storage.entity.SysUser;
-import com.storage.mapper.SysUserMapper;
+import com.storage.system.user.entity.SysUser;
+import com.storage.system.user.mapper.SysUserMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;

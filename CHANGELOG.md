@@ -61,3 +61,9 @@
 | 2026-07-06 | P6 Service 接口化试点（第四阶段）：`MaterialIoService` 抽取为接口，`MaterialIoServiceImpl` 承接实现；`MaterialIoController`、`MaterialIoImportService` 依赖接口；`importBatch` 保留在接口契约；`MaterialIoImportService`、`MaterialIoExportService`、`MaterialStockMutationService` 保持独立 |
 | 2026-07-06 | P6 Service 接口化试点（第五阶段）：`AuthService` 抽取为接口，`AuthServiceImpl` 承接实现；`AuthController`、`FileController`、`SysMenuService`、`SysUserService`、`MaterialIoServiceImpl` 依赖接口；`currentUser()` 保留在接口契约；`PasswordResetMailService`、`JwtService`、`UserRealm` 保持独立 |
 | 2026-07-06 | P8 Flyway 正式接管数据库版本管理：引入 `flyway-core`/`flyway-mysql`、关闭 `spring.sql.init` 主路径、`V001__baseline_schema.sql` baseline、Compose 移除 initdb schema 挂载、CI 增加 MySQL Flyway migrate/validate job；历史 `migration-*.sql`/`schema.sql` 降级为参考快照 |
+| 2026-07-06 | ROADMAP 审计与修正（对照聊天记录）：P5/P6 顶层状态改为 `[~]` 并补充量化完成度（样式 8/27 页已迁 Less、Service 5/29 已接口化）；P4 备注 `/system/users` 子路由硬编码例外；新增 P9 业务域模块拆分、P10 Excel 声明式框架评估；维护规则增加持续死代码清理 |
+| 2026-07-06 | P9 业务域模块拆分（Phase 0–3）：单 JAR 内按域拆包路线冻结；`@MapperScan` 扩展；抽取 `com.storage.common.*`；迁移 `com.storage.system.customer.*` 垂直切片；前端 `MaterialLedgerView` 归并 `views/warehouse/`、`api/warehouse`/`types/warehouse` 目录 + re-export shim |
+| 2026-07-06 | P5 样式预处理器收敛：27/27 带 `<style>` 的 `.vue` 全部迁移 `lang="less"`；补充登录页品牌色 token（`@color-login-*`）与 `@color-border-info`；仓库业务页/弹窗/系统面板复用 `variables.less`/`mixins.less` |
+| 2026-07-06 | P6 Service 接口化收尾（第八阶段）：`WarehouseStatsService`、`system.customer.SysCustomerService` 抽取接口 + `*ServiceImpl`；主业务 Service 接口化共 12 个；Import/Export/基础设施类保持独立 |
+| 2026-07-06 | P9 业务域模块拆分续作：ROADMAP 补齐 Phase 4–11 全量待办；仓库域 `warehouse.bin.*` 起逐批垂直切片迁移；系统域/基础设施/前端 shim 按依赖顺序收口 |
+| 2026-07-06 | P9 业务域模块拆分完成（Phase 4–11）：仓库域 `warehouse.{bin,bom,ledger,shared,safety,stats,io}.*`、系统域 `system.{role,user,menu,auth}.*`、`infrastructure.file.*`；`OperatorResolver` 跨域契约；前端 domain import 收敛；71 后端集成测试通过 |

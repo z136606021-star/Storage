@@ -13,6 +13,11 @@
 
 本仓库根目录为 `Storage`；后端 Maven artifact/module 名称为 `storage-backend`，源码位于 [backend](backend)，前端源码位于 [frontend](frontend)。IDE 中看到的 `Storage` / `storage-backend` 模块分别对应仓库根与后端模块。
 
+**业务域目录（P9 已完成）**：
+
+- 后端：`com.storage.common.*`、`com.storage.system.*`、`com.storage.warehouse.*`、`com.storage.infrastructure.file.*`；详见 [ROADMAP.md](ROADMAP.md) P9。
+- 前端：`views/warehouse`、`views/system`；canonical 路径 `api/warehouse`、`types/warehouse`、`api/system`、`types/system`（根目录 shim 兼容旧 import）。
+
 ## 快速启动
 
 ### 推荐：Docker Compose 一句命令
@@ -183,7 +188,7 @@ npm run dev
 - 统一预处理器为 **Less**；全局入口为 [frontend/src/style.less](frontend/src/style.less)。
 - 公共 token 与 mixins 位于 [frontend/src/styles/](frontend/src/styles/)（`variables.less`、`mixins.less`、`index.less`）。
 - 新增或改动带样式的组件时，使用 `<style scoped lang="less">`，优先复用 `@color-*`、`@spacing-*`、`@radius-*` 等变量，以及 `btn-success-primary`、`row-highlight`、`filter-form-label` 等 mixin。
-- 存量纯 CSS 业务页按页面改动顺带迁移，避免一次性大面积样式 diff。
+- 存量带 `<style>` 的页面已全部迁移 Less；登录页使用独立 `@color-login-*` 品牌 token。
 
 ### Compose 部署访问方式
 

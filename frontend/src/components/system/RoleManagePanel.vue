@@ -289,22 +289,24 @@ onMounted(async () => {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="less">
+@import '@/styles/variables.less';
+
 .page {
-  padding: 0 16px 16px;
+  padding: 0 @spacing-lg @spacing-lg;
   min-height: 100%;
 }
 
 .toolbar {
-  margin-bottom: 12px;
+  margin-bottom: @spacing-md;
 }
 
 .drawer-tree {
-  margin-top: 16px;
+  margin-top: @spacing-lg;
 }
 
 .drawer-tree-title {
   font-weight: 600;
-  margin-bottom: 8px;
+  margin-bottom: @spacing-sm;
 }
 </style>

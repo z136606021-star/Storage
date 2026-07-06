@@ -1,5 +1,5 @@
 import { http } from '@/api/http'
-import type { SysMenu, SysMenuSave } from '@/types/system'
+import type { SysMenu, SysMenuSave, NavMenuNode } from '@/types/system'
 
 export function fetchMenuTree() {
   return http.get<SysMenu[]>('/system/menus/tree')
@@ -15,4 +15,8 @@ export function updateMenu(id: number, data: SysMenuSave) {
 
 export function deleteMenu(id: number) {
   return http.delete<void>(`/system/menus/${id}`)
+}
+
+export function fetchNavTree() {
+  return http.get<NavMenuNode[]>('/menus/nav-tree')
 }

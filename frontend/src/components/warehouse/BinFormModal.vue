@@ -3,8 +3,8 @@ import { computed, reactive, ref, watch } from 'vue'
 import type { FormInstance } from 'ant-design-vue'
 import { message } from 'ant-design-vue'
 import { getErrorMessage } from '@/api/http'
-import { createWarehouseBin, updateWarehouseBin } from '@/api/warehouseBin'
-import type { WarehouseBin, WarehouseBinSavePayload } from '@/types/warehouseBin'
+import { createWarehouseBin, updateWarehouseBin } from '@/api/warehouse/warehouseBin'
+import type { WarehouseBin, WarehouseBinSavePayload } from '@/types/warehouse/warehouseBin'
 
 const props = defineProps<{
   open: boolean

@@ -4,7 +4,7 @@ import type { FormInstance } from 'ant-design-vue'
 import { message } from 'ant-design-vue'
 import { getErrorMessage } from '@/api/http'
 import { createCustomer, updateCustomer } from '@/api/system/customer'
-import type { SysCustomer, SysCustomerSavePayload } from '@/types/customer'
+import type { SysCustomer, SysCustomerSavePayload } from '@/types/system/customer'
 
 const props = defineProps<{
   open: boolean

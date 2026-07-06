@@ -6,7 +6,7 @@ import {
   shouldSkipSafetyConfirm,
   wouldTriggerSafetyWarning,
 } from '@/composables/useMaterialIoSafetyHint'
-import type { MaterialIoFormRow, MaterialIoSafetyHint } from '@/types/materialIo'
+import type { MaterialIoFormRow, MaterialIoSafetyHint } from '@/types/warehouse/materialIo'
 
 describe('useMaterialIoSafetyHint helpers', () => {
   const storage = new Map<string, string>()

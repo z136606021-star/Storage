@@ -5,7 +5,7 @@ import type {
   SysCustomerExportQuery,
   SysCustomerQuery,
   SysCustomerSavePayload,
-} from '@/types/customer'
+} from '@/types/system/customer'
 
 export async function fetchCustomerPage(query: SysCustomerQuery): Promise<PageResult<SysCustomer>> {
   const { data } = await http.get<PageResult<SysCustomer>>('/system/customers', { params: query })

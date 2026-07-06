@@ -15,6 +15,14 @@ function routeNameFromNode(node: NavMenuNode) {
   return `DynamicMenu${node.key}`
 }
 
+/**
+ * Nested routes under `/system/users` (SystemManage layout).
+ *
+ * The nav-tree API exposes a single MENU node at `/system/users` with componentKey
+ * `UserManage` (layout shell). Role and menu admin pages are not separate nav-tree
+ * entries; they are registered here as child routes so `/system/users/roles` and
+ * `/system/users/menus` resolve without duplicating backend menu rows.
+ */
 function systemManagementChildren(): RouteRecordRaw[] {
   return [
     {

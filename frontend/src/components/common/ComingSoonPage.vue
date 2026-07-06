@@ -15,10 +15,12 @@ defineProps<{
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="less">
+@import '@/styles/variables.less';
+
 .coming-soon-page {
-  padding: 48px 16px;
+  padding: (@spacing-xl * 2) @spacing-lg;
   min-height: 100%;
-  background: #fff;
+  background: @color-bg-base;
 }
 </style>

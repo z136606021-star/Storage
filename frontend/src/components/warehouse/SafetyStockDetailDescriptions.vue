@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { SafetyStockRecord } from '@/types/safetyStock'
+import type { SafetyStockRecord } from '@/types/warehouse/safetyStock'
 import { displayValue } from '@/utils/format'
 import { useRouter } from 'vue-router'
 
@@ -67,13 +67,15 @@ function formatWarningPeriod(inWarningPeriod: boolean) {
   </a-descriptions>
 </template>
 
-<style scoped>
+<style scoped lang="less">
+@import '@/styles/variables.less';
+
 .nav-link {
   padding: 0;
   height: auto;
 }
 
 .detail-block {
-  margin-top: 12px;
+  margin-top: @spacing-md;
 }
 </style>

@@ -499,14 +499,16 @@ async function handleRegister() {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="less">
+@import '@/styles/variables.less';
+
 .login-page {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
-  background-color: #1a4fa3;
+  padding: @spacing-xl;
+  background-color: @color-login-brand-bg;
   background-position: center;
   background-repeat: no-repeat;
   background-size: cover;
@@ -516,10 +518,10 @@ async function handleRegister() {
   display: flex;
   width: min(960px, 100%);
   min-height: 520px;
-  border-radius: 12px;
+  border-radius: @radius-xl;
   overflow: hidden;
-  background: #fff;
-  box-shadow: 0 18px 48px rgba(15, 52, 112, 0.22);
+  background: @color-bg-base;
+  box-shadow: 0 18px 48px @color-login-card-shadow;
 }
 
 .login-brand {
@@ -528,9 +530,9 @@ async function handleRegister() {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 16px;
+  gap: @spacing-lg;
   padding: 40px 32px;
-  border-right: 1px solid #f0f0f0;
+  border-right: 1px solid @color-border;
 }
 
 .login-brand__logo {
@@ -541,7 +543,7 @@ async function handleRegister() {
 
 .login-brand__title {
   margin: 0;
-  color: #2f6fdd;
+  color: @color-login-brand-primary;
   font-size: 34px;
   font-weight: 700;
   letter-spacing: 2px;
@@ -551,8 +553,8 @@ async function handleRegister() {
 
 .login-brand__subtitle {
   margin: 0;
-  color: #4f86e0;
-  font-size: 15px;
+  color: @color-login-brand-light;
+  font-size: @font-size-lg;
   letter-spacing: 0.5px;
   text-align: center;
 }
@@ -560,7 +562,7 @@ async function handleRegister() {
 .login-brand__deco {
   width: min(260px, 85%);
   max-height: 180px;
-  margin-top: 8px;
+  margin-top: @spacing-sm;
   object-fit: contain;
 }
 
@@ -569,12 +571,12 @@ async function handleRegister() {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 48px 56px;
+  padding: (@spacing-xl * 2) 56px;
 }
 
 .login-form-panel__heading {
   margin: 0 0 28px;
-  color: #2f6fdd;
+  color: @color-login-brand-primary;
   font-size: 30px;
   font-weight: 700;
   text-align: center;
@@ -585,67 +587,67 @@ async function handleRegister() {
   grid-template-columns: 1fr 1fr;
   gap: 0;
   margin-bottom: 28px;
-  border-radius: 8px;
+  border-radius: @radius-lg;
   overflow: hidden;
-  border: 1px solid #d9e6ff;
+  border: 1px solid @color-login-brand-tab-border;
 }
 
 .login-tabs__item {
   height: 44px;
   border: none;
-  background: #eef4ff;
-  color: #6b8fd6;
-  font-size: 15px;
+  background: @color-login-brand-tab-bg;
+  color: @color-login-brand-muted;
+  font-size: @font-size-lg;
   cursor: pointer;
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 .login-tabs__item--active {
-  background: #2f6fdd;
-  color: #fff;
+  background: @color-login-brand-primary;
+  color: @color-bg-base;
   font-weight: 600;
 }
 
 .login-form__icon {
-  color: #8aaee8;
+  color: @color-login-brand-icon;
 }
 
 .login-form__options {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
+  margin-bottom: @spacing-sm;
 }
 
 .login-form__forgot {
   padding: 0;
   height: auto;
-  color: #2f6fdd;
+  color: @color-login-brand-primary;
 }
 
 .login-form__submit {
-  margin-top: 8px;
+  margin-top: @spacing-sm;
   height: 44px;
-  border-radius: 8px;
-  background: #2f6fdd;
-  font-size: 16px;
+  border-radius: @radius-lg;
+  background: @color-login-brand-primary;
+  font-size: @font-size-base + 2px;
   font-weight: 600;
 }
 
 .login-form__submit:hover:not(:disabled) {
-  background: #2563c7;
+  background: @color-login-brand-primary-hover;
 }
 
 .login-form-panel__footer {
   margin: 20px 0 0;
   text-align: center;
-  color: rgba(0, 0, 0, 0.65);
+  color: @color-text-secondary;
 }
 
 .login-form-panel__register {
   padding: 0;
   height: auto;
-  color: #2f6fdd;
+  color: @color-login-brand-primary;
 }
 
 @media (max-width: 768px) {
@@ -656,8 +658,8 @@ async function handleRegister() {
 
   .login-brand {
     border-right: none;
-    border-bottom: 1px solid #f0f0f0;
-    padding: 24px 20px 20px;
+    border-bottom: 1px solid @color-border;
+    padding: @spacing-xl 20px 20px;
     gap: 10px;
   }
 
@@ -670,17 +672,17 @@ async function handleRegister() {
   }
 
   .login-brand__subtitle {
-    font-size: 13px;
+    font-size: @font-size-sm;
   }
 
   .login-brand__deco {
     width: min(200px, 70%);
     max-height: 100px;
-    margin-top: 4px;
+    margin-top: @spacing-xs;
   }
 
   .login-form-panel {
-    padding: 32px 24px 40px;
+    padding: 32px @spacing-xl 40px;
   }
 
   .login-form-panel__heading {

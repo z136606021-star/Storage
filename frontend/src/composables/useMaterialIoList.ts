@@ -1,6 +1,6 @@
 import { reactive, ref } from 'vue'
 import type { Dayjs } from 'dayjs'
-import { fetchMaterialIoFilterOptions, fetchMaterialIoPage } from '@/api/materialIo'
+import { fetchMaterialIoFilterOptions, fetchMaterialIoPage } from '@/api/warehouse/materialIo'
 import {
   assignDefaultMaterialFields,
   defaultMaterialQuery,
@@ -8,7 +8,7 @@ import {
 } from '@/composables/useWarehouseMaterialFilters'
 import { usePaginatedCrudList } from '@/composables/usePaginatedCrudList'
 import { ALL_OPTION } from '@/constants/filter'
-import type { MaterialIoRecord } from '@/types/materialIo'
+import type { MaterialIoRecord } from '@/types/warehouse/materialIo'
 import { buildMaterialQueryParams } from '@/utils/warehouseMaterialTable'
 
 export function defaultIoQuery() {

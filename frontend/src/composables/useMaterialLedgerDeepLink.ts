@@ -1,8 +1,8 @@
 import { ref, watch, type Ref } from 'vue'
 import type { RouteLocationNormalizedLoaded, Router } from 'vue-router'
 import { message } from 'ant-design-vue'
-import { fetchMaterialLedgerDetail } from '@/api/materialLedger'
-import type { MaterialLedger } from '@/types/materialLedger'
+import { fetchMaterialLedgerDetail } from '@/api/warehouse/materialLedger'
+import type { MaterialLedger } from '@/types/warehouse/materialLedger'
 import { parseMaterialLedgerIdFromQuery } from '@/utils/materialLedgerRouteQuery'
 
 export interface MaterialLedgerDeepLinkConfig {

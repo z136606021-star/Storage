@@ -19,7 +19,7 @@ import { useCrudDetailDrawer } from '@/composables/useCrudDetailDrawer'
 import { useExcelImportExport } from '@/composables/useExcelImportExport'
 import { usePaginatedCrudList } from '@/composables/usePaginatedCrudList'
 import { useWritePermission } from '@/composables/useWritePermission'
-import type { SysCustomer } from '@/types/customer'
+import type { SysCustomer } from '@/types/system/customer'
 import { confirmBatchDelete, confirmDelete } from '@/utils/confirmDelete'
 import { displayValue, formatDateTime } from '@/utils/format'
 import { getTableRowIndex } from '@/utils/tableIndex'
@@ -336,8 +336,10 @@ onMounted(loadData)
   </CrudDetailDrawer>
 </template>
 
-<style scoped>
+<style scoped lang="less">
+@import '@/styles/variables.less';
+
 .filter-form {
-  row-gap: 8px;
+  row-gap: @spacing-sm;
 }
 </style>

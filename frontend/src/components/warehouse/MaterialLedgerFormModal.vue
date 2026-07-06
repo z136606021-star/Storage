@@ -8,12 +8,12 @@ import {
   fetchFilterOptions,
   fetchMaterialBomCatalog,
   updateMaterialLedger,
-} from '@/api/materialLedger'
+} from '@/api/warehouse/materialLedger'
 import type {
   BomCatalogItem,
   MaterialLedger,
   MaterialSavePayload,
-} from '@/types/materialLedger'
+} from '@/types/warehouse/materialLedger'
 import { toSelectOptions } from '@/utils/selectOptions'
 
 const props = defineProps<{
@@ -366,14 +366,16 @@ async function handleSubmit() {
   </a-modal>
 </template>
 
-<style scoped>
+<style scoped lang="less">
+@import '@/styles/variables.less';
+
 .material-form {
-  margin-top: 8px;
+  margin-top: @spacing-sm;
 }
 
 .form-tip {
   margin: 0;
   font-size: 12px;
-  color: rgba(0, 0, 0, 0.45);
+  color: @color-text-tertiary;
 }
 </style>

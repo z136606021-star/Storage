@@ -1,8 +1,8 @@
 import { computed, h, ref, watch, type Ref } from 'vue'
 import { Checkbox, Modal } from 'ant-design-vue'
-import { fetchMaterialIoSafetyHints } from '@/api/materialIo'
+import { fetchMaterialIoSafetyHints } from '@/api/warehouse/materialIo'
 import { availableStockForRow, type MaterialIoStockContext } from '@/composables/useMaterialIoStock'
-import type { MaterialIoFormRow, MaterialIoSafetyHint } from '@/types/materialIo'
+import type { MaterialIoFormRow, MaterialIoSafetyHint } from '@/types/warehouse/materialIo'
 
 const SAFETY_CONFIRM_SKIP_KEY = 'material-io-safety-confirm-skip'
 

@@ -1,12 +1,12 @@
 import { reactive } from 'vue'
-import { fetchSafetyStockFilterOptions, fetchSafetyStockPage } from '@/api/safetyStock'
+import { fetchSafetyStockFilterOptions, fetchSafetyStockPage } from '@/api/warehouse/safetyStock'
 import {
   defaultMaterialQuery,
   useWarehouseMaterialFilters,
 } from '@/composables/useWarehouseMaterialFilters'
 import { usePaginatedCrudList } from '@/composables/usePaginatedCrudList'
 import { ALL_OPTION } from '@/constants/filter'
-import type { SafetyStockRecord } from '@/types/safetyStock'
+import type { SafetyStockRecord } from '@/types/warehouse/safetyStock'
 import { buildMaterialQueryParams } from '@/utils/warehouseMaterialTable'
 
 export function defaultSafetyStockQuery() {

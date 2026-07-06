@@ -5,7 +5,7 @@ import { routes } from '@/router/routes'
 import { useMenuStore } from '@/stores/menu'
 import type { NavMenuNode } from '@/types/system'
 
-vi.mock('@/api/menu', () => ({
+vi.mock('@/api/system/menu', () => ({
   fetchNavTree: vi.fn(),
 }))
 
@@ -22,7 +22,7 @@ describe('menu store dynamic routes', () => {
   })
 
   it('loads nav tree and registers known component routes', async () => {
-    const { fetchNavTree } = await import('@/api/menu')
+    const { fetchNavTree } = await import('@/api/system/menu')
     vi.mocked(fetchNavTree).mockResolvedValue({
       data: [
         {
@@ -47,7 +47,7 @@ describe('menu store dynamic routes', () => {
   })
 
   it('skips unknown component keys without blocking other routes', async () => {
-    const { fetchNavTree } = await import('@/api/menu')
+    const { fetchNavTree } = await import('@/api/system/menu')
     vi.mocked(fetchNavTree).mockResolvedValue({
       data: [
         {
@@ -76,7 +76,7 @@ describe('menu store dynamic routes', () => {
   })
 
   it('clears registered routes on logout cleanup', async () => {
-    const { fetchNavTree } = await import('@/api/menu')
+    const { fetchNavTree } = await import('@/api/system/menu')
     vi.mocked(fetchNavTree).mockResolvedValue({
       data: [
         {

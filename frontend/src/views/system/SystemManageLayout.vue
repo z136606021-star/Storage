@@ -47,14 +47,16 @@ function onTabChange(key: string) {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="less">
+@import '@/styles/variables.less';
+
 .system-layout {
   min-height: 100%;
-  background: #fff;
+  background: @color-bg-base;
 }
 
 .system-layout :deep(.ant-tabs-nav) {
   margin: 0;
-  padding: 0 16px;
+  padding: 0 @spacing-lg;
 }
 </style>
