@@ -93,11 +93,13 @@
 
 ## 数据库迁移门禁
 
-- `spring.sql.init.continue-on-error=false`；迁移失败必须阻断启动。
+- 运行时 schema 版本管理由 **Flyway** 负责，脚本位于 `backend/src/main/resources/db/migration/`，命名规范 `V{version}__{description}.sql`（例如 `V002__add_foo_column.sql`）。
+- 新增结构变更只追加 Flyway 版本脚本，禁止回改已发布版本；禁止绕过 Flyway 手工改已有卷结构。
+- Flyway 迁移失败必须阻断启动；`spring.sql.init` 主路径已关闭（`mode: never`）。
 - MySQL 不支持的 `ADD COLUMN IF NOT EXISTS`、`CREATE INDEX IF NOT EXISTS` 必须用 `INFORMATION_SCHEMA` 条件 DDL guard。
 - 迁移脚本不得 `USE storage` 或写死库名，必须使用连接串当前库。
-- `schema.sql` 只负责新空卷初始化；已有卷结构变更必须通过 `migration-*.sql` 幂等落地。
-- 禁止把 `reset-db` / `docker compose down -v` 作为常规升级步骤；已有卷升级必须优先通过增量迁移完成。
+- 历史 `migration-*.sql` 与 `schema.sql` 仅作参考快照，不再参与运行时执行；H2 测试仍使用 `schema-test.sql` 快照。
+- 禁止把 `reset-db` / `docker compose down -v` 作为常规升级步骤；已有卷升级必须优先通过 Flyway 增量迁移完成。
 - 涉及 DB 结构变更时，说明是否需要重启后端、是否影响已有卷、以及迁移脚本如何保障兼容历史数据。
 
 ## API 与校验门禁

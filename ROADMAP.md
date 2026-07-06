@@ -12,7 +12,7 @@
 - [x] P5：样式预处理器统一（Less 公共 token + 布局/CRUD 层迁移）
 - [x] P6：Service 接口化试点（仓库域核心 Service + AuthService 已完成）
 - [~] P7：模块化检查清单（规则已落地，后续 PR 持续执行）
-- [ ] P8：Flyway 正式接管数据库版本管理
+- [x] P8：Flyway 正式接管数据库版本管理
 
 ## P0：Docker 部署路线纠偏
 
@@ -41,8 +41,8 @@
 
 ### 待完成
 
-- [ ] 将 Flyway 正式接管迁移后，再复测“旧卷升级仅执行增量迁移”。
-- [ ] 根据最终 Flyway 方案清理或降级历史 `schema.sql + migration-*.sql` 入口。
+- [x] 将 Flyway 正式接管迁移后，再复测“旧卷升级仅执行增量迁移”。
+- [x] 根据最终 Flyway 方案清理或降级历史 `schema.sql + migration-*.sql` 入口。
 
 ### 可选优化项（非阻塞，供后续 PR 顺手处理）
 
@@ -157,20 +157,21 @@
 
 ### 当前事实
 
-- 已停止将 `reset-db` / `down -v` 作为默认升级路径。
-- 当前 Compose 验收确认重复 `up -d` 不会清空业务数据。
-- 当前数据库尚未出现 `flyway_schema_history`，说明 Flyway 还未正式接管迁移，历史结构变更仍靠 `schema.sql` + `migration-*.sql` 承载。
+- Flyway 已接管运行时 schema 版本管理，脚本位于 `backend/src/main/resources/db/migration/`。
+- `spring.sql.init` 主路径已关闭；Compose 不再挂载 `schema.sql` 到 initdb。
+- 已有卷通过 `baseline-on-migrate` + `baseline-version=1` 兼容，新空库由 `V001__baseline_schema.sql` 初始化。
+- CI 增加 MySQL Flyway migrate/validate job；H2 业务测试仍使用 `schema-test.sql` 快照。
 
 ### 待办清单
 
-- [ ] 引入 Flyway 依赖与 Spring Boot 配置。
-- [ ] 设计 Flyway baseline 策略，兼容已有数据库卷和新空库。
-- [ ] 建立 `db/migration` 版本号命名规范（`Vxxx__description.sql`）。
-- [ ] 将后续所有结构变更迁移到 Flyway 版本脚本。
-- [ ] 收敛历史 `migration-phase*.sql` 与 `schema.sql` 职责边界。
-- [ ] 关闭或降级 `spring.sql.init.mode=always`，避免与 Flyway 双重执行冲突。
-- [ ] CI 增加 Flyway 迁移校验。
-- [ ] 复测新库初始化、旧库升级、重复启动不重复执行迁移。
+- [x] 引入 Flyway 依赖与 Spring Boot 配置。
+- [x] 设计 Flyway baseline 策略，兼容已有数据库卷和新空库。
+- [x] 建立 `db/migration` 版本号命名规范（`Vxxx__description.sql`）。
+- [x] 将后续所有结构变更迁移到 Flyway 版本脚本。
+- [x] 收敛历史 `migration-phase*.sql` 与 `schema.sql` 职责边界。
+- [x] 关闭或降级 `spring.sql.init.mode=always`，避免与 Flyway 双重执行冲突。
+- [x] CI 增加 Flyway 迁移校验。
+- [x] 复测新库初始化、旧库升级、重复启动不重复执行迁移。
 
 ## 设计原则参考
 

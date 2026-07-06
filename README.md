@@ -75,7 +75,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\sync-worktree-env.ps1
 
 `sync-worktree-env.ps1` / `sync-worktree-env.sh` 会根据**当前 git 分支**生成本地 `.env`（不入库），为各 worktree 分配独立端口、容器名与数据卷。
 
-将自动创建 `storage` 数据库并导入 [backend/src/main/resources/db/schema.sql](backend/src/main/resources/db/schema.sql) 中的表结构与种子数据。
+将自动创建 `storage` 数据库；**表结构与种子数据由后端启动时 Flyway 迁移**（`backend/src/main/resources/db/migration/`），首次启动会执行 `V001__baseline_schema.sql` 并写入 `flyway_schema_history`。
 
 **Git worktree 端口分配**（逻辑库名均为 `storage`，隔离靠端口 + 独立 Docker 卷）：
 
@@ -89,7 +89,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\sync-worktree-env.ps1
 
 切换 worktree 或分支后务必先执行 `sync-worktree-env.ps1`（Windows）或 `sync-worktree-env.sh`（Linux/macOS/Git Bash），再 `docker compose --env-file .env up -d`。详见 [AGENTS.md](AGENTS.md)「Worktree 数据库隔离」。
 
-已有数据库卷升级时，必须通过增量迁移演进结构，禁止把 `down -v` / 清空卷作为常规升级路径。迁移脚本须为 **UTF-8** 编码；`application.yml` 已配置 `spring.sql.init.encoding=UTF-8`，且 `continue-on-error=false`，迁移失败会阻断启动以避免静默漏表/漏列。
+已有数据库卷升级时，Flyway 通过 `baseline-on-migrate` 兼容历史卷，仅执行新增版本脚本；禁止把 `down -v` / 清空卷作为常规升级路径。迁移脚本须为 **UTF-8** 编码；迁移失败会阻断启动以避免静默漏表/漏列。
 
 默认连接信息见 [.env.example](.env.example)：
 
@@ -255,6 +255,7 @@ curl -X POST http://localhost:8080/api/files/upload \
 - [x] **第三十五期 Pinia + JWT 鉴权迁移**：Pinia auth store、JWT access token、本地刷新恢复、Bearer 请求注入、无状态 Shiro JWT 认证链路
 - [x] **第三十六期动态菜单与动态路由**：菜单 `component_key` 契约、Pinia menu store、登录后动态注册业务路由、菜单管理维护组件 Key
 - [x] **第三十七期样式预处理器统一**：引入 Less、`frontend/src/styles/` 公共 token/mixins、布局与 CRUD 公共层迁移、代表业务页验证
+- [x] **P8 Flyway 数据库版本管理**：Flyway 接管 schema 迁移、`V001__baseline_schema.sql` baseline、关闭 `spring.sql.init` 主路径、CI MySQL Flyway 校验
 
 ## 协作约定（多模型）
 

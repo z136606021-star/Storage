@@ -1,18 +1,5 @@
--- Legacy reference snapshot (pre-Flyway). Runtime schema is managed by Flyway: db/migration/V001__baseline_schema.sql
--- Docker Compose no longer mounts this file; new empty databases are initialized by backend Flyway on first startup.
-CREATE DATABASE IF NOT EXISTS storage DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE storage;
-
+-- Flyway baseline: consolidated schema and seed data (replaces legacy schema.sql + migration-*.sql chain)
 SET NAMES utf8mb4;
-
-DROP TABLE IF EXISTS sys_file;
-DROP TABLE IF EXISTS sys_role_menu;
-DROP TABLE IF EXISTS sys_user_role;
-DROP TABLE IF EXISTS sys_menu;
-DROP TABLE IF EXISTS sys_role;
-DROP TABLE IF EXISTS password_reset_token;
-DROP TABLE IF EXISTS sys_user;
-DROP TABLE IF EXISTS material_ledger;
 
 CREATE TABLE sys_user (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
