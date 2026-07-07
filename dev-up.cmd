@@ -1,9 +1,9 @@
 @echo off
 setlocal
 cd /d "%~dp0"
-echo Starting dev environment with rebuild (frontend/backend images)...
+echo Starting dev environment...
 echo Tip: pass -NoOpenBrowser to skip opening the browser.
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\deploy-cli.ps1" -Profile dev -Build %*
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\deploy-cli.ps1" -Profile dev %*
 if errorlevel 1 (
   echo.
   echo Failed to start dev environment.
@@ -12,5 +12,5 @@ if errorlevel 1 (
   exit /b 1
 )
 echo.
-echo Dev environment is running. If the UI still looks stale, press Ctrl+F5 in the browser.
+echo Dev environment is running.
 pause

@@ -27,18 +27,18 @@
 开发环境（包含开发端口映射）：
 
 ```bash
-docker compose --env-file .env -f docker-compose.yml -f docker-compose-dev.yml up -d --build
+docker compose --env-file .env -f docker-compose.yml -f docker-compose-dev.yml up -d
 ```
 
 生产部署（最小暴露面）：
 
 ```bash
-docker compose --env-file .env -f docker-compose.yml up -d --build
+docker compose --env-file .env -f docker-compose.yml up -d
 ```
 
 也可使用统一入口脚本：
 
-- Windows 双击：`start-dev.cmd` / `dev-up.cmd`（默认 `-Build` 重建前后端镜像，避免前端仍显示旧 UI；可加 `-NoOpenBrowser` 跳过打开浏览器）
+- Windows 双击：`start-dev.cmd` / `dev-up.cmd`（默认仅执行 `docker compose up -d`；可加 `-NoOpenBrowser` 跳过打开浏览器）
 - Windows：`.\scripts\deploy-cli.ps1 -Profile dev [-Build]` / `-Profile prod`（dev 部署成功后会自动打开浏览器；可用 `-NoOpenBrowser` 跳过）
 - Linux/macOS/Git Bash：`./scripts/deploy-cli.sh --profile dev [--build]` / `--profile prod`（同上，可用 `--no-open-browser` 跳过）
 
@@ -150,11 +150,11 @@ mvn spring-boot:run
 
 ```bash
 cd frontend
-npm install
 npm run dev
 ```
 
 前端默认地址：`http://localhost:5173`（或 `.env` 中 `FRONTEND_PORT`），开发环境通过 Vite 代理将 `/api` 转发至 `VITE_API_PROXY`（默认后端 8080）。
+首次本地 Node 开发或 `package-lock.json` 变更时，再在 `frontend` 目录执行 `npm install`。
 
 ### Postman / curl 边界测试
 

@@ -1,9 +1,9 @@
 @echo off
 setlocal
 cd /d "%~dp0"
-echo Starting dev services with rebuild (frontend/backend images)...
+echo Starting dev services...
 echo Tip: pass -NoOpenBrowser to skip opening the browser.
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\deploy-cli.ps1" -Profile dev -Build %*
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\deploy-cli.ps1" -Profile dev %*
 if errorlevel 1 (
   echo.
   echo Failed to start dev services.
@@ -12,5 +12,5 @@ if errorlevel 1 (
   exit /b 1
 )
 echo.
-echo Dev services are running. If the UI still looks stale, press Ctrl+F5 in the browser.
+echo Dev services are running.
 pause
