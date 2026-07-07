@@ -40,7 +40,7 @@ docker compose --env-file .env -f docker-compose.yml up -d
 
 - Windows 双击：`start-dev.cmd` / `dev-up.cmd`（默认仅执行 `docker compose up -d`；可加 `-NoOpenBrowser` 跳过打开浏览器）
 - Windows：`.\scripts\deploy-cli.ps1 -Profile dev [-Build]` / `-Profile prod`（dev 部署成功后会自动打开浏览器；可用 `-NoOpenBrowser` 跳过）
-- Linux/macOS/Git Bash：`./scripts/deploy-cli.sh --profile dev [--build]` / `--profile prod`（同上，可用 `--no-open-browser` 跳过）
+- Linux/macOS/Git Bash：`./scripts/deploy-cli.sh --profile dev [--build]` / `--profile prod`（同上，可用 `--no-open-browser` 跳过；若执行权限丢失可用 `bash scripts/deploy-cli.sh ...`）
 
 环境自检：
 
@@ -48,10 +48,22 @@ docker compose --env-file .env -f docker-compose.yml up -d
 .\scripts\health-check.ps1
 ```
 
+Linux / macOS / Git Bash：
+
+```bash
+./scripts/health-check.sh
+```
+
 遇旧版 `material-ledger-*` 容器冲突时：
 
 ```powershell
 .\scripts\cleanup-legacy-docker.ps1
+```
+
+Linux / macOS / Git Bash：
+
+```bash
+./scripts/cleanup-legacy-docker.sh
 ```
 
 ### 分步启动（进阶）
@@ -68,10 +80,11 @@ docker compose --env-file .env up -d
 Linux / macOS / Git Bash 等价命令：
 
 ```bash
-chmod +x scripts/*.sh
 ./scripts/sync-worktree-env.sh
 docker compose --env-file .env up -d
 ```
+
+Shell 脚本已在 Git 中提交可执行位；若通过压缩包等方式获取代码导致权限丢失，可先执行 `chmod +x scripts/*.sh`，或直接使用 `bash scripts/<name>.sh`。
 
 若本机 PowerShell 执行策略阻止 `.ps1`，可使用：
 
@@ -87,11 +100,11 @@ powershell -ExecutionPolicy Bypass -File .\scripts\sync-worktree-env.ps1
 
 | 分支 | Worktree 路径 | MySQL | MinIO API | MinIO 控制台 |
 |------|---------------|-------|-----------|--------------|
-| `main` | `E:/Storage` | **3307** | 9000 | 9001 |
-| `feat/material-ledger` | `E:/Storage-worktrees/material-ledger` | **3308** | 9010 | 9011 |
-| `feat/material-io` | `E:/Storage-worktrees/material-io` | **3309** | 9020 | 9021 |
-| `feat/safety-stock` | `E:/Storage-worktrees/safety-stock` | **3310** | 9030 | 9031 |
-| `feat/config-mgmt` | `E:/Storage-worktrees/config-mgmt` | **3311** | 9040 | 9041 |
+| `main` | `E:/Storage`（Windows 示例；Linux/macOS 可为实际 clone 路径） | **3307** | 9000 | 9001 |
+| `feat/material-ledger` | `E:/Storage-worktrees/material-ledger`（示例） | **3308** | 9010 | 9011 |
+| `feat/material-io` | `E:/Storage-worktrees/material-io`（示例） | **3309** | 9020 | 9021 |
+| `feat/safety-stock` | `E:/Storage-worktrees/safety-stock`（示例） | **3310** | 9030 | 9031 |
+| `feat/config-mgmt` | `E:/Storage-worktrees/config-mgmt`（示例） | **3311** | 9040 | 9041 |
 
 切换 worktree 或分支后务必先执行 `sync-worktree-env.ps1`（Windows）或 `sync-worktree-env.sh`（Linux/macOS/Git Bash），再 `docker compose --env-file .env up -d`。详见 [AGENTS.md](AGENTS.md)「Worktree 数据库隔离」。
 
