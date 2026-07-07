@@ -276,6 +276,9 @@ function Write-WorktreeEnvFile {
     $uploadMaxSizeBytes = Get-EnvOrExistingValue -Existing $existing -Name 'UPLOAD_MAX_SIZE_BYTES' -DefaultValue '5242880'
     $uploadAllowedContentTypes = Get-EnvOrExistingValue -Existing $existing -Name 'UPLOAD_ALLOWED_CONTENT_TYPES' -DefaultValue 'image/jpeg,image/png,image/webp,image/gif'
     $appPublicBaseUrl = Get-EnvOrExistingValue -Existing $existing -Name 'APP_PUBLIC_BASE_URL' -DefaultValue "http://localhost"
+    if ($appPublicBaseUrl -eq "http://localhost:$frontendPort") {
+        $appPublicBaseUrl = "http://localhost"
+    }
     $passwordResetTokenTtlMinutes = Get-EnvOrExistingValue -Existing $existing -Name 'PASSWORD_RESET_TOKEN_TTL_MINUTES' -DefaultValue '30'
     $mailHost = Get-EnvOrExistingValue -Existing $existing -Name 'MAIL_HOST' -DefaultValue 'smtp.gmail.com'
     $mailPort = Get-EnvOrExistingValue -Existing $existing -Name 'MAIL_PORT' -DefaultValue '587'

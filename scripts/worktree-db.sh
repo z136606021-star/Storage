@@ -210,6 +210,9 @@ write_worktree_env_file() {
   upload_max_size_bytes="$(env_or_existing UPLOAD_MAX_SIZE_BYTES 5242880 "$env_path")"
   upload_allowed_content_types="$(env_or_existing UPLOAD_ALLOWED_CONTENT_TYPES "image/jpeg,image/png,image/webp,image/gif" "$env_path")"
   app_public_base_url="$(env_or_existing APP_PUBLIC_BASE_URL "http://localhost" "$env_path")"
+  if [[ "$app_public_base_url" == "http://localhost:$frontend_port" ]]; then
+    app_public_base_url="http://localhost"
+  fi
   password_reset_token_ttl_minutes="$(env_or_existing PASSWORD_RESET_TOKEN_TTL_MINUTES 30 "$env_path")"
   mail_host="$(env_or_existing MAIL_HOST smtp.gmail.com "$env_path")"
   mail_port="$(env_or_existing MAIL_PORT 587 "$env_path")"

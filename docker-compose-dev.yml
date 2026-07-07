@@ -65,7 +65,7 @@ services:
       JWT_TTL_MINUTES: ${JWT_TTL_MINUTES:-120}
       UPLOAD_MAX_SIZE_BYTES: ${UPLOAD_MAX_SIZE_BYTES:-5242880}
       UPLOAD_ALLOWED_CONTENT_TYPES: ${UPLOAD_ALLOWED_CONTENT_TYPES:-image/jpeg,image/png,image/webp,image/gif}
-      APP_PUBLIC_BASE_URL: ${APP_PUBLIC_BASE_URL:-http://localhost:5173}
+      APP_PUBLIC_BASE_URL: http://localhost:${FRONTEND_PORT:-5173}
       PASSWORD_RESET_TOKEN_TTL_MINUTES: ${PASSWORD_RESET_TOKEN_TTL_MINUTES:-30}
       MAIL_HOST: ${MAIL_HOST:-smtp.gmail.com}
       MAIL_PORT: ${MAIL_PORT:-587}
@@ -89,7 +89,7 @@ services:
     depends_on:
       backend:
         condition: service_healthy
-    ports:
+    ports: !override
       - "${FRONTEND_PORT:-5173}:80"
 
 volumes:

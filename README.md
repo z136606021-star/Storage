@@ -110,6 +110,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\sync-worktree-env.ps1
 - `FRONTEND_PORT`：Vite 开发端口（默认 `5173`）
 - `VITE_API_PROXY`：仅本地 Vite 开发模式使用；Compose Nginx 部署不依赖该值
 - `CORS_ALLOWED_ORIGINS`：后端允许的前端来源（默认跟随 `FRONTEND_PORT`）
+- `APP_PUBLIC_BASE_URL`：忘记密码邮件链接使用的外部访问地址；base/prod 默认为 Nginx 入口 `http://localhost` 或真实域名，dev compose 会覆盖为 `http://localhost:${FRONTEND_PORT}`
 - `JWT_SECRET`：JWT HMAC 签名密钥（本地默认仅用于开发，生产必须改为部署侧强密钥）
 - `JWT_TTL_MINUTES`：JWT access token 有效期分钟数（默认 `120`）
 

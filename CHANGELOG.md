@@ -2,6 +2,7 @@
 
 | 日期 | 变更 |
 |------|------|
+| 2026-07-07 | Docker 部署细节收口：dev compose 覆盖 frontend 端口避免同时暴露 80/5173；`APP_PUBLIC_BASE_URL` 默认回归 base Nginx 入口，dev profile 单独覆盖为 `FRONTEND_PORT` |
 | 2026-07-07 | Docker 启动口径收敛：README 与 Windows wrapper 默认改为 `docker compose up -d`，`--build`/`-Build` 仅保留为显式可选重建；本地前端 `npm install` 改为首次或锁文件变更时执行 |
 | 2026-07-07 | Service 接口隔离收口：导入/导出、JWT、密码重置邮件、出入库读模型与台账引用查询服务统一改为 `*Service` 接口 + `*ServiceImpl` 实现；调用方保持依赖接口，后端 98 项测试通过 |
 | 2026-06-23 | 初始化 Git 仓库、.gitignore、AGENTS.md、README.md；首次推送到 GitHub |
