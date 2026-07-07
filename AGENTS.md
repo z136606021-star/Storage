@@ -95,7 +95,7 @@
   - `frontend/vite.config.ts`
   - `docker-compose.yml`
 - 新增配置项时必须同步模板、脚本生成逻辑、应用读取处和文档说明。
-- `docker-compose.yml` 必须读取 `.env` 中的 `MYSQL_*`、`MINIO_*`；healthcheck 禁止明文密码参数。
+- `docker-compose.yml` / `docker-compose-dev.yml` 必须通过 service 级 `env_file: .env` 注入后端运行配置；Compose 中只保留端口映射、镜像变量名转换（如 `MYSQL_DATABASE`、`MINIO_ROOT_*`）与容器网络覆盖，禁止复制后端全量环境变量列表；healthcheck 禁止明文密码参数。
 - 脚本访问 MySQL 必须读取 `MYSQL_USER`、`MYSQL_PASSWORD`、`MYSQL_DB`，禁止写死 `-pstorage123`。
 - `CORS_ALLOWED_ORIGINS` 必须随前端端口或可信前端域名配置，禁止在 Java 配置中写死 `5173`。
 

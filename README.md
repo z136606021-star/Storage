@@ -132,8 +132,10 @@ powershell -ExecutionPolicy Bypass -File .\scripts\sync-worktree-env.ps1
 ### 部署交付核验
 
 - Docker Compose 主路径已统一为 `docker compose up -d`；`--build` / `-Build` 仅作为显式重建选项。
+- `--env-file .env` 用于 Compose 变量替换；service 级 `env_file: .env` 用于把 `.env` 注入容器，后端不再在 `environment` 中复制全量变量列表。
 - 前端由 `frontend/Dockerfile` 构建并通过 Nginx 暴露，`/api` 由 Nginx 反向代理到后端服务，Compose 部署不依赖本地 Vite 代理。
-- 容器内数据库与对象存储访问使用服务名：`mysql:3306`、`http://minio:9000`；宿主机访问才使用映射端口。
+- 容器内数据库与对象存储访问使用服务名：`mysql:3306`、`http://minio:9000`；Compose 仅在必要处覆盖这些容器网络地址，宿主机访问才使用映射端口。
+- Nginx 前端入口包含 gzip、hash 静态资源长缓存、`index.html` no-cache、SPA fallback 与 `/api` 反向代理配置。
 - Linux/macOS/Git Bash 版脚本保持 LF 与可执行位；常规验证可运行 `bash -n scripts/*.sh` 与两套 `docker compose ... config`。
 
 ### 2. 启动后端

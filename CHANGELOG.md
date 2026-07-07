@@ -2,6 +2,7 @@
 
 | 日期 | 变更 |
 |------|------|
+| 2026-07-07 | Compose/Nginx 部署收口：backend 改用 service 级 `env_file: .env` 注入配置，仅保留容器网络覆盖；Nginx 增加 gzip、静态资源缓存、`index.html` no-cache、SPA fallback 与代理超时/转发头 |
 | 2026-07-07 | Linux 适配与文档收口：Bash 脚本提交可执行位并固定 LF；`dev-up.sh` 默认不再隐式 `--build`；README 补齐 Linux/macOS/Git Bash 自检、清理旧容器与部署核验；AGENTS 增加脚本跨平台门禁 |
 | 2026-07-07 | Docker 部署细节收口：dev compose 覆盖 frontend 端口避免同时暴露 80/5173；`APP_PUBLIC_BASE_URL` 默认回归 base Nginx 入口，dev profile 单独覆盖为 `FRONTEND_PORT` |
 | 2026-07-07 | Docker 启动口径收敛：README 与 Windows wrapper 默认改为 `docker compose up -d`，`--build`/`-Build` 仅保留为显式可选重建；本地前端 `npm install` 改为首次或锁文件变更时执行 |
