@@ -17,7 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class WarehouseBinExportServiceTest {
 
-    private final WarehouseBinExportService exportService = new WarehouseBinExportService();
+    private final WarehouseBinExportService exportService = new WarehouseBinExportServiceImpl();
 
     @Test
     void export_writesExpectedSheetHeadersAndValues() throws IOException {

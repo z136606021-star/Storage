@@ -32,7 +32,7 @@ class SysRoleExportServiceTest {
 
     @BeforeEach
     void setUp() {
-        exportService = new SysRoleExportService(sysMenuMapper);
+        exportService = new SysRoleExportServiceImpl(sysMenuMapper);
     }
 
     @Test

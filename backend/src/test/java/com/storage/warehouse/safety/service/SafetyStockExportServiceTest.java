@@ -17,7 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class SafetyStockExportServiceTest {
 
-  private final SafetyStockExportService exportService = new SafetyStockExportService();
+  private final SafetyStockExportService exportService = new SafetyStockExportServiceImpl();
 
   @Test
   void export_writesExpectedSheetHeadersAndValues() throws IOException {

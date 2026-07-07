@@ -18,7 +18,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class MaterialLedgerExportServiceTest {
 
-    private final MaterialLedgerExportService exportService = new MaterialLedgerExportService();
+    private final MaterialLedgerExportService exportService = new MaterialLedgerExportServiceImpl();
 
     @Test
     void export_writesExpectedSheetHeadersAndValues() throws IOException {

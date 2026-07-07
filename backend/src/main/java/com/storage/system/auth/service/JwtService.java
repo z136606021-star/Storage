@@ -8,8 +8,6 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import javax.crypto.SecretKey;
@@ -17,51 +15,8 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Date;
 import java.util.UUID;
-
-@Service
-@RequiredArgsConstructor
-public class JwtService {
-
-    private final JwtProperties jwtProperties;
-
-    public String issueToken(SysUser user) {
-        Instant now = Instant.now();
-        Instant expiresAt = now.plusSeconds(jwtProperties.getTtlMinutes() * 60L);
-        return Jwts.builder()
-                .id(UUID.randomUUID().toString())
-                .subject(String.valueOf(user.getId()))
-                .claim("username", user.getUsername())
-                .issuedAt(Date.from(now))
-                .expiration(Date.from(expiresAt))
-                .signWith(signingKey())
-                .compact();
-    }
-
-    public JwtClaims parseClaims(String token) {
-        try {
-            Claims claims = Jwts.parser()
-                    .verifyWith(signingKey())
-                    .build()
-                    .parseSignedClaims(token)
-                    .getPayload();
-            if (!StringUtils.hasText(claims.getId())) {
-                throw new JwtAuthenticationException("JWT 无效或已过期", null);
-            }
-            return new JwtClaims(
-                    Long.valueOf(claims.getSubject()),
-                    claims.getId(),
-                    claims.getExpiration().toInstant()
-            );
-        } catch (JwtException | IllegalArgumentException ex) {
-            throw new JwtAuthenticationException("JWT 无效或已过期", ex);
-        }
-    }
-
-    public Long parseUserId(String token) {
-        return parseClaims(token).userId();
-    }
-
-    private SecretKey signingKey() {
-        return Keys.hmacShaKeyFor(jwtProperties.getSecret().getBytes(StandardCharsets.UTF_8));
-    }
+public interface JwtService {
+    String issueToken(SysUser user);
+    JwtClaims parseClaims(String token);
+    Long parseUserId(String token);
 }

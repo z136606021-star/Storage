@@ -17,7 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class SysUserExportServiceTest {
 
-    private final SysUserExportService exportService = new SysUserExportService();
+    private final SysUserExportService exportService = new SysUserExportServiceImpl();
 
     @Test
     void export_writesExpectedSheetHeadersAndValues() throws IOException {

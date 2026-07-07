@@ -19,7 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class MaterialIoExportServiceTest {
 
-    private final MaterialIoExportService exportService = new MaterialIoExportService();
+    private final MaterialIoExportService exportService = new MaterialIoExportServiceImpl();
 
     @Test
     void export_writesExpectedSheetHeadersAndValues() throws IOException {
