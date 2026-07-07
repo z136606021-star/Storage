@@ -204,7 +204,6 @@ INSERT INTO sys_menu (id, parent_id, menu_type, name, permission, path, componen
 (20, NULL, 'CATALOG', '项目管理中心', NULL, NULL, NULL, 'ProjectOutlined', 1, 2),
 (21, 20, 'MENU', '新建项目', 'platform:project:create', '/platform/project/create', 'ShellPlaceholder', NULL, 1, 10),
 (22, 20, 'MENU', '项目集', 'platform:project:set', '/platform/project/set', 'ShellPlaceholder', NULL, 1, 20),
-(23, NULL, 'MENU', '项目中心读', 'platform:project:read', '/platform/project', 'ShellPlaceholder', NULL, 0, 23),
 (100, NULL, 'CATALOG', '资源管理', NULL, NULL, NULL, 'DatabaseOutlined', 1, 10),
 (110, 100, 'CATALOG', '仓库管理', NULL, NULL, NULL, NULL, 1, 10),
 (111, 110, 'MENU', '物料台账', 'warehouse:material-ledger:read', '/warehouse/material-ledger', 'MaterialLedger', NULL, 1, 10),
@@ -230,8 +229,8 @@ INSERT INTO sys_menu (id, parent_id, menu_type, name, permission, path, componen
 (183, 180, 'MENU', '成本分析中心', 'finance:cost:read', '/platform/finance/cost', 'ShellPlaceholder', NULL, 1, 30),
 (200, NULL, 'CATALOG', '系统管理', NULL, NULL, NULL, 'SettingOutlined', 1, 90),
 (201, 200, 'MENU', '用户管理', 'system:user:read', '/system/users', 'SystemManageLayout', NULL, 1, 10),
-(202, 200, 'MENU', '角色管理', 'system:role:read', '/system/roles', 'RoleManagePanel', NULL, 0, 20),
-(203, 200, 'MENU', '菜单管理', 'system:menu:read', '/system/menus', 'MenuManagePanel', NULL, 0, 30),
+(202, 201, 'MENU', '角色管理', 'system:role:read', 'roles', 'RoleManagePanel', NULL, 0, 20),
+(203, 201, 'MENU', '菜单管理', 'system:menu:read', 'menus', 'MenuManagePanel', NULL, 0, 30),
 (204, 200, 'MENU', '客户管理', 'system:customer:read', '/system/customers', 'CustomerManage', NULL, 1, 20),
 (214, NULL, 'MENU', '用户写', 'system:user:write', NULL, NULL, NULL, 0, 214),
 (224, NULL, 'MENU', '角色写', 'system:role:write', NULL, NULL, NULL, 0, 224),
@@ -244,14 +243,18 @@ INSERT INTO sys_menu (id, parent_id, menu_type, name, permission, path, componen
 
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 (1, 2), (1, 3),
-(1, 10), (1, 20), (1, 21), (1, 22), (1, 23),
+(1, 10), (1, 20), (1, 21), (1, 22),
 (1, 100), (1, 110), (1, 111), (1, 112), (1, 113), (1, 117), (1, 114), (1, 115), (1, 116),
 (1, 120), (1, 121), (1, 122), (1, 123),
 (1, 150), (1, 160), (1, 161), (1, 162), (1, 163),
 (1, 170), (1, 180), (1, 181), (1, 182), (1, 183),
 (1, 200), (1, 201), (1, 202), (1, 203), (1, 204),
 (1, 214), (1, 224), (1, 234), (1, 244), (1, 254), (1, 255), (1, 256), (1, 257),
-(2, 111);
+(2, 10), (2, 20), (2, 21), (2, 22),
+(2, 100), (2, 110), (2, 111), (2, 112), (2, 113), (2, 117), (2, 114), (2, 115), (2, 116),
+(2, 120), (2, 121), (2, 122), (2, 123),
+(2, 150), (2, 160), (2, 161), (2, 162), (2, 163),
+(2, 170), (2, 180), (2, 181), (2, 182), (2, 183);
 
 INSERT INTO warehouse_bin (bin_code, row_no, col_no, level_no, remark) VALUES
 ('1-1-1', 1, 1, 1, NULL),

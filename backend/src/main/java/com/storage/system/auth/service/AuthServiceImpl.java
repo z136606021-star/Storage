@@ -11,11 +11,13 @@ import com.storage.system.auth.dto.AuthSessionVO;
 import com.storage.system.auth.dto.AuthUserVO;
 import com.storage.system.auth.dto.ForgotPasswordDTO;
 import com.storage.system.auth.dto.ForgotPasswordResetDTO;
+import com.storage.system.auth.dto.JwtClaims;
 import com.storage.system.auth.dto.LoginRequestDTO;
 import com.storage.system.auth.dto.RegisterRequestDTO;
 import com.storage.system.auth.entity.PasswordResetToken;
 import com.storage.system.auth.mapper.PasswordResetTokenMapper;
 import com.storage.system.auth.shiro.UserRealm;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.apache.shiro.SecurityUtils;
 import org.apache.shiro.subject.Subject;
@@ -28,15 +30,10 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
-import java.time.Duration;
-import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.HexFormat;
 import java.util.List;
-import java.util.Locale;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 
 @Service
 @RequiredArgsConstructor
@@ -44,11 +41,7 @@ public class AuthServiceImpl implements AuthService {
 
     private static final String FORGOT_PASSWORD_IDENTITY_ERROR = "账号或邮箱不正确，或账号未绑定邮箱";
     private static final String RESET_PASSWORD_TOKEN_ERROR = "重置链接无效或已过期";
-    private static final int FORGOT_PASSWORD_MAX_FAILURES = 5;
-    private static final Duration FORGOT_PASSWORD_FAILURE_WINDOW = Duration.ofMinutes(15);
     private static final String LOGIN_IDENTITY_ERROR = "账号或密码错误";
-    private static final int LOGIN_MAX_FAILURES = 5;
-    private static final Duration LOGIN_FAILURE_WINDOW = Duration.ofMinutes(15);
 
     private final SysUserMapper sysUserMapper;
     private final SysRoleMapper sysRoleMapper;
@@ -59,27 +52,27 @@ public class AuthServiceImpl implements AuthService {
     private final BCryptPasswordEncoder passwordEncoder;
     private final UserRealm userRealm;
     private final JwtService jwtService;
+    private final JwtRevocationService jwtRevocationService;
+    private final LoginFailureLimiter loginFailureLimiter;
+    private final ForgotPasswordFailureLimiter forgotPasswordFailureLimiter;
     private final SecureRandom secureRandom = new SecureRandom();
-    private final ConcurrentMap<String, ForgotPasswordFailures> forgotPasswordFailures = new ConcurrentHashMap<>();
-    private final ConcurrentMap<String, LoginFailures> loginFailures = new ConcurrentHashMap<>();
 
     @Override
     public AuthSessionVO login(LoginRequestDTO request) {
         String username = request.getUsername().trim();
-        String failureKey = normalizeLoginKey(username);
-        assertLoginAllowed(failureKey);
+        loginFailureLimiter.assertAllowed(username);
 
         SysUser user = sysUserMapper.selectByUsername(username);
         if (user == null || user.getStatus() == null || user.getStatus() != 1) {
-            recordLoginFailure(failureKey);
+            loginFailureLimiter.recordFailure(username);
             throw new BusinessException(LOGIN_IDENTITY_ERROR);
         }
         if (!userRealm.matchesPassword(request.getPassword(), user.getPasswordHash())) {
-            recordLoginFailure(failureKey);
+            loginFailureLimiter.recordFailure(username);
             throw new BusinessException(LOGIN_IDENTITY_ERROR);
         }
 
-        loginFailures.remove(failureKey);
+        loginFailureLimiter.reset(username);
         return buildSession(user, jwtService.issueToken(user));
     }
 
@@ -113,28 +106,40 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public void logout() {
-        // JWT is stateless; the frontend clears its token.
+    public void logout(HttpServletRequest request) {
+        String authorization = request.getHeader("Authorization");
+        if (authorization == null || !authorization.startsWith("Bearer ")) {
+            return;
+        }
+        String token = authorization.substring("Bearer ".length()).trim();
+        if (token.isEmpty()) {
+            return;
+        }
+        try {
+            JwtClaims claims = jwtService.parseClaims(token);
+            jwtRevocationService.revoke(claims);
+        } catch (RuntimeException ignored) {
+            // Invalid tokens are already rejected at authentication time.
+        }
     }
 
     @Override
     @Transactional
     public void forgotPassword(ForgotPasswordDTO request) {
         String username = request.getUsername().trim();
-        String failureKey = normalizeForgotPasswordKey(username);
-        assertForgotPasswordAllowed(failureKey);
+        forgotPasswordFailureLimiter.assertAllowedForgotPassword(username);
 
         SysUser user = sysUserMapper.selectByUsername(username);
         if (user == null || user.getStatus() == null || user.getStatus() != 1) {
-            recordForgotPasswordFailure(failureKey);
+            forgotPasswordFailureLimiter.recordForgotPasswordFailure(username);
             throw new BusinessException(FORGOT_PASSWORD_IDENTITY_ERROR);
         }
         if (!StringUtils.hasText(user.getEmail())) {
-            recordForgotPasswordFailure(failureKey);
+            forgotPasswordFailureLimiter.recordForgotPasswordFailure(username);
             throw new BusinessException(FORGOT_PASSWORD_IDENTITY_ERROR);
         }
         if (!user.getEmail().trim().equalsIgnoreCase(request.getEmail().trim())) {
-            recordForgotPasswordFailure(failureKey);
+            forgotPasswordFailureLimiter.recordForgotPasswordFailure(username);
             throw new BusinessException(FORGOT_PASSWORD_IDENTITY_ERROR);
         }
 
@@ -146,7 +151,7 @@ public class AuthServiceImpl implements AuthService {
         passwordResetTokenMapper.insert(token);
 
         passwordResetMailService.sendResetLink(user, rawToken);
-        forgotPasswordFailures.remove(failureKey);
+        forgotPasswordFailureLimiter.resetForgotPassword(username);
     }
 
     @Override
@@ -165,7 +170,7 @@ public class AuthServiceImpl implements AuthService {
 
         token.setUsedAt(LocalDateTime.now());
         passwordResetTokenMapper.updateById(token);
-        forgotPasswordFailures.remove(normalizeForgotPasswordKey(user.getUsername()));
+        forgotPasswordFailureLimiter.resetForgotPassword(user.getUsername());
     }
 
     @Override
@@ -217,61 +222,4 @@ public class AuthServiceImpl implements AuthService {
         }
     }
 
-    private void assertForgotPasswordAllowed(String failureKey) {
-        ForgotPasswordFailures failures = forgotPasswordFailures.get(failureKey);
-        if (failures == null || failures.isExpired()) {
-            return;
-        }
-        if (failures.count() >= FORGOT_PASSWORD_MAX_FAILURES) {
-            throw new BusinessException("密码找回尝试次数过多，请 15 分钟后再试");
-        }
-    }
-
-    private void recordForgotPasswordFailure(String failureKey) {
-        forgotPasswordFailures.compute(failureKey, (key, failures) -> {
-            if (failures == null || failures.isExpired()) {
-                return new ForgotPasswordFailures(1, Instant.now());
-            }
-            return new ForgotPasswordFailures(failures.count() + 1, failures.firstFailedAt());
-        });
-    }
-
-    private void assertLoginAllowed(String failureKey) {
-        LoginFailures failures = loginFailures.get(failureKey);
-        if (failures == null || failures.isExpired()) {
-            return;
-        }
-        if (failures.count() >= LOGIN_MAX_FAILURES) {
-            throw new BusinessException("登录失败次数过多，请 15 分钟后再试");
-        }
-    }
-
-    private void recordLoginFailure(String failureKey) {
-        loginFailures.compute(failureKey, (key, failures) -> {
-            if (failures == null || failures.isExpired()) {
-                return new LoginFailures(1, Instant.now());
-            }
-            return new LoginFailures(failures.count() + 1, failures.firstFailedAt());
-        });
-    }
-
-    private String normalizeForgotPasswordKey(String username) {
-        return username.toLowerCase(Locale.ROOT);
-    }
-
-    private String normalizeLoginKey(String username) {
-        return username.toLowerCase(Locale.ROOT);
-    }
-
-    private record ForgotPasswordFailures(int count, Instant firstFailedAt) {
-        boolean isExpired() {
-            return firstFailedAt.plus(FORGOT_PASSWORD_FAILURE_WINDOW).isBefore(Instant.now());
-        }
-    }
-
-    private record LoginFailures(int count, Instant firstFailedAt) {
-        boolean isExpired() {
-            return firstFailedAt.plus(LOGIN_FAILURE_WINDOW).isBefore(Instant.now());
-        }
-    }
 }

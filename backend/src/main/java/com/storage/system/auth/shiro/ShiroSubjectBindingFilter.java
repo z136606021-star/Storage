@@ -1,5 +1,7 @@
 package com.storage.system.auth.shiro;
 
+import com.storage.system.auth.dto.JwtClaims;
+import com.storage.system.auth.service.JwtRevocationService;
 import com.storage.system.auth.service.JwtService;
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
@@ -23,6 +25,7 @@ public class ShiroSubjectBindingFilter implements Filter {
 
     private final SecurityManager securityManager;
     private final JwtService jwtService;
+    private final JwtRevocationService jwtRevocationService;
 
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
@@ -51,7 +54,11 @@ public class ShiroSubjectBindingFilter implements Filter {
             return;
         }
         try {
-            subject.login(new JwtAuthenticationToken(token, jwtService.parseUserId(token)));
+            JwtClaims claims = jwtService.parseClaims(token);
+            if (jwtRevocationService.isRevoked(claims.jti())) {
+                throw new JwtAuthenticationException("JWT 已失效", null);
+            }
+            subject.login(new JwtAuthenticationToken(token, claims.userId()));
         } catch (AuthenticationException ex) {
             subject.logout();
         }

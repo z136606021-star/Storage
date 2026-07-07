@@ -106,6 +106,19 @@ describe('auth store', () => {
     expect(clearTabsMock).toHaveBeenCalled()
   })
 
+  it('initialize clears session when stored token is invalid', async () => {
+    const authApi = await import('@/api/auth')
+    vi.mocked(authApi.fetchMe).mockRejectedValue(new Error('401'))
+    storage.set(ACCESS_TOKEN_KEY, 'invalid-token')
+
+    const auth = useAuthStore()
+    await auth.initialize()
+
+    expect(auth.accessToken).toBeNull()
+    expect(auth.session).toBeNull()
+    expect(storage.get(ACCESS_TOKEN_KEY)).toBeUndefined()
+  })
+
   it('http request interceptor injects bearer token', async () => {
     storage.set(ACCESS_TOKEN_KEY, 'request-token')
     const handler = (http.interceptors.request as never as {

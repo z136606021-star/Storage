@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import { message } from 'ant-design-vue'
 import type { SafetyStockRecord } from '@/types/warehouse/safetyStock'
 import { displayValue } from '@/utils/format'
+import { useMenuStore } from '@/stores/menu'
 import { useRouter } from 'vue-router'
 
 defineProps<{
@@ -10,17 +12,28 @@ defineProps<{
 }>()
 
 const router = useRouter()
+const menu = useMenuStore()
 
 function viewMaterialLedger(materialLedgerId: number) {
+  const target = menu.findRouteByComponentKey('MaterialLedger')
+  if (!target) {
+    message.info('台账菜单未配置')
+    return
+  }
   router.push({
-    path: '/warehouse/material-ledger',
+    path: target.path,
     query: { materialLedgerId: String(materialLedgerId) },
   })
 }
 
 function viewMaterialIo(materialLedgerId: number) {
+  const target = menu.findRouteByComponentKey('MaterialIo')
+  if (!target) {
+    message.info('出入库菜单未配置')
+    return
+  }
   router.push({
-    path: '/warehouse/material-io',
+    path: target.path,
     query: { materialLedgerId: String(materialLedgerId) },
   })
 }

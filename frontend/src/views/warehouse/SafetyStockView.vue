@@ -201,7 +201,7 @@ onMounted(async () => {
         @search="handleSearch"
       >
         <template #second-row-trailing>
-          <a-col :xs="24" :sm="12" :md="8" :lg="6">
+          <div class="filter-grid-cell">
             <a-form-item label="安全库存数" class="filter-item">
               <a-input
                 v-model:value="queryForm.safetyQuantityKeyword"
@@ -211,8 +211,8 @@ onMounted(async () => {
                 @press-enter="handleSearch"
               />
             </a-form-item>
-          </a-col>
-          <a-col :xs="24" :sm="12" :md="8" :lg="6">
+          </div>
+          <div class="filter-grid-cell">
             <a-form-item label="预警期" class="filter-item">
               <a-select
                 v-model:value="queryForm.warningPeriod"
@@ -220,7 +220,7 @@ onMounted(async () => {
                 class="filter-control"
               />
             </a-form-item>
-          </a-col>
+          </div>
         </template>
 
         <template #actions>

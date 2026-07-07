@@ -3,7 +3,8 @@ package com.storage.warehouse.io.service;
 import com.storage.common.dto.ImportResultVO;
 import com.storage.system.auth.service.AuthService;
 import com.storage.system.user.entity.SysUser;
-import com.storage.warehouse.io.excel.MaterialIoExcelColumn;
+import com.storage.warehouse.io.entity.MaterialIoRecord;
+import com.storage.warehouse.io.excel.MaterialIoImportTemplateColumn;
 import com.storage.warehouse.io.mapper.MaterialIoRecordMapper;
 import com.storage.warehouse.ledger.entity.MaterialLedger;
 import com.storage.warehouse.ledger.mapper.MaterialLedgerMapper;
@@ -19,6 +20,8 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.ActiveProfiles;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -30,6 +33,8 @@ import static org.mockito.Mockito.when;
 @SpringBootTest
 @ActiveProfiles("test")
 class MaterialIoImportServiceIntegrationTest {
+
+    private static final DateTimeFormatter OPERATED_AT_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     @Autowired
     private MaterialIoImportService materialIoImportService;
@@ -64,6 +69,9 @@ class MaterialIoImportServiceIntegrationTest {
         ledger.setModel("T-001");
         ledger.setBinLocation("1-1-1");
         ledger.setStockQuantity(10);
+        LocalDateTime seededAt = LocalDateTime.now().minusMinutes(10).withNano(0);
+        ledger.setCreatedAt(seededAt);
+        ledger.setUpdatedAt(seededAt);
         materialLedgerMapper.insert(ledger);
     }
 
@@ -71,7 +79,7 @@ class MaterialIoImportServiceIntegrationTest {
     void importExcel_validRow_success() throws IOException {
         List<String[]> rows = new ArrayList<>();
         rows.add(ioRow("耗材", "测试物料", "品牌A", "测试品", "T-001", "1-1-1", "5", "", "", "入库"));
-        MockMultipartFile file = createIoExcel(rows);
+        MockMultipartFile file = createImportTemplateExcel(rows);
 
         ImportResultVO result = materialIoImportService.importExcel(file);
 
@@ -81,10 +89,29 @@ class MaterialIoImportServiceIntegrationTest {
     }
 
     @Test
+    void importExcel_importTemplateLayout_withOperatedAt_persistsTimestamp() throws IOException {
+        LocalDateTime operatedAt = LocalDateTime.now().minusMinutes(1).withNano(0);
+        String operatedAtText = OPERATED_AT_FORMATTER.format(operatedAt);
+
+        List<String[]> rows = new ArrayList<>();
+        rows.add(ioRow("耗材", "测试物料", "品牌A", "测试品", "T-001", "1-1-1", "5", "", "", "入库", operatedAtText));
+        MockMultipartFile file = createImportTemplateExcel(rows);
+
+        ImportResultVO result = materialIoImportService.importExcel(file);
+
+        assertThat(result.getSuccessCount()).isEqualTo(1);
+        assertThat(result.getFailCount()).isZero();
+        assertThat(currentStock()).isEqualTo(15);
+
+        MaterialIoRecord record = materialIoRecordMapper.selectList(null).get(0);
+        assertThat(record.getOperatedAt()).isEqualTo(operatedAt);
+    }
+
+    @Test
     void importExcel_rowError_noDbWrite() throws IOException {
         List<String[]> rows = new ArrayList<>();
         rows.add(ioRow("", "测试物料", "品牌A", "测试品", "T-001", "1-1-1", "5", "", "", "入库"));
-        MockMultipartFile file = createIoExcel(rows);
+        MockMultipartFile file = createImportTemplateExcel(rows);
 
         ImportResultVO result = materialIoImportService.importExcel(file);
 
@@ -99,7 +126,7 @@ class MaterialIoImportServiceIntegrationTest {
         List<String[]> rows = new ArrayList<>();
         rows.add(ioRow("耗材", "测试物料", "品牌A", "测试品", "T-001", "1-1-1", "2", "", "", "入库"));
         rows.add(ioRow("耗材", "测试物料", "品牌A", "测试品", "T-001", "1-1-1", "3", "", "", "入库"));
-        MockMultipartFile file = createIoExcel(rows);
+        MockMultipartFile file = createImportTemplateExcel(rows);
 
         ImportResultVO result = materialIoImportService.importExcel(file);
 
@@ -113,7 +140,7 @@ class MaterialIoImportServiceIntegrationTest {
     void importExcel_outboundExceedsStock_returnsRowErrorWithoutDbWrite() throws IOException {
         List<String[]> rows = new ArrayList<>();
         rows.add(ioRow("耗材", "测试物料", "品牌A", "测试品", "T-001", "1-1-1", "11", "员工领用", "", "出库"));
-        MockMultipartFile file = createIoExcel(rows);
+        MockMultipartFile file = createImportTemplateExcel(rows);
 
         ImportResultVO result = materialIoImportService.importExcel(file);
 
@@ -140,16 +167,32 @@ class MaterialIoImportServiceIntegrationTest {
             String remark,
             String ioType
     ) {
+        return ioRow(category, genericName, brand, name, model, binLocation, quantity, purpose, remark, ioType, "");
+    }
+
+    private String[] ioRow(
+            String category,
+            String genericName,
+            String brand,
+            String name,
+            String model,
+            String binLocation,
+            String quantity,
+            String purpose,
+            String remark,
+            String ioType,
+            String operatedAt
+    ) {
         return new String[] {
-                "1", category, genericName, brand, name, model, binLocation, quantity, purpose, remark, ioType
+                "1", category, genericName, brand, name, model, binLocation, quantity, purpose, remark, ioType, operatedAt
         };
     }
 
-    private MockMultipartFile createIoExcel(List<String[]> dataRows) throws IOException {
+    private MockMultipartFile createImportTemplateExcel(List<String[]> dataRows) throws IOException {
         try (Workbook workbook = new XSSFWorkbook()) {
             Sheet sheet = workbook.createSheet("sheet1");
             Row header = sheet.createRow(0);
-            String[] headers = MaterialIoExcelColumn.headers();
+            String[] headers = MaterialIoImportTemplateColumn.headers();
             for (int i = 0; i < headers.length; i++) {
                 header.createCell(i).setCellValue(headers[i]);
             }

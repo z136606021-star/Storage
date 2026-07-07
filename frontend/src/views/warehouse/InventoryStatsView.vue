@@ -8,10 +8,12 @@ import type { WarehouseStatsOverview } from '@/types/warehouse/warehouseStats'
 import type { SafetyStockRecord } from '@/types/warehouse/safetyStock'
 import { displayValue } from '@/utils/format'
 import { materialIdentityColumns } from '@/utils/warehouseMaterialTable'
+import { useMenuStore } from '@/stores/menu'
 
 const RECENT_DAYS_OPTIONS = [7, 14, 30, 90] as const
 
 const router = useRouter()
+const menu = useMenuStore()
 const loading = ref(false)
 const recentDays = ref<number>(7)
 const stats = ref<WarehouseStatsOverview | null>(null)
@@ -36,15 +38,24 @@ async function loadStats() {
 }
 
 function goSafetyStock() {
-  router.push('/warehouse/safety-stock')
+  const target = menu.findRouteByComponentKey('SafetyStock')
+  if (target) {
+    router.push(target.path)
+  }
 }
 
 function goMaterialIo() {
-  router.push('/warehouse/material-io')
+  const target = menu.findRouteByComponentKey('MaterialIo')
+  if (target) {
+    router.push(target.path)
+  }
 }
 
 function goLedger(materialLedgerId: number) {
-  router.push({ path: '/warehouse/material-ledger', query: { materialLedgerId: String(materialLedgerId) } })
+  const target = menu.findRouteByComponentKey('MaterialLedger')
+  if (target) {
+    router.push({ path: target.path, query: { materialLedgerId: String(materialLedgerId) } })
+  }
 }
 
 onMounted(loadStats)

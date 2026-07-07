@@ -1,6 +1,7 @@
 package com.storage.system.auth.shiro;
 
 import com.storage.system.user.mapper.SysUserMapper;
+import com.storage.system.auth.service.JwtRevocationService;
 import com.storage.system.auth.service.JwtService;
 import jakarta.servlet.Filter;
 import org.apache.shiro.mgt.SecurityManager;
@@ -56,9 +57,12 @@ public class ShiroConfig {
     }
 
     @Bean
-    public FilterRegistrationBean<Filter> shiroSubjectBindingFilter(SecurityManager securityManager, JwtService jwtService) {
+    public FilterRegistrationBean<Filter> shiroSubjectBindingFilter(
+            SecurityManager securityManager,
+            JwtService jwtService,
+            JwtRevocationService jwtRevocationService) {
         FilterRegistrationBean<Filter> registration = new FilterRegistrationBean<>();
-        registration.setFilter(new ShiroSubjectBindingFilter(securityManager, jwtService));
+        registration.setFilter(new ShiroSubjectBindingFilter(securityManager, jwtService, jwtRevocationService));
         registration.addUrlPatterns("/*");
         registration.setName("shiroSubjectBindingFilter");
         registration.setOrder(1);

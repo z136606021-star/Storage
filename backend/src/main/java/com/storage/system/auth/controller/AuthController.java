@@ -6,6 +6,7 @@ import com.storage.system.auth.dto.ForgotPasswordResetDTO;
 import com.storage.system.auth.dto.LoginRequestDTO;
 import com.storage.system.auth.dto.RegisterRequestDTO;
 import com.storage.system.auth.service.AuthService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -47,8 +48,8 @@ public class AuthController {
 
     @PostMapping("/logout")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void logout() {
-        authService.logout();
+    public void logout(HttpServletRequest request) {
+        authService.logout(request);
     }
 
     @GetMapping("/me")

@@ -1,63 +1,37 @@
 package com.storage.warehouse.safety.service;
 
-import com.storage.common.excel.ExcelCellUtils;
+import com.storage.common.excel.AutoPoiExcelTemplate;
 import com.storage.warehouse.safety.dto.SafetyStockRecordVO;
-import com.storage.warehouse.safety.excel.SafetyStockExcelColumn;
-import org.apache.poi.ss.usermodel.CellStyle;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import com.storage.warehouse.safety.excel.SafetyStockExportRow;
 import org.springframework.stereotype.Service;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
 public class SafetyStockExportService {
 
     public byte[] export(List<SafetyStockRecordVO> records) throws IOException {
-        try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-            Sheet sheet = workbook.createSheet("安全库存");
-            CellStyle headerStyle = ExcelCellUtils.createHeaderStyle(workbook);
-            CellStyle dataStyle = ExcelCellUtils.createDataStyle(workbook);
-
-            String[] headers = SafetyStockExcelColumn.headers();
-            Row headerRow = sheet.createRow(0);
-            for (int i = 0; i < headers.length; i++) {
-                ExcelCellUtils.setCell(headerRow, i, headers[i], headerStyle);
-            }
-
-            int rowIndex = 1;
-            for (SafetyStockRecordVO record : records) {
-                Row row = sheet.createRow(rowIndex);
-                ExcelCellUtils.setCell(row, SafetyStockExcelColumn.INDEX.getIndex(), rowIndex, dataStyle);
-                ExcelCellUtils.setCell(row, SafetyStockExcelColumn.CATEGORY.getIndex(), record.getCategory(), dataStyle);
-                ExcelCellUtils.setCell(row, SafetyStockExcelColumn.GENERIC_NAME.getIndex(), record.getGenericName(), dataStyle);
-                ExcelCellUtils.setCell(row, SafetyStockExcelColumn.BRAND.getIndex(), record.getBrand(), dataStyle);
-                ExcelCellUtils.setCell(row, SafetyStockExcelColumn.NAME.getIndex(), record.getName(), dataStyle);
-                ExcelCellUtils.setCell(row, SafetyStockExcelColumn.MODEL.getIndex(), record.getModel(), dataStyle);
-                ExcelCellUtils.setCell(row, SafetyStockExcelColumn.BIN_LOCATION.getIndex(), record.getBinLocation(), dataStyle);
-                ExcelCellUtils.setCell(row, SafetyStockExcelColumn.STOCK_QUANTITY.getIndex(), record.getStockQuantity(), dataStyle);
-                ExcelCellUtils.setCell(row, SafetyStockExcelColumn.SAFETY_QUANTITY.getIndex(), record.getSafetyQuantity(), dataStyle);
-                ExcelCellUtils.setCell(
-                        row,
-                        SafetyStockExcelColumn.WARNING_PERIOD.getIndex(),
-                        SafetyStockWarningStatus.formatWarningPeriod(Boolean.TRUE.equals(record.getInWarningPeriod())),
-                        dataStyle
-                );
-                rowIndex++;
-            }
-
-            for (int i = 0; i < headers.length; i++) {
-                sheet.autoSizeColumn(i);
-                int width = sheet.getColumnWidth(i);
-                sheet.setColumnWidth(i, Math.min(width + 512, 256 * 40));
-            }
-
-            workbook.write(out);
-            return out.toByteArray();
+        List<SafetyStockExportRow> rows = new ArrayList<>();
+        int rowIndex = 1;
+        for (SafetyStockRecordVO record : records) {
+            SafetyStockExportRow row = new SafetyStockExportRow();
+            row.setIndex(rowIndex++);
+            row.setCategory(record.getCategory());
+            row.setGenericName(record.getGenericName());
+            row.setBrand(record.getBrand());
+            row.setName(record.getName());
+            row.setModel(record.getModel());
+            row.setBinLocation(record.getBinLocation());
+            row.setStockQuantity(record.getStockQuantity());
+            row.setSafetyQuantity(record.getSafetyQuantity());
+            row.setWarningPeriod(
+                    SafetyStockWarningStatus.formatWarningPeriod(Boolean.TRUE.equals(record.getInWarningPeriod()))
+            );
+            rows.add(row);
         }
+
+        return AutoPoiExcelTemplate.exportBytes("安全库存", SafetyStockExportRow.class, rows);
     }
 }

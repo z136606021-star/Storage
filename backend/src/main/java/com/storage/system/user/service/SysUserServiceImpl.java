@@ -1,9 +1,9 @@
 package com.storage.system.user.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.storage.common.dto.PageResult;
 import com.storage.common.exception.BusinessException;
+import com.storage.common.query.PageSupport;
 import com.storage.system.auth.service.AuthService;
 import com.storage.system.menu.mapper.SysMenuMapper;
 import com.storage.system.menu.service.SysMenuService;
@@ -48,12 +48,12 @@ public class SysUserServiceImpl implements SysUserService {
 
     @Override
     public PageResult<SysUserVO> page(SysUserQueryDTO query) {
-        int page = query.getPage() == null || query.getPage() < 1 ? 1 : query.getPage();
-        int pageSize = query.getPageSize() == null || query.getPageSize() < 1 ? 10 : query.getPageSize();
-
-        Page<SysUser> result = sysUserMapper.selectPage(new Page<>(page, pageSize), buildQueryWrapper(query));
+        var result = sysUserMapper.selectPage(
+                PageSupport.page(query.getPage(), query.getPageSize()),
+                buildQueryWrapper(query)
+        );
         List<SysUserVO> records = result.getRecords().stream().map(this::toVo).toList();
-        return new PageResult<>(records, result.getTotal(), result.getCurrent(), result.getSize());
+        return PageSupport.result(result, records);
     }
 
     @Override

@@ -21,5 +21,7 @@ public class NavMenuNodeVO {
 
     private String icon;
 
+    private Integer visible;
+
     private List<NavMenuNodeVO> children;
 }

@@ -76,7 +76,7 @@ watch(
     @search="emit('search')"
   >
     <template #first-row-trailing>
-      <a-col :xs="24" :sm="12" :md="8" :lg="6">
+      <div class="filter-grid-cell">
         <a-form-item label="操作类型" class="filter-item">
           <a-select
             v-model:value="queryForm.ioType"
@@ -84,11 +84,11 @@ watch(
             class="filter-control"
           />
         </a-form-item>
-      </a-col>
+      </div>
     </template>
 
     <template #second-row-trailing>
-      <a-col :xs="24" :sm="12" :md="8" :lg="6">
+      <div class="filter-grid-cell">
         <a-form-item label="用途" class="filter-item">
           <a-select
             v-model:value="queryForm.purpose"
@@ -96,8 +96,8 @@ watch(
             class="filter-control"
           />
         </a-form-item>
-      </a-col>
-      <a-col :xs="24" :sm="12" :md="8" :lg="6">
+      </div>
+      <div class="filter-grid-cell">
         <a-form-item label="项目编号" class="filter-item">
           <a-input
             v-model:value="queryForm.projectRef"
@@ -107,27 +107,25 @@ watch(
             @press-enter="emit('search')"
           />
         </a-form-item>
-      </a-col>
-      <a-col :xs="24" :sm="12" :md="8" :lg="6">
+      </div>
+      <div class="filter-grid-cell">
         <a-form-item label="操作时间" class="filter-item">
           <a-range-picker v-model:value="operatedAtRange" class="filter-control" />
         </a-form-item>
-      </a-col>
+      </div>
     </template>
 
     <template #actions>
-      <a-form-item class="filter-item filter-actions">
-        <a-space>
-          <a-button type="primary" @click="emit('search')">
-            <template #icon><SearchOutlined /></template>
-            查询
-          </a-button>
-          <a-button @click="emit('reset')">
-            <template #icon><ReloadOutlined /></template>
-            重置
-          </a-button>
-        </a-space>
-      </a-form-item>
+      <a-space>
+        <a-button type="primary" @click="emit('search')">
+          <template #icon><SearchOutlined /></template>
+          查询
+        </a-button>
+        <a-button @click="emit('reset')">
+          <template #icon><ReloadOutlined /></template>
+          重置
+        </a-button>
+      </a-space>
     </template>
   </WarehouseMaterialFilterPanel>
 </template>

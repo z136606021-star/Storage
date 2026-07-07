@@ -2,12 +2,10 @@ package com.storage.warehouse.bin.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.storage.common.dto.BatchDeleteDTO;
 import com.storage.common.dto.PageResult;
 import com.storage.common.exception.BusinessException;
-import com.storage.warehouse.ledger.entity.MaterialLedger;
-import com.storage.warehouse.ledger.mapper.MaterialLedgerMapper;
+import com.storage.common.query.PageSupport;
 import com.storage.warehouse.bin.converter.WarehouseBinConverter;
 import com.storage.warehouse.bin.dto.WarehouseBinQueryDTO;
 import com.storage.warehouse.bin.dto.WarehouseBinSaveDTO;
@@ -15,6 +13,7 @@ import com.storage.warehouse.bin.entity.WarehouseBin;
 import com.storage.warehouse.bin.exception.WarehouseBinNotFoundException;
 import com.storage.warehouse.bin.mapper.WarehouseBinMapper;
 import com.storage.warehouse.bin.query.WarehouseBinQueryBuilder;
+import com.storage.warehouse.shared.MaterialUsageQueryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -29,20 +28,17 @@ import java.util.stream.Collectors;
 public class WarehouseBinServiceImpl implements WarehouseBinService {
 
     private final WarehouseBinMapper warehouseBinMapper;
-    private final MaterialLedgerMapper materialLedgerMapper;
+    private final MaterialUsageQueryService materialUsageQueryService;
     private final WarehouseBinConverter warehouseBinConverter;
     private final WarehouseBinExportService warehouseBinExportService;
 
     @Override
     public PageResult<WarehouseBin> page(WarehouseBinQueryDTO query) {
-        int page = query.getPage() == null || query.getPage() < 1 ? 1 : query.getPage();
-        int pageSize = query.getPageSize() == null || query.getPageSize() < 1 ? 10 : query.getPageSize();
-
-        Page<WarehouseBin> result = warehouseBinMapper.selectPage(
-                new Page<>(page, pageSize),
+        var result = warehouseBinMapper.selectPage(
+                PageSupport.page(query.getPage(), query.getPageSize()),
                 WarehouseBinQueryBuilder.build(query)
         );
-        return new PageResult<>(result.getRecords(), result.getTotal(), result.getCurrent(), result.getSize());
+        return PageSupport.result(result);
     }
 
     @Override
@@ -175,8 +171,6 @@ public class WarehouseBinServiceImpl implements WarehouseBinService {
     }
 
     private long countMaterialUsage(String binCode) {
-        return materialLedgerMapper.selectCount(
-                Wrappers.<MaterialLedger>lambdaQuery().eq(MaterialLedger::getBinLocation, binCode)
-        );
+        return materialUsageQueryService.countByBinCode(binCode);
     }
 }

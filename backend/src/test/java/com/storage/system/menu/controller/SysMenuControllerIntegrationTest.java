@@ -16,6 +16,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -93,6 +94,21 @@ class SysMenuControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].componentKey").value("MaterialLedger"))
                 .andExpect(jsonPath("$[0].permission").value("warehouse:material-ledger:read"));
+    }
+
+    @Test
+    void navTree_excludesHiddenRootRoutesButKeepsHiddenChildren() throws Exception {
+        String token = loginAsAdmin("menuadmin4");
+
+        String response = mockMvc.perform(get("/api/menus/nav-tree")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        assertThat(response).doesNotContain("\"key\":\"5\"");
+        assertThat(response).contains("\"key\":\"6\"");
     }
 
     private String loginAsAdmin(String username) throws Exception {

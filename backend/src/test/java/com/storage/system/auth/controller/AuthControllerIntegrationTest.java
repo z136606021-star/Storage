@@ -9,6 +9,7 @@ import com.storage.system.auth.dto.ForgotPasswordResetDTO;
 import com.storage.system.auth.dto.LoginRequestDTO;
 import com.storage.system.auth.dto.RegisterRequestDTO;
 import com.storage.system.auth.entity.PasswordResetToken;
+import com.storage.system.auth.mapper.JwtRevokedTokenMapper;
 import com.storage.system.auth.mapper.PasswordResetTokenMapper;
 import com.storage.system.auth.shiro.UserRealm;
 import org.junit.jupiter.api.BeforeEach;
@@ -59,6 +60,9 @@ class AuthControllerIntegrationTest {
     private PasswordResetTokenMapper passwordResetTokenMapper;
 
     @Autowired
+    private JwtRevokedTokenMapper jwtRevokedTokenMapper;
+
+    @Autowired
     private BCryptPasswordEncoder passwordEncoder;
 
     @Autowired
@@ -70,6 +74,7 @@ class AuthControllerIntegrationTest {
     @BeforeEach
     void setUp() {
         passwordResetTokenMapper.delete(null);
+        jwtRevokedTokenMapper.delete(null);
         sysUserMapper.delete(null);
         reset(mailSender);
     }
@@ -277,6 +282,26 @@ class AuthControllerIntegrationTest {
                         .header("Authorization", "Bearer fake-token"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.message").exists());
+    }
+
+    @Test
+    void logout_revokesTokenAndMeReturns401() throws Exception {
+        String token = loginAndExtractToken("logoutok", "logoutok@example.com", "oldpass", 1L);
+
+        mockMvc.perform(get("/api/auth/me")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/auth/logout")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/auth/me")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").exists());
+
+        assertThat(jwtRevokedTokenMapper.selectCount(null)).isEqualTo(1);
     }
 
     @Test

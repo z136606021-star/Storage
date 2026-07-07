@@ -20,7 +20,7 @@ const route = useRoute()
 const router = useRouter()
 
 async function handleCopyLink(record: MaterialIoRecord) {
-  const url = buildMaterialIoShareUrl(router, record.id, {
+  const url = buildMaterialIoShareUrl(router, route.path, record.id, {
     materialLedgerId: route.query.materialLedgerId as string | undefined,
   })
   try {

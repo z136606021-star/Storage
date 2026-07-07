@@ -2,10 +2,10 @@ package com.storage.system.customer.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.storage.common.dto.BatchDeleteDTO;
 import com.storage.common.dto.PageResult;
 import com.storage.common.exception.BusinessException;
+import com.storage.common.query.PageSupport;
 import com.storage.system.customer.converter.SysCustomerConverter;
 import com.storage.system.customer.dto.SysCustomerQueryDTO;
 import com.storage.system.customer.dto.SysCustomerSaveDTO;
@@ -30,14 +30,11 @@ public class SysCustomerServiceImpl implements SysCustomerService {
 
     @Override
     public PageResult<SysCustomer> page(SysCustomerQueryDTO query) {
-        int page = query.getPage() == null || query.getPage() < 1 ? 1 : query.getPage();
-        int pageSize = query.getPageSize() == null || query.getPageSize() < 1 ? 10 : query.getPageSize();
-
-        Page<SysCustomer> result = sysCustomerMapper.selectPage(
-                new Page<>(page, pageSize),
+        var result = sysCustomerMapper.selectPage(
+                PageSupport.page(query.getPage(), query.getPageSize()),
                 SysCustomerQueryBuilder.build(query)
         );
-        return new PageResult<>(result.getRecords(), result.getTotal(), result.getCurrent(), result.getSize());
+        return PageSupport.result(result);
     }
 
     @Override

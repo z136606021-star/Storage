@@ -12,7 +12,7 @@
 
 ## 业务域物理分包（P9）
 
-- 后端采用单模块内「大仓小仓」：`com.storage.common.*`、`com.storage.system.*`、`com.storage.warehouse.*`、`com.storage.infrastructure.*`；扁平技术包已清空，新能力必须落入对应域包。
+- 后端采用单模块内「大仓小仓」：`com.storage.common.*`、`com.storage.system.*`、`com.storage.warehouse.*`、`com.storage.infrastructure.*`；扁平技术包与根级 `com.storage.config` 已清空，横切配置分别归入 `common.config`、`system.auth.config`、`infrastructure.file.config`；新能力必须落入对应域包。
 - 跨域：`OperatorResolver`（系统域）供仓库域解析操作人；仓库域禁止直接注入系统 mapper 或 `*Impl`。
 - 前端域目录：`views/warehouse`、`views/system`；仓库 API/类型物理目录 `api/warehouse/`、`types/warehouse/`（根目录 shim 兼容旧 import）；动态路由 `component_key` 不变，视图路径以 `router/routeComponentRegistry.ts` 为 SSOT。
 
@@ -42,7 +42,7 @@
 | 前端组件 | `frontend/src/components/common/`、`components/warehouse/`、`components/system/`、`layouts/` |
 | 前端逻辑 | `frontend/src/composables/`、`frontend/src/utils/`、`frontend/src/constants/` |
 | 前端 API/类型 | `frontend/src/api/warehouse/`、`api/system/`、`frontend/src/types/warehouse/`、`types/system/`（根目录 shim 可兼容） |
-| 后端通用 | `backend/src/main/java/com/storage/common/`、`config/` |
+| 后端通用 | `backend/src/main/java/com/storage/common/`（含 `common.excel`：`ExcelCellUtils`、`ExcelExportWriter`、`ExcelExportStyleHandlers`；`common.web`：`ExcelResponseBuilder`） |
 | 后端仓库域 | `com.storage.warehouse.*`（bin/bom/ledger/shared/safety/stats/io） |
 | 后端系统域 | `com.storage.system.*`（customer/role/user/menu/auth） |
 | 后端基础设施 | `com.storage.infrastructure.*`（file/MinIO） |
@@ -81,7 +81,7 @@
 - `components`：可复用 UI 下沉到 `components/common/` 或 `components/warehouse/`。
 - `api` + `types`：按域分子目录（`api/warehouse`、`api/system`、`types/warehouse`、`types/system`）；分页、筛选、导出签名保持一致。
 - `service`：业务规则、事务、权限、库存不变量；新系统域能力优先落入 `com.storage.system.*`，共享契约放 `com.storage.common.*`。
-- `query` / `converter` / `excel`：资源专属随业务域；跨域工具放 `common.excel` / `common.web`。
+- `query` / `converter` / `excel`：资源专属随业务域；跨域工具放 `common.excel` / `common.web`。导出使用 EasyExcel + `*ExportRow` + `ExcelExportWriter` + `ExcelExportStyleHandlers`；导入继续 POI + `ExcelCellUtils` + `ImportResultVO`，新 Export/Import 须先检查是否可复用公共层。
 - 数据库字段同义只保留一套命名，例如 `generic_name`、`bin_location`、`project_ref`。
 
 ## 环境变量门禁

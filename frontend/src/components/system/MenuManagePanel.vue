@@ -298,17 +298,17 @@ onMounted(loadData)
           <a-input v-model:value="formState.name" placeholder="显示名称" />
         </a-form-item>
         <a-form-item v-if="formState.menuType === 'MENU'" label="权限标识" required>
-          <a-input v-model:value="formState.permission" placeholder="如 warehouse:material-ledger:read" />
+          <a-input v-model:value="formState.permission" placeholder="填写权限标识" />
         </a-form-item>
         <a-form-item label="路由路径">
-          <a-input v-model:value="formState.path" placeholder="如 /warehouse/material-ledger，动作权限可留空" />
+          <a-input v-model:value="formState.path" placeholder="从菜单管理维护前端路由，动作权限可留空" />
         </a-form-item>
         <a-form-item
           v-if="formState.menuType === 'MENU' && formState.path?.trim()"
           label="组件 Key"
           :required="formState.visible === 1"
         >
-          <a-input v-model:value="formState.componentKey" placeholder="如 MaterialLedger 或 ShellPlaceholder" />
+          <a-input v-model:value="formState.componentKey" placeholder="填写已登记的组件 Key" />
         </a-form-item>
         <a-form-item label="图标">
           <a-input v-model:value="formState.icon" placeholder="Ant Design 图标名，如 SettingOutlined" />

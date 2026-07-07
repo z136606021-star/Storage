@@ -23,11 +23,16 @@ export function setupAuthGuard(router: Router) {
     const auth = useAuth()
     await auth.initialize()
     const menu = useMenuStore()
+    const registeredRoutes = auth.isAuthenticated()
+      ? await menu.ensureDynamicRoutes(router)
+      : false
 
     if (isPublicRoute(to.path)) {
       if (auth.isAuthenticated()) {
-        const redirect = typeof to.query.redirect === 'string' ? to.query.redirect : '/warehouse/material-ledger'
-        return redirect
+        const redirect = typeof to.query.redirect === 'string'
+          ? to.query.redirect
+          : menu.getDefaultRoute()?.path
+        return redirect ?? true
       }
       return true
     }
@@ -38,7 +43,6 @@ export function setupAuthGuard(router: Router) {
     }
 
     if (auth.isAuthenticated()) {
-      const registeredRoutes = await menu.ensureDynamicRoutes(router)
       if (registeredRoutes && to.path !== '/') {
         return { path: to.fullPath, replace: true }
       }
@@ -50,7 +54,8 @@ export function setupAuthGuard(router: Router) {
       .at(-1)
 
     if (requiredPermission && !auth.hasPermission(requiredPermission)) {
-      return { path: '/warehouse/material-ledger', replace: true }
+      const defaultRoute = menu.getDefaultRoute()
+      return defaultRoute ? { path: defaultRoute.path, replace: true } : false
     }
 
     return true

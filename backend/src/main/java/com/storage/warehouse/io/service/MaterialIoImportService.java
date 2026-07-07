@@ -1,18 +1,14 @@
 package com.storage.warehouse.io.service;
 
 import com.storage.common.dto.ImportResultVO;
-import com.storage.common.excel.ExcelCellUtils;
+import com.storage.common.excel.AutoPoiExcelTemplate;
 import com.storage.common.exception.ImportFormatException;
 import com.storage.warehouse.io.dto.MaterialIoSaveDTO;
-import com.storage.warehouse.io.excel.MaterialIoExcelColumn;
+import com.storage.warehouse.io.excel.MaterialIoImportTemplateRow;
 import com.storage.warehouse.io.query.MaterialIoQueryBuilder;
 import com.storage.warehouse.ledger.entity.MaterialLedger;
 import com.storage.warehouse.ledger.service.MaterialLedgerService;
 import lombok.RequiredArgsConstructor;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
@@ -39,54 +35,17 @@ public class MaterialIoImportService {
     private final MaterialStockMutationService materialStockMutationService;
 
     public ImportResultVO importExcel(MultipartFile file) throws IOException {
-        if (file == null || file.isEmpty()) {
-            throw new ImportFormatException("请上传 Excel 文件");
-        }
-
-        String filename = file.getOriginalFilename();
-        if (filename == null || (!filename.endsWith(".xlsx") && !filename.endsWith(".xls"))) {
-            throw new ImportFormatException("仅支持 .xlsx 或 .xls 格式");
-        }
-
         ImportResultVO result = new ImportResultVO();
-        List<ImportResultVO.ImportErrorVO> errors = new ArrayList<>();
-        List<ValidImportRow> validRows = new ArrayList<>();
-
-        try (Workbook workbook = WorkbookFactory.create(file.getInputStream())) {
-            Sheet sheet = workbook.getNumberOfSheets() > 0 ? workbook.getSheetAt(0) : null;
-            if (sheet == null) {
-                throw new ImportFormatException("Excel 文件中没有工作表");
-            }
-
-            int lastRow = sheet.getLastRowNum();
-            for (int i = 1; i <= lastRow; i++) {
-                Row row = sheet.getRow(i);
-                if (row == null || isEmptyRow(row)) {
-                    continue;
-                }
-
-                int excelRow = i + 1;
-                try {
-                    MaterialIoSaveDTO dto = parseRow(row);
-                    validateDto(dto);
-                    MaterialLedger ledger = materialLedgerService.findByMaterialKey(
-                            dto.getCategory(),
-                            dto.getGenericName(),
-                            dto.getBrand(),
-                            dto.getName(),
-                            dto.getModel(),
-                            dto.getBinLocation()
-                    );
-                    if (ledger == null) {
-                        throw new IllegalArgumentException("未找到匹配的物料台账记录");
-                    }
-                    dto.setMaterialLedgerId(ledger.getId());
-                    validRows.add(new ValidImportRow(excelRow, dto));
-                } catch (Exception ex) {
-                    errors.add(new ImportResultVO.ImportErrorVO(excelRow, ex.getMessage()));
-                }
-            }
-        }
+        AutoPoiExcelTemplate.ParsedRows<ValidImportRow> parsedRows = AutoPoiExcelTemplate.parseRows(
+                file,
+                MaterialIoImportTemplateRow.class,
+                this::isEmptyRow,
+                this::parseValidRow
+        );
+        List<ImportResultVO.ImportErrorVO> errors = new ArrayList<>(parsedRows.errors());
+        List<ValidImportRow> validRows = parsedRows.rows().stream()
+                .map(AutoPoiExcelTemplate.ParsedRow::value)
+                .toList();
 
         if (!errors.isEmpty()) {
             return buildFailureResult(errors);
@@ -129,6 +88,24 @@ public class MaterialIoImportService {
         return result;
     }
 
+    private ValidImportRow parseValidRow(int excelRow, MaterialIoImportTemplateRow row) {
+        MaterialIoSaveDTO dto = parseRow(row);
+        validateDto(dto);
+        MaterialLedger ledger = materialLedgerService.findByMaterialKey(
+                dto.getCategory(),
+                dto.getGenericName(),
+                dto.getBrand(),
+                dto.getName(),
+                dto.getModel(),
+                dto.getBinLocation()
+        );
+        if (ledger == null) {
+            throw new IllegalArgumentException("未找到匹配的物料台账记录");
+        }
+        dto.setMaterialLedgerId(ledger.getId());
+        return new ValidImportRow(excelRow, dto);
+    }
+
     private List<ImportResultVO.ImportErrorVO> collectDuplicateLedgerErrors(List<ValidImportRow> validRows) {
         Map<Long, List<Integer>> rowsByLedger = new HashMap<>();
         for (ValidImportRow row : validRows) {
@@ -156,22 +133,20 @@ public class MaterialIoImportService {
         return result;
     }
 
-    private MaterialIoSaveDTO parseRow(Row row) {
+    private MaterialIoSaveDTO parseRow(MaterialIoImportTemplateRow row) {
         MaterialIoSaveDTO dto = new MaterialIoSaveDTO();
-        dto.setCategory(ExcelCellUtils.getCellString(row, MaterialIoExcelColumn.CATEGORY.getIndex()));
-        dto.setGenericName(ExcelCellUtils.getCellString(row, MaterialIoExcelColumn.GENERIC_NAME.getIndex()));
-        dto.setBrand(ExcelCellUtils.getCellString(row, MaterialIoExcelColumn.BRAND.getIndex()));
-        dto.setName(ExcelCellUtils.getCellString(row, MaterialIoExcelColumn.NAME.getIndex()));
-        dto.setModel(ExcelCellUtils.getCellString(row, MaterialIoExcelColumn.MODEL.getIndex()));
-        dto.setBinLocation(ExcelCellUtils.getCellString(row, MaterialIoExcelColumn.BIN_LOCATION.getIndex()));
-        dto.setQuantity(parseQuantity(ExcelCellUtils.getCellString(row, MaterialIoExcelColumn.QUANTITY.getIndex())));
-        String purposeRaw = ExcelCellUtils.getCellString(row, MaterialIoExcelColumn.PURPOSE.getIndex());
+        dto.setCategory(row.getCategory());
+        dto.setGenericName(row.getGenericName());
+        dto.setBrand(row.getBrand());
+        dto.setName(row.getName());
+        dto.setModel(row.getModel());
+        dto.setBinLocation(row.getBinLocation());
+        dto.setQuantity(parseQuantity(row.getQuantity()));
+        String purposeRaw = row.getPurpose();
         dto.setPurpose(MaterialIoPurpose.normalizePurpose(purposeRaw));
-        dto.setRemark(ExcelCellUtils.getCellString(row, MaterialIoExcelColumn.REMARK.getIndex()));
-        dto.setIoType(MaterialIoQueryBuilder.normalizeIoType(
-                ExcelCellUtils.getCellString(row, MaterialIoExcelColumn.IO_TYPE.getIndex())
-        ));
-        dto.setOperatedAt(parseOperatedAt(ExcelCellUtils.getCellString(row, MaterialIoExcelColumn.OPERATED_AT.getIndex())));
+        dto.setRemark(row.getRemark());
+        dto.setIoType(MaterialIoQueryBuilder.normalizeIoType(row.getIoType()));
+        dto.setOperatedAt(parseOperatedAt(row.getOperatedAt()));
         return dto;
     }
 
@@ -224,18 +199,17 @@ public class MaterialIoImportService {
         }
     }
 
-    private boolean isEmptyRow(Row row) {
-        for (MaterialIoExcelColumn column : MaterialIoExcelColumn.values()) {
-            if (column == MaterialIoExcelColumn.INDEX
-                    || column == MaterialIoExcelColumn.OPERATOR
-                    || column == MaterialIoExcelColumn.OPERATED_AT) {
-                continue;
-            }
-            if (StringUtils.hasText(ExcelCellUtils.getCellString(row, column.getIndex()))) {
-                return false;
-            }
-        }
-        return true;
+    private boolean isEmptyRow(MaterialIoImportTemplateRow row) {
+        return !StringUtils.hasText(row.getCategory())
+                && !StringUtils.hasText(row.getGenericName())
+                && !StringUtils.hasText(row.getBrand())
+                && !StringUtils.hasText(row.getName())
+                && !StringUtils.hasText(row.getModel())
+                && !StringUtils.hasText(row.getBinLocation())
+                && !StringUtils.hasText(row.getQuantity())
+                && !StringUtils.hasText(row.getPurpose())
+                && !StringUtils.hasText(row.getRemark())
+                && !StringUtils.hasText(row.getIoType());
     }
 
     private record ValidImportRow(int excelRow, MaterialIoSaveDTO dto) {

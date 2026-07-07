@@ -28,7 +28,7 @@ describe('menu store dynamic routes', () => {
         {
           key: '111',
           label: '物料台账',
-          path: '/warehouse/material-ledger',
+          path: '/configured-ledger',
           permission: 'warehouse:material-ledger:read',
           componentKey: 'MaterialLedger',
         },
@@ -41,7 +41,7 @@ describe('menu store dynamic routes', () => {
 
     expect(menu.navTree).toHaveLength(1)
     expect(router.hasRoute('DynamicMenu111')).toBe(true)
-    expect(router.resolve('/warehouse/material-ledger').matched.at(-1)?.meta.permission).toBe(
+    expect(router.resolve('/configured-ledger').matched.at(-1)?.meta.permission).toBe(
       'warehouse:material-ledger:read',
     )
   })
@@ -53,7 +53,7 @@ describe('menu store dynamic routes', () => {
         {
           key: '111',
           label: '物料台账',
-          path: '/warehouse/material-ledger',
+          path: '/configured-ledger',
           permission: 'warehouse:material-ledger:read',
           componentKey: 'MaterialLedger',
         },
@@ -75,6 +75,102 @@ describe('menu store dynamic routes', () => {
     expect(router.hasRoute('DynamicMenu999')).toBe(false)
   })
 
+  it('registers nested system-management routes from menu children', async () => {
+    const { fetchNavTree } = await import('@/api/system/menu')
+    vi.mocked(fetchNavTree).mockResolvedValue({
+      data: [
+        {
+          key: '201',
+          label: '用户管理',
+          path: '/configured-system',
+          permission: 'system:user:read',
+          componentKey: 'SystemManageLayout',
+          visible: 1,
+          children: [
+            {
+              key: '202',
+              label: '角色管理',
+              path: 'roles',
+              permission: 'system:role:read',
+              componentKey: 'RoleManagePanel',
+              visible: 0,
+            },
+          ],
+        },
+      ] satisfies NavMenuNode[],
+    } as never)
+    const router = createTestRouter()
+    const menu = useMenuStore()
+
+    await menu.ensureDynamicRoutes(router)
+
+    expect(router.hasRoute('SystemManage')).toBe(true)
+    expect(router.hasRoute('RoleManage')).toBe(true)
+    expect(router.resolve('/configured-system/roles').matched.some((record) => record.name === 'RoleManage')).toBe(true)
+    expect(menu.findRouteByComponentKey('SystemManageLayout')?.path).toBe('/configured-system')
+    expect(menu.collectChildRoutes('SystemManageLayout')).toEqual([
+      expect.objectContaining({
+        componentKey: 'RoleManagePanel',
+        path: '/configured-system/roles',
+      }),
+    ])
+  })
+
+  it('skips menu routes without path instead of throwing during registration', async () => {
+    const { fetchNavTree } = await import('@/api/system/menu')
+    vi.mocked(fetchNavTree).mockResolvedValue({
+      data: [
+        {
+          key: '201',
+          label: '无路径菜单',
+          permission: 'system:user:read',
+          componentKey: 'SystemManageLayout',
+          visible: 1,
+        },
+      ] satisfies NavMenuNode[],
+    } as never)
+    const router = createTestRouter()
+    const menu = useMenuStore()
+
+    await menu.ensureDynamicRoutes(router)
+
+    expect(router.hasRoute('SystemManage')).toBe(false)
+    expect(menu.getDefaultRoute()).toBeNull()
+  })
+
+  it('derives default route from first visible configured menu route', async () => {
+    const { fetchNavTree } = await import('@/api/system/menu')
+    vi.mocked(fetchNavTree).mockResolvedValue({
+      data: [
+        {
+          key: '100',
+          label: '资源管理',
+          visible: 1,
+          children: [
+            {
+              key: '111',
+              label: '物料台账',
+              path: '/configured-ledger',
+              permission: 'warehouse:material-ledger:read',
+              componentKey: 'MaterialLedger',
+              visible: 1,
+            },
+          ],
+        },
+      ] satisfies NavMenuNode[],
+    } as never)
+    const router = createTestRouter()
+    const menu = useMenuStore()
+
+    await menu.ensureDynamicRoutes(router)
+
+    expect(menu.getDefaultRoute()).toEqual(expect.objectContaining({
+      label: '物料台账',
+      path: '/configured-ledger',
+      componentKey: 'MaterialLedger',
+    }))
+  })
+
   it('clears registered routes on logout cleanup', async () => {
     const { fetchNavTree } = await import('@/api/system/menu')
     vi.mocked(fetchNavTree).mockResolvedValue({
@@ -82,7 +178,7 @@ describe('menu store dynamic routes', () => {
         {
           key: '111',
           label: '物料台账',
-          path: '/warehouse/material-ledger',
+          path: '/configured-ledger',
           permission: 'warehouse:material-ledger:read',
           componentKey: 'MaterialLedger',
         },

@@ -2,6 +2,7 @@ import type { Router } from 'vue-router'
 
 export function buildMaterialIoShareUrl(
   router: Router,
+  routePath: string,
   recordId: number,
   extraQuery: Record<string, string | string[] | undefined> = {},
 ): string {
@@ -15,7 +16,7 @@ export function buildMaterialIoShareUrl(
   query.id = String(recordId)
 
   const resolved = router.resolve({
-    path: '/warehouse/material-io',
+    path: routePath,
     query,
   })
 

@@ -9,8 +9,6 @@ import type { NavMenuNode } from '@/types/system'
 import { resolveIcon } from '@/utils/icons'
 import { message } from 'ant-design-vue'
 
-const DEFAULT_OPEN_KEYS = ['100', '110']
-
 const route = useRoute()
 const router = useRouter()
 const auth = useAuth()
@@ -21,24 +19,44 @@ const selectedKeys = ref<string[]>([])
 const menuItems = ref<Array<Record<string, unknown>>>([])
 const pathByKey = ref<Record<string, string>>({})
 
-function mapNavNodes(nodes: NavMenuNode[]): Array<Record<string, unknown>> {
-  return nodes.map((node) => {
-    const iconComponent = resolveIcon(node.icon)
-    if (node.path) {
-      pathByKey.value[node.key] = node.path
-    }
-    const item: Record<string, unknown> = {
-      key: node.key,
-      label: node.label,
-      path: node.path,
-      componentKey: node.componentKey,
-      icon: iconComponent ? () => h(iconComponent) : undefined,
-    }
-    if (node.children?.length) {
-      item.children = mapNavNodes(node.children)
-    }
-    return item
-  })
+function isSidebarVisible(node: NavMenuNode) {
+  return node.visible === undefined || node.visible === 1
+}
+
+function mapNavNodes(nodes: NavMenuNode[], parentPath?: string): Array<Record<string, unknown>> {
+  return nodes
+    .filter(isSidebarVisible)
+    .map((node) => {
+      const iconComponent = resolveIcon(node.icon)
+      const fullPath = node.path ? resolveSidebarPath(node.path, parentPath) : undefined
+      if (node.path) {
+        pathByKey.value[node.key] = fullPath!
+      }
+      const item: Record<string, unknown> = {
+        key: node.key,
+        label: node.label,
+        path: fullPath,
+        componentKey: node.componentKey,
+        icon: iconComponent ? () => h(iconComponent) : undefined,
+      }
+      if (node.children?.length) {
+        const children = mapNavNodes(node.children, fullPath ?? parentPath)
+        if (children.length) {
+          item.children = children
+        }
+      }
+      return item
+    })
+}
+
+function resolveSidebarPath(path: string, parentPath?: string) {
+  if (path.startsWith('/')) {
+    return path
+  }
+  if (!parentPath) {
+    return `/${path}`
+  }
+  return `${parentPath.replace(/\/$/, '')}/${path.replace(/^\//, '')}`
 }
 
 function collectOpenKeys(nodes: Array<Record<string, unknown>>, path: string, parents: string[] = []): string[] {
@@ -84,9 +102,6 @@ async function loadMenu() {
     await menu.ensureDynamicRoutes(router)
     pathByKey.value = {}
     menuItems.value = mapNavNodes(menu.navTree)
-    if (openKeys.value.length === 0) {
-      openKeys.value = [...DEFAULT_OPEN_KEYS]
-    }
     syncSelectedKeys()
   } catch (error) {
     message.error(getErrorMessage(error, '加载菜单失败'))

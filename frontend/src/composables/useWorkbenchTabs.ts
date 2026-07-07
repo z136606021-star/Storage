@@ -1,9 +1,5 @@
 import { ref } from 'vue'
 import type { RouteLocationNormalizedLoaded } from 'vue-router'
-import {
-  DEFAULT_ADMIN_TAB_PRESETS,
-  DEFAULT_USER_TAB_PRESET,
-} from '@/constants/shellRouteRegistry'
 
 export interface WorkbenchTab {
   key: string
@@ -13,7 +9,6 @@ export interface WorkbenchTab {
 }
 
 const tabs = ref<WorkbenchTab[]>([])
-const presetsInitialized = ref(false)
 
 function toTab(path: string, title: string, closable = true): WorkbenchTab {
   return { key: path, path, title, closable }
@@ -24,27 +19,6 @@ function addTab(path: string, title: string, closable = true) {
     return
   }
   tabs.value.push(toTab(path, title, closable))
-}
-
-function initPresets(hasPermission: (permission: string) => boolean) {
-  if (presetsInitialized.value) {
-    return
-  }
-  presetsInitialized.value = true
-
-  const isAdminLike = DEFAULT_ADMIN_TAB_PRESETS.some((preset) => hasPermission(preset.permission))
-  if (isAdminLike) {
-    for (const preset of DEFAULT_ADMIN_TAB_PRESETS) {
-      if (hasPermission(preset.permission)) {
-        addTab(preset.path, preset.title)
-      }
-    }
-    return
-  }
-
-  if (hasPermission(DEFAULT_USER_TAB_PRESET.permission)) {
-    addTab(DEFAULT_USER_TAB_PRESET.path, DEFAULT_USER_TAB_PRESET.title)
-  }
 }
 
 function syncTabFromRoute(route: RouteLocationNormalizedLoaded) {
@@ -73,22 +47,17 @@ function removeTab(path: string): string | null {
     return null
   }
   tabs.value.splice(index, 1)
-  if (tabs.value.length === 0) {
-    return '/warehouse/material-ledger'
-  }
   const nextIndex = index >= tabs.value.length ? tabs.value.length - 1 : index
-  return tabs.value[nextIndex]?.path ?? '/warehouse/material-ledger'
+  return tabs.value[nextIndex]?.path ?? null
 }
 
 function clearTabs() {
   tabs.value = []
-  presetsInitialized.value = false
 }
 
 export function useWorkbenchTabs() {
   return {
     tabs,
-    initPresets,
     syncTabFromRoute,
     removeTab,
     clearTabs,

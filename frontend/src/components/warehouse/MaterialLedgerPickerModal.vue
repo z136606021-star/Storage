@@ -273,31 +273,16 @@ watch(
     >
 
       <template #actions>
-
-        <a-form-item class="filter-item filter-actions">
-
-          <a-space>
-
-            <a-button type="primary" @click="handleSearch">
-
-              <template #icon><SearchOutlined /></template>
-
-              查询
-
-            </a-button>
-
-            <a-button @click="handleReset">
-
-              <template #icon><ReloadOutlined /></template>
-
-              重置
-
-            </a-button>
-
-          </a-space>
-
-        </a-form-item>
-
+        <a-space>
+          <a-button type="primary" @click="handleSearch">
+            <template #icon><SearchOutlined /></template>
+            查询
+          </a-button>
+          <a-button @click="handleReset">
+            <template #icon><ReloadOutlined /></template>
+            重置
+          </a-button>
+        </a-space>
       </template>
 
     </WarehouseMaterialFilterPanel>

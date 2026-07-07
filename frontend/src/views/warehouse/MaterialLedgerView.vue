@@ -25,6 +25,7 @@ import { useMaterialLedgerRouteDetail } from '@/composables/useMaterialLedgerRou
 import { defaultMaterialQuery } from '@/composables/useWarehouseMaterialFilters'
 import { useWritePermission } from '@/composables/useWritePermission'
 import { useAuth } from '@/composables/useAuth'
+import { useMenuStore } from '@/stores/menu'
 import type { MaterialLedger } from '@/types/warehouse/materialLedger'
 import { confirmBatchDelete, confirmDelete } from '@/utils/confirmDelete'
 import { displayValue, formatDateTime, formatUnitPrice } from '@/utils/format'
@@ -33,6 +34,7 @@ import { materialIdentityColumns } from '@/utils/warehouseMaterialTable'
 
 const { canWrite } = useWritePermission('warehouse:material-ledger:write')
 const { hasPermission } = useAuth()
+const menu = useMenuStore()
 const route = useRoute()
 const router = useRouter()
 
@@ -159,8 +161,12 @@ function viewMaterialIoHistory() {
   if (!detailRecord.value) {
     return
   }
+  const target = menu.findRouteByComponentKey('MaterialIo')
+  if (!target) {
+    return
+  }
   router.push({
-    path: '/warehouse/material-io',
+    path: target.path,
     query: { materialLedgerId: String(detailRecord.value.id) },
   })
 }
@@ -255,18 +261,16 @@ setupRouteWatch()
         @search="handleSearch"
       >
         <template #actions>
-          <a-form-item class="filter-item filter-actions">
-            <a-space>
-              <a-button type="primary" @click="handleSearch">
-                <template #icon><SearchOutlined /></template>
-                查询
-              </a-button>
-              <a-button @click="handleReset">
-                <template #icon><ReloadOutlined /></template>
-                重置
-              </a-button>
-            </a-space>
-          </a-form-item>
+          <a-space>
+            <a-button type="primary" @click="handleSearch">
+              <template #icon><SearchOutlined /></template>
+              查询
+            </a-button>
+            <a-button @click="handleReset">
+              <template #icon><ReloadOutlined /></template>
+              重置
+            </a-button>
+          </a-space>
         </template>
       </WarehouseMaterialFilterPanel>
     </template>

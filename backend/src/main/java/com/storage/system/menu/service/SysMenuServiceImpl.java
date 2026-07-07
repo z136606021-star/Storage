@@ -52,17 +52,17 @@ public class SysMenuServiceImpl implements SysMenuService {
                 .collect(Collectors.toMap(SysMenu::getId, menu -> menu));
         Set<Long> expandedMenuIds = expandMenuIdsWithAncestors(assignedMenus, allMenusById);
 
-        List<SysMenu> visibleMenus = allMenusById.values().stream()
+        List<SysMenu> routeMenus = allMenusById.values().stream()
                 .filter(menu -> expandedMenuIds.contains(menu.getId()))
-                .filter(menu -> menu.getVisible() != null && menu.getVisible() == 1)
+                .filter(this::includeInNavTree)
                 .sorted(Comparator.comparing(SysMenu::getSortOrder).thenComparing(SysMenu::getId))
                 .toList();
 
-        Map<Long, List<SysMenu>> childrenMap = visibleMenus.stream()
+        Map<Long, List<SysMenu>> childrenMap = routeMenus.stream()
                 .filter(menu -> menu.getParentId() != null)
                 .collect(Collectors.groupingBy(SysMenu::getParentId));
 
-        List<SysMenu> roots = visibleMenus.stream()
+        List<SysMenu> roots = routeMenus.stream()
                 .filter(menu -> menu.getParentId() == null)
                 .toList();
 
@@ -141,6 +141,7 @@ public class SysMenuServiceImpl implements SysMenuService {
                     .icon(menu.getIcon())
                     .permission(menu.getPermission())
                     .componentKey(menu.getComponentKey())
+                    .visible(menu.getVisible())
                     .children(childNodes)
                     .build();
         }
@@ -155,8 +156,18 @@ public class SysMenuServiceImpl implements SysMenuService {
                 .permission(menu.getPermission())
                 .componentKey(menu.getComponentKey())
                 .icon(menu.getIcon())
+                .visible(menu.getVisible())
                 .children(childNodes.isEmpty() ? null : childNodes)
                 .build();
+    }
+
+    private boolean includeInNavTree(SysMenu menu) {
+        if (menu.getVisible() != null && menu.getVisible() == 1) {
+            return true;
+        }
+        return menu.getParentId() != null
+                && StringUtils.hasText(menu.getPath())
+                && StringUtils.hasText(menu.getComponentKey());
     }
 
     private List<SysMenuVO> buildMenuTree(List<SysMenu> menus, Long parentId) {

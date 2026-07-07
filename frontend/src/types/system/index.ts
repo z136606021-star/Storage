@@ -83,6 +83,7 @@ export interface NavMenuNode {
   permission?: string | null
   componentKey?: string | null
   icon?: string
+  visible?: number
   children?: NavMenuNode[]
 }
 

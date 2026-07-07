@@ -1,4 +1,4 @@
-package com.storage.config;
+package com.storage.common.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;

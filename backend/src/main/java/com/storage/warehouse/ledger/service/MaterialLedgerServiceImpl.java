@@ -1,13 +1,12 @@
 package com.storage.warehouse.ledger.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.storage.common.dto.BatchDeleteDTO;
 import com.storage.common.dto.FilterOptionsVO;
 import com.storage.common.dto.ImportResultVO;
 import com.storage.common.dto.PageResult;
 import com.storage.common.exception.BusinessException;
-import com.storage.warehouse.io.mapper.MaterialIoRecordMapper;
+import com.storage.common.query.PageSupport;
 import com.storage.warehouse.bom.service.WarehouseBomService;
 import com.storage.warehouse.bin.service.WarehouseBinService;
 import com.storage.warehouse.ledger.converter.MaterialLedgerConverter;
@@ -17,6 +16,7 @@ import com.storage.warehouse.ledger.entity.MaterialLedger;
 import com.storage.warehouse.ledger.exception.MaterialLedgerNotFoundException;
 import com.storage.warehouse.ledger.mapper.MaterialLedgerMapper;
 import com.storage.warehouse.ledger.query.MaterialLedgerQueryBuilder;
+import com.storage.warehouse.shared.MaterialIoUsageQueryService;
 import com.storage.warehouse.shared.dto.BomCatalogItemVO;
 import com.storage.warehouse.shared.dto.FilterLinkageQueryDTO;
 import lombok.RequiredArgsConstructor;
@@ -35,7 +35,7 @@ import java.util.stream.Collectors;
 public class MaterialLedgerServiceImpl implements MaterialLedgerService {
 
     private final MaterialLedgerMapper materialLedgerMapper;
-    private final MaterialIoRecordMapper materialIoRecordMapper;
+    private final MaterialIoUsageQueryService materialIoUsageQueryService;
     private final MaterialLedgerExportService materialLedgerExportService;
     private final MaterialLedgerImportService materialLedgerImportService;
     private final MaterialLedgerConverter materialLedgerConverter;
@@ -44,14 +44,11 @@ public class MaterialLedgerServiceImpl implements MaterialLedgerService {
 
     @Override
     public PageResult<MaterialLedger> page(MaterialQueryDTO query) {
-        int page = query.getPage() == null || query.getPage() < 1 ? 1 : query.getPage();
-        int pageSize = query.getPageSize() == null || query.getPageSize() < 1 ? 10 : query.getPageSize();
-
-        Page<MaterialLedger> result = materialLedgerMapper.selectPage(
-                new Page<>(page, pageSize),
+        var result = materialLedgerMapper.selectPage(
+                PageSupport.page(query.getPage(), query.getPageSize()),
                 MaterialLedgerQueryBuilder.build(query)
         );
-        return new PageResult<>(result.getRecords(), result.getTotal(), result.getCurrent(), result.getSize());
+        return PageSupport.result(result);
     }
 
     @Override
@@ -117,7 +114,7 @@ public class MaterialLedgerServiceImpl implements MaterialLedgerService {
     }
 
     private void assertNoIoRecords(Long ledgerId) {
-        long count = materialIoRecordMapper.countByMaterialLedgerId(ledgerId);
+        long count = materialIoUsageQueryService.countByMaterialLedgerId(ledgerId);
         if (count > 0) {
             throw new BusinessException("该物料台账已被 " + count + " 条出入库记录引用，无法删除");
         }

@@ -3,51 +3,40 @@ import type { NavMenuNode } from '@/types/system'
 import { resolveRouteComponent } from '@/router/routeComponentRegistry'
 
 const DYNAMIC_ROUTE_PARENT = 'AppRoot'
-const SYSTEM_USERS_PATH = '/system/users'
 
 const dynamicRouteNames = new Set<string>()
+
+const STABLE_ROUTE_NAMES: Record<string, string> = {
+  SystemManageLayout: 'SystemManage',
+  UserManage: 'UserManage',
+  RoleManagePanel: 'RoleManage',
+  MenuManagePanel: 'MenuManage',
+}
 
 function normalizeChildPath(path: string) {
   return path.replace(/^\//, '')
 }
 
 function routeNameFromNode(node: NavMenuNode) {
+  if (node.componentKey && STABLE_ROUTE_NAMES[node.componentKey]) {
+    return STABLE_ROUTE_NAMES[node.componentKey]
+  }
   return `DynamicMenu${node.key}`
 }
 
-/**
- * Nested routes under `/system/users` (SystemManage layout).
- *
- * The nav-tree API exposes a single MENU node at `/system/users` with componentKey
- * `UserManage` (layout shell). Role and menu admin pages are not separate nav-tree
- * entries; they are registered here as child routes so `/system/users/roles` and
- * `/system/users/menus` resolve without duplicating backend menu rows.
- */
-function systemManagementChildren(): RouteRecordRaw[] {
-  return [
-    {
-      path: '',
-      name: 'UserManage',
-      component: resolveRouteComponent('UserManage')!,
-      meta: { title: '用户管理', requiresAuth: true, permission: 'system:user:read' },
-    },
-    {
-      path: 'roles',
-      name: 'RoleManage',
-      component: resolveRouteComponent('RoleManagePanel')!,
-      meta: { title: '角色管理', requiresAuth: true, permission: 'system:role:read' },
-    },
-    {
-      path: 'menus',
-      name: 'MenuManage',
-      component: resolveRouteComponent('MenuManagePanel')!,
-      meta: { title: '菜单管理', requiresAuth: true, permission: 'system:menu:read' },
-    },
-  ]
+function buildChildRoutes(nodes: NavMenuNode[]): RouteRecordRaw[] {
+  const routes: RouteRecordRaw[] = []
+  for (const node of nodes) {
+    const route = buildRoute(node, true)
+    if (route) {
+      routes.push(route)
+    }
+  }
+  return routes
 }
 
-function buildRoute(node: NavMenuNode): RouteRecordRaw | null {
-  if (!node.path || !node.componentKey) {
+function buildRoute(node: NavMenuNode, nested = false): RouteRecordRaw | null {
+  if (!node.componentKey) {
     return null
   }
   const component = resolveRouteComponent(node.componentKey)
@@ -55,22 +44,25 @@ function buildRoute(node: NavMenuNode): RouteRecordRaw | null {
     return null
   }
 
-  if (node.path === SYSTEM_USERS_PATH) {
-    return {
-      path: normalizeChildPath(node.path),
-      name: 'SystemManage',
-      component,
-      meta: {
-        title: node.label,
-        requiresAuth: true,
-        permission: node.permission ?? undefined,
-      },
-      children: systemManagementChildren(),
-    }
+  const routableChildren = (node.children ?? []).filter(
+    (child) => child.componentKey && child.path !== undefined && child.path !== null,
+  )
+  const childRoutes = routableChildren.length ? buildChildRoutes(routableChildren) : undefined
+
+  if (!nested && !node.path && !childRoutes?.length) {
+    return null
   }
 
-  return {
-    path: normalizeChildPath(node.path),
+  const routePath = node.path !== undefined && node.path !== null
+    ? (nested ? node.path : normalizeChildPath(node.path))
+    : ''
+
+  if (!nested && !routePath && !childRoutes?.length) {
+    return null
+  }
+
+  const route: RouteRecordRaw = {
+    path: routePath,
     name: routeNameFromNode(node),
     component,
     meta: {
@@ -78,7 +70,10 @@ function buildRoute(node: NavMenuNode): RouteRecordRaw | null {
       requiresAuth: true,
       permission: node.permission ?? undefined,
     },
+    ...(childRoutes?.length ? { children: childRoutes } : {}),
   }
+
+  return route
 }
 
 function collectRoutes(nodes: NavMenuNode[], routes: RouteRecordRaw[] = []) {
@@ -86,8 +81,7 @@ function collectRoutes(nodes: NavMenuNode[], routes: RouteRecordRaw[] = []) {
     const route = buildRoute(node)
     if (route) {
       routes.push(route)
-    }
-    if (node.children?.length) {
+    } else if (node.children?.length) {
       collectRoutes(node.children, routes)
     }
   }

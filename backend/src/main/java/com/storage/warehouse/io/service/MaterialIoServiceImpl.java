@@ -1,7 +1,5 @@
 package com.storage.warehouse.io.service;
 
-import com.baomidou.mybatisplus.core.toolkit.Wrappers;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.storage.common.dto.BatchDeleteDTO;
 import com.storage.common.dto.FilterOptionsVO;
 import com.storage.common.dto.PageResult;
@@ -20,13 +18,8 @@ import com.storage.warehouse.io.entity.MaterialIoRecord;
 import com.storage.warehouse.io.exception.MaterialIoNotFoundException;
 import com.storage.warehouse.io.mapper.MaterialIoRecordMapper;
 import com.storage.warehouse.io.query.MaterialIoQueryBuilder;
-import com.storage.warehouse.ledger.dto.MaterialQueryDTO;
 import com.storage.warehouse.ledger.entity.MaterialLedger;
 import com.storage.warehouse.ledger.mapper.MaterialLedgerMapper;
-import com.storage.warehouse.ledger.query.MaterialLedgerQueryBuilder;
-import com.storage.warehouse.ledger.service.MaterialLedgerService;
-import com.storage.warehouse.safety.entity.SafetyStock;
-import com.storage.warehouse.safety.mapper.SafetyStockMapper;
 import com.storage.warehouse.shared.dto.FilterLinkageQueryDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -40,9 +33,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -50,92 +40,34 @@ public class MaterialIoServiceImpl implements MaterialIoService {
 
     private final MaterialIoRecordMapper materialIoRecordMapper;
     private final MaterialLedgerMapper materialLedgerMapper;
-    private final SafetyStockMapper safetyStockMapper;
     private final OperatorResolver operatorResolver;
     private final MaterialIoConverter materialIoConverter;
-    private final MaterialLedgerService materialLedgerService;
+    private final MaterialIoReadService materialIoReadService;
     private final MaterialStockMutationService materialStockMutationService;
 
     @Override
     public PageResult<MaterialIoRecordVO> page(MaterialIoQueryDTO query) {
-        int page = query.getPage() == null || query.getPage() < 1 ? 1 : query.getPage();
-        int pageSize = query.getPageSize() == null || query.getPageSize() < 1 ? 10 : query.getPageSize();
-
-        Collection<Long> ledgerIds = resolveMaterialLedgerIds(query);
-        if (ledgerIds != null && ledgerIds.isEmpty()) {
-            return new PageResult<>(List.of(), 0L, (long) page, (long) pageSize);
-        }
-
-        Page<MaterialIoRecord> result = materialIoRecordMapper.selectPage(
-                new Page<>(page, pageSize),
-                MaterialIoQueryBuilder.build(query, ledgerIds)
-        );
-        List<MaterialIoRecordVO> records = toVoList(result.getRecords());
-        return new PageResult<>(records, result.getTotal(), result.getCurrent(), result.getSize());
+        return materialIoReadService.page(query);
     }
 
     @Override
     public MaterialIoRecordVO getById(Long id) {
-        MaterialIoRecord record = requireRecord(id);
-        MaterialLedger ledger = materialLedgerMapper.selectById(record.getMaterialLedgerId());
-        OperatorInfo operator = operatorResolver.findById(record.getOperatorUserId());
-        return materialIoConverter.toVo(record, ledger, operator);
+        return materialIoReadService.getById(id);
     }
 
     @Override
     public List<MaterialIoRecordVO> listByQuery(MaterialIoQueryDTO query) {
-        Collection<Long> ledgerIds = resolveMaterialLedgerIds(query);
-        if (ledgerIds != null && ledgerIds.isEmpty()) {
-            return List.of();
-        }
-        List<MaterialIoRecord> records = materialIoRecordMapper.selectList(
-                MaterialIoQueryBuilder.build(query, ledgerIds)
-        );
-        return toVoList(records);
+        return materialIoReadService.listByQuery(query);
     }
 
     @Override
     public FilterOptionsVO filterOptions(FilterLinkageQueryDTO query) {
-        return materialLedgerService.filterOptions(query);
+        return materialIoReadService.filterOptions(query);
     }
 
     @Override
     public List<MaterialIoSafetyHintVO> safetyHints(List<Long> materialLedgerIds) {
-        if (CollectionUtils.isEmpty(materialLedgerIds)) {
-            return List.of();
-        }
-
-        List<Long> ids = materialLedgerIds.stream()
-                .filter(Objects::nonNull)
-                .distinct()
-                .toList();
-        if (ids.isEmpty()) {
-            return List.of();
-        }
-
-        Map<Long, MaterialLedger> ledgerMap = materialLedgerMapper.selectBatchIds(ids).stream()
-                .collect(Collectors.toMap(MaterialLedger::getId, Function.identity()));
-
-        Map<Long, SafetyStock> safetyMap = safetyStockMapper.selectList(
-                Wrappers.<SafetyStock>lambdaQuery().in(SafetyStock::getMaterialLedgerId, ids)
-        ).stream().collect(Collectors.toMap(SafetyStock::getMaterialLedgerId, Function.identity(), (a, b) -> a));
-
-        List<MaterialIoSafetyHintVO> hints = new ArrayList<>();
-        for (Long ledgerId : ids) {
-            MaterialIoSafetyHintVO hint = new MaterialIoSafetyHintVO();
-            hint.setMaterialLedgerId(ledgerId);
-            MaterialLedger ledger = ledgerMap.get(ledgerId);
-            if (ledger != null) {
-                hint.setCurrentStock(ledger.getStockQuantity());
-            }
-            SafetyStock safetyStock = safetyMap.get(ledgerId);
-            if (safetyStock != null) {
-                hint.setSafetyQuantity(safetyStock.getSafetyQuantity());
-                hint.setWarningEnabled(safetyStock.getWarningEnabled());
-            }
-            hints.add(hint);
-        }
-        return hints;
+        return materialIoReadService.safetyHints(materialLedgerIds);
     }
 
     @Override
@@ -316,68 +248,6 @@ public class MaterialIoServiceImpl implements MaterialIoService {
             }
         }
         return resolved;
-    }
-
-    private Collection<Long> resolveMaterialLedgerIds(MaterialIoQueryDTO query) {
-        Set<Long> result = null;
-
-        if (query.getMaterialLedgerId() != null) {
-            result = new HashSet<>();
-            result.add(query.getMaterialLedgerId());
-        }
-
-        if (MaterialIoQueryBuilder.hasMaterialFilters(query)) {
-            MaterialQueryDTO materialQuery = new MaterialQueryDTO();
-            materialQuery.setCategory(query.getCategory());
-            materialQuery.setGenericName(query.getGenericName());
-            materialQuery.setBrand(query.getBrand());
-            materialQuery.setName(query.getName());
-            materialQuery.setModel(query.getModel());
-            materialQuery.setBinLocation(query.getBinLocation());
-            Set<Long> filtered = materialLedgerMapper.selectList(MaterialLedgerQueryBuilder.build(materialQuery)).stream()
-                    .map(MaterialLedger::getId)
-                    .collect(Collectors.toSet());
-            if (result == null) {
-                return filtered;
-            }
-            result.retainAll(filtered);
-            return result;
-        }
-
-        return result;
-    }
-
-    private List<MaterialIoRecordVO> toVoList(List<MaterialIoRecord> records) {
-        if (CollectionUtils.isEmpty(records)) {
-            return List.of();
-        }
-
-        Set<Long> ledgerIds = records.stream()
-                .map(MaterialIoRecord::getMaterialLedgerId)
-                .collect(Collectors.toSet());
-        Map<Long, MaterialLedger> ledgerMap = materialLedgerMapper.selectBatchIds(ledgerIds).stream()
-                .collect(Collectors.toMap(MaterialLedger::getId, Function.identity()));
-
-        Set<Long> operatorIds = records.stream()
-                .map(MaterialIoRecord::getOperatorUserId)
-                .collect(Collectors.toSet());
-        Map<Long, OperatorInfo> operatorMap = operatorResolver.findByIds(operatorIds);
-
-        return records.stream()
-                .map(record -> materialIoConverter.toVo(
-                        record,
-                        ledgerMap.get(record.getMaterialLedgerId()),
-                        operatorMap.get(record.getOperatorUserId())
-                ))
-                .collect(Collectors.toList());
-    }
-
-    private MaterialIoRecord requireRecord(Long id) {
-        MaterialIoRecord record = materialIoRecordMapper.selectById(id);
-        if (record == null) {
-            throw new MaterialIoNotFoundException(id);
-        }
-        return record;
     }
 
     private void assertNoDuplicateLedgerIds(List<Long> ledgerIds) {

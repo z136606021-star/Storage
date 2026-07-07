@@ -1,4 +1,4 @@
-package com.storage.config;
+package com.storage.system.auth.config;
 
 import com.storage.system.user.entity.SysUser;
 import com.storage.system.user.mapper.SysUserMapper;

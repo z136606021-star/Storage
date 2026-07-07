@@ -27,6 +27,7 @@ import { useMaterialIoList } from '@/composables/useMaterialIoList'
 import { useMaterialIoRouteDetail } from '@/composables/useMaterialIoRouteDetail'
 import { useWritePermission } from '@/composables/useWritePermission'
 import { useAuth } from '@/composables/useAuth'
+import { useMenuStore } from '@/stores/menu'
 import type { IoType, MaterialIoRecord } from '@/types/warehouse/materialIo'
 import { confirmBatchDelete, confirmDelete } from '@/utils/confirmDelete'
 import { formatDateTime } from '@/utils/format'
@@ -42,6 +43,7 @@ import { materialIdentityColumns } from '@/utils/warehouseMaterialTable'
 
 const { canWrite } = useWritePermission('warehouse:material-io:write')
 const { hasPermission } = useAuth()
+const menu = useMenuStore()
 const canViewMaterialLedger = computed(() => hasPermission('warehouse:material-ledger:read'))
 
 const route = useRoute()
@@ -249,8 +251,12 @@ function viewMaterialLedger() {
   if (!detailRecord.value?.materialLedgerId) {
     return
   }
+  const target = menu.findRouteByComponentKey('MaterialLedger')
+  if (!target) {
+    return
+  }
   router.push({
-    path: '/warehouse/material-ledger',
+    path: target.path,
     query: { materialLedgerId: String(detailRecord.value.materialLedgerId) },
   })
 }

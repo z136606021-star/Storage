@@ -1,7 +1,7 @@
 package com.storage.infrastructure.file.service;
 
-import com.storage.config.FileUploadProperties;
-import com.storage.config.MinioProperties;
+import com.storage.infrastructure.file.config.FileUploadProperties;
+import com.storage.infrastructure.file.config.MinioProperties;
 import com.storage.common.exception.BusinessException;
 import com.storage.infrastructure.file.mapper.SysFileMapper;
 import io.minio.MinioClient;

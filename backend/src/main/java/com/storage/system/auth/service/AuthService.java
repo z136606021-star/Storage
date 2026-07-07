@@ -6,6 +6,7 @@ import com.storage.system.auth.dto.ForgotPasswordDTO;
 import com.storage.system.auth.dto.ForgotPasswordResetDTO;
 import com.storage.system.auth.dto.LoginRequestDTO;
 import com.storage.system.auth.dto.RegisterRequestDTO;
+import jakarta.servlet.http.HttpServletRequest;
 
 public interface AuthService {
 
@@ -13,7 +14,7 @@ public interface AuthService {
 
     AuthSessionVO register(RegisterRequestDTO request);
 
-    void logout();
+    void logout(HttpServletRequest request);
 
     void forgotPassword(ForgotPasswordDTO request);
 

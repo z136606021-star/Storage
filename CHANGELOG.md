@@ -67,3 +67,11 @@
 | 2026-07-06 | P6 Service 接口化收尾（第八阶段）：`WarehouseStatsService`、`system.customer.SysCustomerService` 抽取接口 + `*ServiceImpl`；主业务 Service 接口化共 12 个；Import/Export/基础设施类保持独立 |
 | 2026-07-06 | P9 业务域模块拆分续作：ROADMAP 补齐 Phase 4–11 全量待办；仓库域 `warehouse.bin.*` 起逐批垂直切片迁移；系统域/基础设施/前端 shim 按依赖顺序收口 |
 | 2026-07-06 | P9 业务域模块拆分完成（Phase 4–11）：仓库域 `warehouse.{bin,bom,ledger,shared,safety,stats,io}.*`、系统域 `system.{role,user,menu,auth}.*`、`infrastructure.file.*`；`OperatorResolver` 跨域契约；前端 domain import 收敛；71 后端集成测试通过 |
+| 2026-07-06 | P9 配置包收口（Phase 12）：根级 `com.storage.config` 迁移至 `common.config`（CORS/WebMvc/MyBatis/Password）、`system.auth.config`（JWT/AdminPasswordInitializer）、`infrastructure.file.config`（MinIO/上传）；71 后端测试通过 |
+| 2026-07-06 | P10 Excel 声明式框架评估与试点：`easyexcel:4.0.3` 引入；对比 EasyExcel/EasyPOI/POI 结论写入 ROADMAP；`SafetyStockExportService` 迁 EasyExcel + `SafetyStockExportRow` + `ExcelExportStyleHandlers`；新增 `SafetyStockExportServiceTest`；73 后端测试通过；导入路径暂保留 POI |
+| 2026-07-06 | P10 导出迁移第二批：`ExcelExportWriter` 公共写出层；`WarehouseBinExportService`、`SysRoleExportService`、`SysCustomerExportService` 迁 EasyExcel + `*ExportRow` + 行为测试；导出进度 4/8；80 后端测试通过 |
+| 2026-07-06 | P10 导出迁移第三批：`WarehouseBomExportService`、`MaterialLedgerExportService` 迁 EasyExcel + `*ExportRow` + 行为测试；保留 `exportTemplate()` 与单价格式；导出进度 6/8；85 后端测试通过 |
+| 2026-07-06 | P10 导出迁移第四批（收尾）：`SysUserExportService`、`MaterialIoExportService` 迁 EasyExcel + `*ExportRow`；新增 `MaterialIoImportTemplateRow` 承载导入模板表头；导出 8/8 完成；92 后端测试通过；导入路径继续保留 POI |
+| 2026-07-06 | P10 查漏补缺：修正 `MaterialIoImportService` 与 EasyExcel 导入模板列序不一致（`操作时间` index 11）；新增 `MaterialIoImportTemplateColumn` 与导入模板回归测试；93 后端测试通过 |
+| 2026-07-06 | P1–P10 缺漏收敛：Compose `backend` healthcheck（`GET /health`）+ `frontend` 依赖 `service_healthy`；JWT `jti` 黑名单与登出撤销；动态路由移除系统管理硬编码子路由（`nav-tree.visible` + 菜单嵌套）；Pinia store 测试补全；Flyway `V002__system_menu_nested_routes_and_jwt_revocation.sql` |
+| 2026-07-06 | 导航修复：删除冗余 `项目中心读` 隐藏根菜单（`V003__remove_redundant_project_read_menu.sql`）；nav-tree 仅允许隐藏子路由参与动态注册，避免动作/占位权限泄漏到侧栏；重建 dev Compose 后 backend/frontend 均恢复 |

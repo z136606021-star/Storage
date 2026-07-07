@@ -19,7 +19,6 @@ router.afterEach((to) => {
     return
   }
   const workbenchTabs = useWorkbenchTabs()
-  workbenchTabs.initPresets(auth.hasPermission)
   workbenchTabs.syncTabFromRoute(to)
 })
 

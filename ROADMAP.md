@@ -13,8 +13,8 @@
 - [x] P6：Service 接口化试点（12 个主业务 Service 已拆接口+实现；Import/Export/基础设施类保持独立）
 - [~] P7：模块化检查清单（规则已落地，后续 PR 持续执行）
 - [x] P8：Flyway 正式接管数据库版本管理
-- [x] P9：业务域模块拆分（大仓小仓模式；Phase 0–11 已落地）
-- [ ] P10：Excel 声明式框架评估（当前手写 Apache POI；待试点 EasyExcel 等）
+- [x] P9：业务域模块拆分（大仓小仓模式；Phase 0–12 已落地）
+- [x] P10：Excel 声明式框架评估（导出 8/8 已迁 EasyExcel；导入保留 POI + `ExcelCellUtils`）
 
 ## P0：Docker 部署路线纠偏
 
@@ -48,8 +48,8 @@
 
 ### 可选优化项（非阻塞，供后续 PR 顺手处理）
 
-- [ ] `docker-compose.yml` / `docker-compose-dev.yml` 中 `backend` 服务补充 `healthcheck`，`frontend` 的 `depends_on.backend` 改为 `condition: service_healthy`，避免容器刚起来的几秒内 `/api` 请求短暂失败。
-- [ ] 本轮 Docker 部署纠偏改动（`docker-compose*.yml`、`backend/Dockerfile`、`frontend/Dockerfile`、`frontend/nginx.conf`、`deploy-cli.*`、删除 `reset-db.*` 等）本地验证通过后，尽快提交一次 commit，避免长期停留在未提交状态。
+- [x] `docker-compose.yml` / `docker-compose-dev.yml` 中 `backend` 服务补充 `healthcheck`，`frontend` 的 `depends_on.backend` 改为 `condition: service_healthy`，避免容器刚起来的几秒内 `/api` 请求短暂失败。
+- [~] Docker 部署与 P1–P10 收敛改动本地验证通过后，由维护者确认并提交 commit（代理不自动提交）。
 
 ### 禁止事项
 
@@ -74,7 +74,7 @@
 - [x] 迁移 menu 状态：菜单树、动态路由注册状态。
 - [x] 前端 Axios 请求拦截器读取 store/token 并注入 Bearer token。
 - [x] 登录刷新后可恢复用户与菜单状态。
-- [ ] 持续补齐 store 级前端测试（后续按风险追加）。
+- [x] store 级前端测试基线（`auth.test.ts` / `menu.test.ts`：token 恢复、登录/登出、Bearer 注入、动态路由注册/清理、系统管理嵌套路由）；后续按风险追加。
 
 ## P3：Shiro + JWT 鉴权迁移
 
@@ -85,7 +85,7 @@
 - [x] Shiro 改造为无状态 JWT 过滤链。
 - [x] 前端退出登录清理 token。
 - [x] 响应 401 时清理 Pinia 状态并跳转登录页。
-- [ ] 如需服务端强制失效，后续再设计 token blacklist / refresh token。
+- [x] JWT 服务端强制失效：`jti` + `jwt_revoked_token` 黑名单；`POST /api/auth/logout` 撤销当前 token；refresh token 暂不引入。
 
 ## P4：动态菜单与动态路由
 
@@ -95,11 +95,11 @@
 - [x] 登录后拉取菜单树并动态 `addRoute` 注册业务路由。
 - [x] 权限变化、退出登录时清理动态路由和菜单状态。
 - [x] 菜单管理支持维护组件 Key。
-- [ ] 后续新增业务页时继续走 `component_key` 契约，不再硬编码完整业务路由表。
+- [~] 后续新增业务页时继续走 `component_key` 契约，不再硬编码完整业务路由表（持续门禁）。
 
 ### 已知例外
 
-- [~] `frontend/src/router/dynamicRoutes.ts` 中 `/system/users` 下的用户/角色/菜单子路由仍由 `systemManagementChildren()` 硬编码，尚未完全走 `component_key` 动态注册；后续可按菜单数据契约收敛。
+- [x] 系统管理子路由已收敛：`nav-tree` 返回含 `visible` 的隐藏路由节点，侧栏过滤后仅展示可见菜单；`/system/users` 下用户/角色/菜单由菜单数据嵌套注册（`V002` 迁移）。
 
 ## P5：样式预处理器统一
 
@@ -211,10 +211,10 @@
 - **跨域规则**：仓库域只能依赖系统域接口或只读契约，禁止直接依赖 `*Impl` 或系统 mapper；REST path、权限码、DTO JSON、Flyway 脚本不因拆包而变更。
 - **已完成（Phase 0–11）**：
   - `@MapperScan` 按域精确扫描各 `*.mapper` 包（禁止扫描 `com.storage` 根包）。
-  - `com.storage.common.*`：共享 DTO/异常/Excel/Web。
-  - `com.storage.system.{customer,role,user,menu,auth}.*`：系统域垂直切片；`OperatorResolver` 供仓库域解析操作人。
+  - `com.storage.common.*`：共享 DTO/异常/Excel/Web/Config（`CorsConfig`、`WebMvcConfig`、`MybatisPlusConfig`、`PasswordConfig`）。
+  - `com.storage.system.{customer,role,user,menu,auth}.*`：系统域垂直切片；`OperatorResolver` 供仓库域解析操作人；鉴权配置（`JwtProperties`、`AdminPasswordInitializer`）归入 `system.auth.config`。
   - `com.storage.warehouse.{bin,bom,ledger,shared,safety,stats,io}.*`：仓库域垂直切片。
-  - `com.storage.infrastructure.file.*`：文件上传/MinIO 边界。
+  - `com.storage.infrastructure.file.*`：文件上传/MinIO 边界（含 `file.config`：`MinioConfig`、`MinioProperties`、`FileUploadProperties`）。
   - 前端：`views/warehouse`、`views/system`；`api/warehouse`、`types/warehouse`、`api/system`、`types/system` 为 canonical 路径，根目录 shim 保留兼容。
 - **持续要求**：新增能力优先落入对应域包；PR 附带模块化与复用结论。
 
@@ -237,6 +237,7 @@
 - [x] Phase 9：`com.storage.system.role.*` / `user.*` / `menu.*`（含 `MenuNavController`）。
 - [x] Phase 10：`com.storage.system.auth.*`（Auth、Shiro、PasswordReset）。
 - [x] Phase 11：前端 import 收敛、动态路由例外文档化、删除扁平包遗留。
+- [x] Phase 12：根级 `com.storage.config` 收口至 `common.config` / `system.auth.config` / `infrastructure.file.config`；删除根级技术包。
 
 ### 仓库域后续迁移顺序（Phase 4+）
 
@@ -256,8 +257,21 @@
 
 ### 当前事实
 
-- `backend/pom.xml` 仅引入 `org.apache.poi:poi-ooxml`，未使用 EasyExcel、EasyPOI 等声明式框架。
-- 各域 `*ImportService` / `*ExportService` 手写 POI 流程（建 sheet、表头、逐行读写、校验）；已有 `ExcelCellUtils` 与 `*ExcelColumn` 枚举做部分抽象，但 Export/Import 间仍有重复样板（如 `MaterialLedgerImportService` ~135 行、`MaterialIoImportService` ~219 行）。
+- `backend/pom.xml` 已引入 `org.apache.poi:poi-ooxml:5.2.5` 与 `com.alibaba:easyexcel:4.0.3`；导出路径统一 EasyExcel + `*ExportRow`，导入路径仍使用 POI + `ExcelCellUtils`。
+- 各域 `*ImportService` / `*ExportService` 共 15 个；导出 8 个、导入 7 个。已有 `ExcelCellUtils`、`ExcelExportWriter`、`ExcelExportStyleHandlers`、`*ExcelColumn` 枚举与 `ImportResultVO` 契约。
+- 导出迁移进度 **8/8**：全部 `*ExportService` 已迁 EasyExcel + `*ExportRow` + 行为测试；`MaterialIoImportTemplateRow` / `MaterialIoImportTemplateColumn` 单独承载导入模板表头与列序（不含操作人列，操作时间 index 11）。
+
+### 评估结论（2026-07-06）
+
+| 路线 | Spring Boot 3 / Java 17 | 维护状态 | 与现有契约契合 | 结论 |
+|------|-------------------------|----------|----------------|------|
+| **EasyExcel 4.0.3** | 兼容（内置 POI 5.2.5） | 官方维护模式，GitHub 已归档 | 导出注解模型清晰；导入需自定义 `AnalysisEventListener` 才能保留 `ImportResultVO` 行号语义 | **导出试点推荐** |
+| **EasyPOI（社区 Jakarta 版）** | 需 `top.rwocj` 等社区包 | 原版对 SB3 支持弱，javax/jakarta 混用风险 | 注解 + Controller 导出风格，但与当前 Service 分层不一致 | **不作为默认落地依赖** |
+| **继续 POI + 公共层** | 完全可控 | 无第三方生命周期风险 | 与 `ImportResultVO`、行级错误、`.xls/.xlsx` 完全契合 | **导入路径继续保留** |
+
+**试点收益**：`SafetyStockExportService` 从 ~63 行 POI 样板降至 ~45 行（含行映射），表头/数据/样式由 `SafetyStockExportRow` + `ExcelExportStyleHandlers` 声明；行为测试保障 sheet 名、列顺序、预警标签不变。
+
+**试点风险**：EasyExcel 进入维护模式；列宽策略与手写 `autoSizeColumn` 略有差异（采用 `LongestMatchColumnWidthStyleStrategy`）；导入若迁移需重写行号错误聚合与 `MaterialIoImportService` 原子校验逻辑。
 
 ### 目标
 
@@ -265,10 +279,27 @@
 
 ### 待办清单
 
-- [ ] 对比 EasyExcel / EasyPOI 与当前 POI + `ExcelCellUtils` 的契合度（注解模型、校验、大文件、与现有 `ImportResultVO` 契约）。
-- [ ] 选定 1 个 Import 或 Export Service 做试点（建议从行数适中、列定义已枚举的 `MaterialLedgerExportService` 或 `SafetyStockExportService` 入手）。
-- [ ] 试点通过后制定其余 12 个 Import/Export Service 的迁移顺序与是否保留 `excel` 公共层。
-- [ ] 若引入新依赖，同步 CI 与 AGENTS 复用门禁说明。
+- [x] 对比 EasyExcel / EasyPOI 与当前 POI + `ExcelCellUtils` 的契合度（注解模型、校验、大文件、与现有 `ImportResultVO` 契约）。
+- [x] 选定 1 个 Import 或 Export Service 做试点（`SafetyStockExportService` export-only）。
+- [x] 试点通过后制定其余 Export/Import Service 的迁移顺序与是否保留 `excel` 公共层（见下）。
+- [x] 引入新依赖并同步 CI 与 AGENTS 复用门禁说明。
+
+### 后续迁移顺序（试点后）
+
+**Export（优先 EasyExcel + `*ExportRow` + `ExcelExportStyleHandlers`）**：
+
+1. `SafetyStockExportService`（已完成试点）
+2. `WarehouseBinExportService`、`SysRoleExportService`、`SysCustomerExportService`（已完成第二批）
+3. `WarehouseBomExportService`、`MaterialLedgerExportService`（已完成第三批）
+4. `SysUserExportService`、`MaterialIoExportService`（已完成第四批；含导入模板 `MaterialIoImportTemplateRow`）
+
+**Import（暂保留 POI + `ExcelCellUtils` + `*ExcelColumn`）**：
+
+- 7 个 `*ImportService` 需保留 `ImportResultVO` 行号、空行过滤、业务校验与 `MaterialIoImportService` 原子写入；待导出迁移稳定后再评估 `AnalysisEventListener` 抽象，不一次性切换。
+
+**公共层保留**：
+
+- `ExcelCellUtils`（导入读单元格）、`ExcelExportWriter`（EasyExcel 写出）、`ExcelExportStyleHandlers`（表样式）、`ExcelResponseBuilder`（HTTP 响应）、`ImportResultVO`、`*ExcelColumn`（列序 SSOT）；导出使用 `*ExportRow` + `@ExcelProperty`。
 
 ## 设计原则参考
 

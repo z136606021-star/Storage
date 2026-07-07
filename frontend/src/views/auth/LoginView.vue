@@ -9,6 +9,7 @@ import loginBg from '@/assets/auth/login-bg.png'
 import loginLogo from '@/assets/auth/login-logo.png'
 import loginDecoTech from '@/assets/auth/login-deco-tech.png'
 import { useAuth } from '@/composables/useAuth'
+import { useMenuStore } from '@/stores/menu'
 import { forgotPassword, resetPassword } from '@/api/auth'
 import { getErrorMessage } from '@/api/http'
 import {
@@ -22,6 +23,7 @@ type AuthTab = 'login' | 'register' | 'forgot' | 'reset'
 const route = useRoute()
 const router = useRouter()
 const auth = useAuth()
+const menu = useMenuStore()
 
 function resolveTabFromQuery(tab: unknown): AuthTab {
   if (tab === 'register') {
@@ -271,8 +273,11 @@ async function handleLogin() {
     } else {
       clearRememberedUsername()
     }
-    const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/warehouse/material-ledger'
-    await router.replace(redirect)
+    await menu.ensureDynamicRoutes(router)
+    const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : menu.getDefaultRoute()?.path
+    if (redirect) {
+      await router.replace(redirect)
+    }
   } catch (error) {
     loginForm.password = ''
     message.error(getLoginErrorMessage(error))
@@ -291,8 +296,11 @@ async function handleRegister() {
       ...(registerForm.email.trim() ? { email: registerForm.email.trim() } : {}),
     })
     message.success('注册成功')
-    const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/warehouse/material-ledger'
-    await router.replace(redirect)
+    await menu.ensureDynamicRoutes(router)
+    const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : menu.getDefaultRoute()?.path
+    if (redirect) {
+      await router.replace(redirect)
+    }
   } catch (error) {
     message.error(getErrorMessage(error, '注册失败'))
   } finally {

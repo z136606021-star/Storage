@@ -4,7 +4,7 @@ import { useMaterialIoRouteDetail } from '@/composables/useMaterialIoRouteDetail
 
 function createRoute(query: Record<string, unknown> = {}) {
   return ref({
-    path: '/warehouse/material-io',
+    path: '/configured-io-route',
     query,
   })
 }
@@ -67,7 +67,7 @@ describe('useMaterialIoRouteDetail', () => {
 
     expect(highlightRecordId.value).toBeNull()
     expect(router.replace).toHaveBeenCalledWith({
-      path: '/warehouse/material-io',
+      path: '/configured-io-route',
       query: { materialLedgerId: '3' },
     })
     expect(onRouteIdChange).toHaveBeenCalledWith(null)

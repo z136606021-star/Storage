@@ -2,10 +2,10 @@ package com.storage.warehouse.bom.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.storage.common.dto.BatchDeleteDTO;
 import com.storage.common.dto.PageResult;
 import com.storage.common.exception.BusinessException;
+import com.storage.common.query.PageSupport;
 import com.storage.infrastructure.file.service.FileStorageService;
 import com.storage.warehouse.bom.converter.WarehouseBomConverter;
 import com.storage.warehouse.bom.dto.WarehouseBomQueryDTO;
@@ -14,8 +14,7 @@ import com.storage.warehouse.bom.entity.WarehouseBom;
 import com.storage.warehouse.bom.exception.WarehouseBomNotFoundException;
 import com.storage.warehouse.bom.mapper.WarehouseBomMapper;
 import com.storage.warehouse.bom.query.WarehouseBomQueryBuilder;
-import com.storage.warehouse.ledger.entity.MaterialLedger;
-import com.storage.warehouse.ledger.mapper.MaterialLedgerMapper;
+import com.storage.warehouse.shared.MaterialUsageQueryService;
 import com.storage.warehouse.shared.dto.BomCatalogItemVO;
 import com.storage.warehouse.shared.dto.BomFilterOptionsVO;
 import com.storage.warehouse.shared.dto.FilterLinkageQueryDTO;
@@ -34,22 +33,19 @@ import java.util.stream.Collectors;
 public class WarehouseBomServiceImpl implements WarehouseBomService {
 
     private final WarehouseBomMapper warehouseBomMapper;
-    private final MaterialLedgerMapper materialLedgerMapper;
+    private final MaterialUsageQueryService materialUsageQueryService;
     private final WarehouseBomConverter warehouseBomConverter;
     private final WarehouseBomExportService warehouseBomExportService;
     private final FileStorageService fileStorageService;
 
     @Override
     public PageResult<WarehouseBom> page(WarehouseBomQueryDTO query) {
-        int page = query.getPage() == null || query.getPage() < 1 ? 1 : query.getPage();
-        int pageSize = query.getPageSize() == null || query.getPageSize() < 1 ? 10 : query.getPageSize();
-
-        Page<WarehouseBom> result = warehouseBomMapper.selectPage(
-                new Page<>(page, pageSize),
+        var result = warehouseBomMapper.selectPage(
+                PageSupport.page(query.getPage(), query.getPageSize()),
                 WarehouseBomQueryBuilder.build(query)
         );
         enrichImageUrl(result.getRecords());
-        return new PageResult<>(result.getRecords(), result.getTotal(), result.getCurrent(), result.getSize());
+        return PageSupport.result(result);
     }
 
     @Override
@@ -186,18 +182,8 @@ public class WarehouseBomServiceImpl implements WarehouseBomService {
     }
 
     private long countLedgerUsage(WarehouseBom bom) {
-        LambdaQueryWrapper<MaterialLedger> wrapper = Wrappers.<MaterialLedger>lambdaQuery()
-                .eq(MaterialLedger::getCategory, bom.getCategory())
-                .eq(MaterialLedger::getGenericName, bom.getGenericName())
-                .eq(MaterialLedger::getName, bom.getName());
-
-        if (StringUtils.hasText(bom.getBrand())) {
-            wrapper.eq(MaterialLedger::getBrand, bom.getBrand());
-        } else {
-            wrapper.and(w -> w.isNull(MaterialLedger::getBrand).or().eq(MaterialLedger::getBrand, ""));
-        }
-
-        return materialLedgerMapper.selectCount(wrapper);
+        return materialUsageQueryService.countByBomCatalogKey(
+                bom.getCategory(), bom.getGenericName(), bom.getBrand(), bom.getName());
     }
 
     private void assertNotInUse(WarehouseBom bom) {

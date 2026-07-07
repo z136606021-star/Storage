@@ -3,7 +3,7 @@ import { useCrudRouteDetail } from '@/composables/useCrudRouteDetail'
 
 function createRoute(query: Record<string, unknown> = {}) {
   return {
-    path: '/warehouse/material-io',
+    path: '/configured-detail-route',
     query,
   }
 }
@@ -33,7 +33,7 @@ describe('useCrudRouteDetail', () => {
     await clearRouteDetailQuery()
 
     expect(router.replace).toHaveBeenCalledWith({
-      path: '/warehouse/material-io',
+      path: '/configured-detail-route',
       query: { materialLedgerId: '3' },
     })
     expect(onRouteIdChange).toHaveBeenCalledWith(null)
@@ -56,7 +56,7 @@ describe('useCrudRouteDetail', () => {
     await clearRouteDetailQuery()
 
     expect(router.replace).toHaveBeenCalledWith({
-      path: '/warehouse/material-io',
+      path: '/configured-detail-route',
     })
   })
 

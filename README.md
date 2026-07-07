@@ -5,7 +5,7 @@
 ## 技术栈
 
 - **前端**：Vue 3 + TypeScript + Vite + Ant Design Vue 4（组件自动按需导入）+ Less（样式预处理器）
-- **后端**：Java 17+ + Spring Boot 3 + MyBatis Plus + Apache Shiro
+- **后端**：Java 17+ + Spring Boot 3 + MyBatis Plus + Apache Shiro + EasyExcel（导出）+ Apache POI（导入与测试）
 - **数据库**：MySQL 8
 - **对象存储**：MinIO
 
@@ -15,7 +15,7 @@
 
 **业务域目录（P9 已完成）**：
 
-- 后端：`com.storage.common.*`、`com.storage.system.*`、`com.storage.warehouse.*`、`com.storage.infrastructure.file.*`；详见 [ROADMAP.md](ROADMAP.md) P9。
+- 后端：`com.storage.common.*`（含 `common.config`）、`com.storage.system.*`（含 `system.auth.config`）、`com.storage.warehouse.*`、`com.storage.infrastructure.file.*`（含 `file.config`）；详见 [ROADMAP.md](ROADMAP.md) P9。
 - 前端：`views/warehouse`、`views/system`；canonical 路径 `api/warehouse`、`types/warehouse`、`api/system`、`types/system`（根目录 shim 兼容旧 import）。
 
 ## 快速启动
@@ -38,8 +38,9 @@ docker compose --env-file .env -f docker-compose.yml up -d --build
 
 也可使用统一入口脚本：
 
-- Windows：`.\scripts\deploy-cli.ps1 -Profile dev` / `-Profile prod`
-- Linux/macOS/Git Bash：`./scripts/deploy-cli.sh --profile dev` / `--profile prod`
+- Windows 双击：`start-dev.cmd` / `dev-up.cmd`（默认 `-Build` 重建前后端镜像，避免前端仍显示旧 UI；可加 `-NoOpenBrowser` 跳过打开浏览器）
+- Windows：`.\scripts\deploy-cli.ps1 -Profile dev [-Build]` / `-Profile prod`（dev 部署成功后会自动打开浏览器；可用 `-NoOpenBrowser` 跳过）
+- Linux/macOS/Git Bash：`./scripts/deploy-cli.sh --profile dev [--build]` / `--profile prod`（同上，可用 `--no-open-browser` 跳过）
 
 环境自检：
 
@@ -197,6 +198,7 @@ npm run dev
 - 前端入口：`http://localhost:${APP_PORT}`（或 dev profile 下 `http://localhost:${FRONTEND_PORT}`）
 - 前端请求 `/api/**` 由 Nginx 反向代理至 `backend:8080`
 - 无需手动启动 `mvn spring-boot:run` / `npm run dev` 即可完成完整部署访问
+- `backend` 容器通过 `GET /health` 健康检查（不经 `/api` 鉴权链）；`frontend` 等待 backend 变为 healthy 后再启动，避免刚启动时 `/api` 短暂失败
 
 ### 手动测试文件上传（MinIO）
 
@@ -261,6 +263,7 @@ curl -X POST http://localhost:8080/api/files/upload \
 - [x] **第三十六期动态菜单与动态路由**：菜单 `component_key` 契约、Pinia menu store、登录后动态注册业务路由、菜单管理维护组件 Key
 - [x] **第三十七期样式预处理器统一**：引入 Less、`frontend/src/styles/` 公共 token/mixins、布局与 CRUD 公共层迁移、代表业务页验证
 - [x] **P8 Flyway 数据库版本管理**：Flyway 接管 schema 迁移、`V001__baseline_schema.sql` baseline、关闭 `spring.sql.init` 主路径、CI MySQL Flyway 校验
+- [x] **P1–P10 架构收敛**：Compose backend healthcheck、JWT 登出黑名单、动态路由系统管理嵌套契约、Pinia store 测试基线（详见 [ROADMAP.md](ROADMAP.md)）
 
 ## 协作约定（多模型）
 
@@ -282,7 +285,7 @@ curl -X POST http://localhost:8080/api/files/upload \
 - `POST /api/auth/register` 是否对公网开放须由部署侧显式评估；忘记密码接口已改为邮件一次性链接，但仍需配合 HTTPS、可信前端域名与限流策略
 - 忘记密码 token 仅明文出现在邮件链接中，数据库保存 SHA-256 哈希，默认 30 分钟过期且使用后失效；失败限流为单实例内存级（15 分钟 5 次），多实例生产需迁移到 Redis/网关限流
 - Google SMTP 默认按 Gmail 直连预留：`smtp.gmail.com:587` + STARTTLS；`MAIL_PASSWORD` 使用 Google 应用专用密码，不提交真实邮箱密码。公司 Workspace relay 可通过环境变量切换到 `smtp-relay.gmail.com`
-- 当前鉴权主路径为 Shiro + JWT；access token 存储在前端 localStorage。生产环境需启用 HTTPS，`JWT_SECRET` 必须使用部署侧强密钥，`CORS_ALLOWED_ORIGINS` 必须仅配置可信前端域名，并持续防护 XSS 风险
+- 当前鉴权主路径为 Shiro + JWT；access token 存储在前端 localStorage。`POST /api/auth/logout` 会将当前 Bearer token 的 `jti` 写入服务端黑名单，登出后同 token 无法继续访问受保护 API。生产环境需启用 HTTPS，`JWT_SECRET` 必须使用部署侧强密钥，`CORS_ALLOWED_ORIGINS` 必须仅配置可信前端域名，并持续防护 XSS 风险
 - 默认管理员密码自动重置能力仅建议本地排障开启，生产应关闭该初始化开关，避免启动时回退弱密码
 - 文件上传以后端校验为准：当前限制 JPG/PNG/WebP/GIF、默认 ≤5MB，并校验图片魔数，前端限制仅用于体验优化
 - GitHub Actions CI：[`CI workflow`](https://github.com/z136606021-star/Storage/blob/main/.github/workflows/ci.yml)（后端测试 + 前端测试/构建）

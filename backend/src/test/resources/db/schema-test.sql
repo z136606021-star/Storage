@@ -5,6 +5,7 @@ DROP TABLE IF EXISTS warehouse_bom;
 DROP TABLE IF EXISTS warehouse_bin;
 DROP TABLE IF EXISTS sys_customer;
 DROP TABLE IF EXISTS password_reset_token;
+DROP TABLE IF EXISTS jwt_revoked_token;
 DROP TABLE IF EXISTS sys_role_menu;
 DROP TABLE IF EXISTS sys_user_role;
 DROP TABLE IF EXISTS sys_menu;
@@ -73,6 +74,12 @@ CREATE TABLE sys_role_menu (
     PRIMARY KEY (role_id, menu_id),
     CONSTRAINT fk_test_role_menu_role FOREIGN KEY (role_id) REFERENCES sys_role (id) ON DELETE CASCADE,
     CONSTRAINT fk_test_role_menu_menu FOREIGN KEY (menu_id) REFERENCES sys_menu (id) ON DELETE CASCADE
+);
+
+CREATE TABLE jwt_revoked_token (
+    jti VARCHAR(64) NOT NULL PRIMARY KEY,
+    expires_at TIMESTAMP NOT NULL,
+    revoked_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE sys_customer (
@@ -163,15 +170,19 @@ INSERT INTO sys_role (id, code, name, status) VALUES
 (1, 'ADMIN', '系统管理员', 1),
 (2, 'USER', '普通用户', 1);
 
-INSERT INTO sys_menu (id, parent_id, name, permission, path, component_key, sort_order) VALUES
-(1, NULL, '物料台账', 'warehouse:material-ledger:read', '/warehouse/material-ledger', 'MaterialLedger', 10),
-(2, NULL, '物料台账写', 'warehouse:material-ledger:write', '/warehouse/material-ledger', NULL, 11),
-(3, NULL, '菜单管理', 'system:menu:read', '/system/menus', 'MenuManagePanel', 30),
-(4, NULL, '菜单写', 'system:menu:write', NULL, NULL, 31);
+INSERT INTO sys_menu (id, parent_id, name, permission, path, component_key, sort_order, visible) VALUES
+(1, NULL, '物料台账', 'warehouse:material-ledger:read', '/warehouse/material-ledger', 'MaterialLedger', 10, 1),
+(2, NULL, '物料台账写', 'warehouse:material-ledger:write', NULL, NULL, 11, 0),
+(3, NULL, '菜单管理', 'system:menu:read', '/system/menus', 'MenuManagePanel', 30, 1),
+(4, NULL, '菜单写', 'system:menu:write', NULL, NULL, 31, 0),
+(5, NULL, '项目中心读', 'platform:project:read', '/platform/project', 'ShellPlaceholder', 40, 0),
+(6, 3, '菜单隐藏子页', 'system:menu:child', 'child', 'ShellPlaceholder', 32, 0);
 
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 (1, 1),
 (1, 2),
 (1, 3),
 (1, 4),
+(1, 5),
+(1, 6),
 (2, 1);

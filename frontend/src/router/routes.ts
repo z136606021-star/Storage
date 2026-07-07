@@ -19,17 +19,5 @@ export const routes: RouteRecordRaw[] = [
     name: 'AppRoot',
     component: AppLayout,
     meta: { requiresAuth: true },
-    children: [
-      {
-        path: 'system/roles',
-        redirect: '/system/users/roles',
-        meta: { requiresAuth: true, permission: 'system:role:read' },
-      },
-      {
-        path: 'system/menus',
-        redirect: '/system/users/menus',
-        meta: { requiresAuth: true, permission: 'system:menu:read' },
-      },
-    ],
   },
 ]

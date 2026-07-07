@@ -7,8 +7,30 @@ import { clearDynamicRoutes, registerDynamicRoutes } from '@/router/dynamicRoute
 
 let boundRouter: Router | null = null
 
+export interface MenuRouteInfo {
+  key: string
+  label: string
+  path: string
+  permission?: string | null
+  componentKey?: string | null
+  visible?: number
+}
+
 export function bindMenuRouter(router: Router) {
   boundRouter = router
+}
+
+function joinMenuPath(path: string | undefined, parentPath?: string): string | null {
+  if (!path) {
+    return null
+  }
+  if (path.startsWith('/')) {
+    return path
+  }
+  if (!parentPath) {
+    return `/${path}`
+  }
+  return `${parentPath.replace(/\/$/, '')}/${path.replace(/^\//, '')}`
 }
 
 export const useMenuStore = defineStore('menu', () => {
@@ -67,6 +89,74 @@ export const useMenuStore = defineStore('menu', () => {
     }
   }
 
+  function visitMenuRoutes(
+    visitor: (node: NavMenuNode, fullPath: string) => boolean | void,
+    nodes: NavMenuNode[] = navTree.value,
+    parentPath?: string,
+  ): MenuRouteInfo | null {
+    for (const node of nodes) {
+      const fullPath = joinMenuPath(node.path, parentPath)
+      if (fullPath) {
+        const matched = visitor(node, fullPath)
+        if (matched) {
+          return {
+            key: node.key,
+            label: node.label,
+            path: fullPath,
+            permission: node.permission,
+            componentKey: node.componentKey,
+            visible: node.visible,
+          }
+        }
+      }
+      const childMatched = visitMenuRoutes(visitor, node.children ?? [], fullPath ?? parentPath)
+      if (childMatched) {
+        return childMatched
+      }
+    }
+    return null
+  }
+
+  function collectChildRoutes(parentComponentKey: string): MenuRouteInfo[] {
+    let children: MenuRouteInfo[] = []
+    visitMenuRoutes((node, fullPath) => {
+      if (node.componentKey !== parentComponentKey) {
+        return false
+      }
+      children = (node.children ?? [])
+        .map((child) => {
+          const childPath = joinMenuPath(child.path, fullPath)
+          if (!childPath || !child.componentKey) {
+            return null
+          }
+          const route: MenuRouteInfo = {
+            key: child.key,
+            label: child.label,
+            path: childPath,
+            permission: child.permission,
+            componentKey: child.componentKey,
+            visible: child.visible,
+          }
+          return route
+        })
+        .filter((route): route is MenuRouteInfo => route !== null)
+      return true
+    })
+    return children
+  }
+
+  function findRouteByComponentKey(componentKey: string): MenuRouteInfo | null {
+    return visitMenuRoutes((node) => node.componentKey === componentKey)
+  }
+
+  function findRouteByPath(path: string): MenuRouteInfo | null {
+    return visitMenuRoutes((_node, fullPath) => fullPath === path)
+  }
+
+  function getDefaultRoute(): MenuRouteInfo | null {
+    return visitMenuRoutes((node) => Boolean(node.componentKey && (node.visible === undefined || node.visible === 1)))
+  }
+
   const hasMenus = computed(() => navTree.value.length > 0)
 
   return {
@@ -78,5 +168,9 @@ export const useMenuStore = defineStore('menu', () => {
     loadNavTree,
     ensureDynamicRoutes,
     clearMenusAndRoutes,
+    collectChildRoutes,
+    findRouteByComponentKey,
+    findRouteByPath,
+    getDefaultRoute,
   }
 })

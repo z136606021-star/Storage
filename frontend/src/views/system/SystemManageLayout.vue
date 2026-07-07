@@ -1,39 +1,38 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useAuth } from '@/composables/useAuth'
+import { useMenuStore } from '@/stores/menu'
+import UserManageView from '@/views/system/UserManageView.vue'
 
 const route = useRoute()
 const router = useRouter()
-const auth = useAuth()
-
-const activeTab = computed(() => {
-  if (route.name === 'RoleManage') {
-    return 'roles'
-  }
-  if (route.name === 'MenuManage') {
-    return 'menus'
-  }
-  return 'users'
-})
+const menu = useMenuStore()
 
 const tabs = computed(() => {
-  const items: Array<{ key: string; label: string; name: string }> = [
-    { key: 'users', label: '用户管理', name: 'UserManage' },
+  const parent = menu.findRouteByComponentKey('SystemManageLayout')
+  if (!parent) {
+    return []
+  }
+  return [
+    { key: parent.componentKey ?? parent.key, label: parent.label, path: parent.path },
+    ...menu.collectChildRoutes('SystemManageLayout').map((child) => ({
+      key: child.componentKey ?? child.key,
+      label: child.label,
+      path: child.path,
+    })),
   ]
-  if (auth.hasPermission('system:role:read')) {
-    items.push({ key: 'roles', label: '角色管理', name: 'RoleManage' })
-  }
-  if (auth.hasPermission('system:menu:read')) {
-    items.push({ key: 'menus', label: '菜单管理', name: 'MenuManage' })
-  }
-  return items
 })
+
+const activeTab = computed(() => {
+  return tabs.value.find((tab) => tab.path === route.path)?.key ?? tabs.value[0]?.key
+})
+
+const hasChildRoute = computed(() => tabs.value.some((tab) => tab.path === route.path && tab.path !== tabs.value[0]?.path))
 
 function onTabChange(key: string) {
   const tab = tabs.value.find((item) => item.key === key)
   if (tab) {
-    router.push({ name: tab.name })
+    router.push(tab.path)
   }
 }
 </script>
@@ -43,7 +42,8 @@ function onTabChange(key: string) {
     <a-tabs :active-key="activeTab" @change="onTabChange">
       <a-tab-pane v-for="tab in tabs" :key="tab.key" :tab="tab.label" />
     </a-tabs>
-    <router-view />
+    <router-view v-if="hasChildRoute" />
+    <UserManageView v-else />
   </div>
 </template>
 

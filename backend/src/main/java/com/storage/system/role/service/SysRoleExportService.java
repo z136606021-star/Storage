@@ -1,17 +1,11 @@
 package com.storage.system.role.service;
 
-import com.storage.common.excel.ExcelCellUtils;
+import com.storage.common.excel.ExcelExportWriter;
 import com.storage.system.menu.mapper.SysMenuMapper;
 import com.storage.system.role.dto.SysRoleVO;
-import com.storage.system.role.excel.SysRoleExcelColumn;
-import org.apache.poi.ss.usermodel.CellStyle;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import com.storage.system.role.excel.SysRoleExportRow;
 import org.springframework.stereotype.Service;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -26,31 +20,17 @@ public class SysRoleExportService {
     }
 
     public byte[] export(List<SysRoleVO> records) throws IOException {
-        try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-            Sheet sheet = workbook.createSheet("角色");
-            CellStyle headerStyle = ExcelCellUtils.createHeaderStyle(workbook);
-            CellStyle dataStyle = ExcelCellUtils.createDataStyle(workbook);
-
-            String[] headers = SysRoleExcelColumn.headers();
-            Row headerRow = sheet.createRow(0);
-            for (int i = 0; i < headers.length; i++) {
-                ExcelCellUtils.setCell(headerRow, i, headers[i], headerStyle);
-            }
-
-            int rowIndex = 1;
-            for (SysRoleVO record : records) {
-                Row row = sheet.createRow(rowIndex++);
-                ExcelCellUtils.setCell(row, SysRoleExcelColumn.CODE.getIndex(), record.getCode(), dataStyle);
-                ExcelCellUtils.setCell(row, SysRoleExcelColumn.NAME.getIndex(), record.getName(), dataStyle);
-                ExcelCellUtils.setCell(row, SysRoleExcelColumn.STATUS.getIndex(), formatStatus(record.getStatus()), dataStyle);
-                List<String> permissions = resolvePermissions(record);
-                ExcelCellUtils.setCell(row, SysRoleExcelColumn.PERMISSIONS.getIndex(), String.join(",", permissions), dataStyle);
-            }
-
-            autoSizeColumns(sheet, headers.length);
-            workbook.write(out);
-            return out.toByteArray();
+        List<SysRoleExportRow> rows = new ArrayList<>();
+        for (SysRoleVO record : records) {
+            SysRoleExportRow row = new SysRoleExportRow();
+            row.setCode(record.getCode());
+            row.setName(record.getName());
+            row.setStatus(formatStatus(record.getStatus()));
+            List<String> permissions = resolvePermissions(record);
+            row.setPermissions(String.join(",", permissions));
+            rows.add(row);
         }
+        return ExcelExportWriter.writeBytes("角色", SysRoleExportRow.class, rows);
     }
 
     public byte[] exportTemplate() throws IOException {
@@ -76,13 +56,5 @@ public class SysRoleExportService {
 
     private String formatStatus(Integer status) {
         return status != null && status == 1 ? "启用" : "停用";
-    }
-
-    private void autoSizeColumns(Sheet sheet, int columnCount) {
-        for (int i = 0; i < columnCount; i++) {
-            sheet.autoSizeColumn(i);
-            int width = sheet.getColumnWidth(i);
-            sheet.setColumnWidth(i, Math.min(width + 512, 256 * 40));
-        }
     }
 }

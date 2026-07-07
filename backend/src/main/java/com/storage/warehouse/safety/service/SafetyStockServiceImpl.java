@@ -1,10 +1,10 @@
 package com.storage.warehouse.safety.service;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.storage.warehouse.shared.dto.FilterLinkageQueryDTO;
 import com.storage.common.dto.FilterOptionsVO;
 import com.storage.common.dto.PageResult;
+import com.storage.common.query.PageSupport;
 import com.storage.warehouse.ledger.entity.MaterialLedger;
 import com.storage.warehouse.ledger.exception.MaterialLedgerNotFoundException;
 import com.storage.warehouse.ledger.mapper.MaterialLedgerMapper;
@@ -34,13 +34,10 @@ public class SafetyStockServiceImpl implements SafetyStockService {
 
     @Override
     public PageResult<SafetyStockRecordVO> page(SafetyStockQueryDTO query) {
-        int page = query.getPage() == null || query.getPage() < 1 ? 1 : query.getPage();
-        int pageSize = query.getPageSize() == null || query.getPageSize() < 1 ? 10 : query.getPageSize();
-
-        Page<SafetyStockRecordVO> pageRequest = new Page<>(page, pageSize);
+        var pageRequest = PageSupport.<SafetyStockRecordVO>page(query.getPage(), query.getPageSize());
         var result = safetyStockMapper.selectJoinedPage(pageRequest, query);
         enrichRecords(result.getRecords());
-        return new PageResult<>(result.getRecords(), result.getTotal(), result.getCurrent(), result.getSize());
+        return PageSupport.result(result);
     }
 
     @Override

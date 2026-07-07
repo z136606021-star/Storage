@@ -1,4 +1,4 @@
-package com.storage.config;
+package com.storage.infrastructure.file.config;
 
 import io.minio.BucketExistsArgs;
 import io.minio.MakeBucketArgs;

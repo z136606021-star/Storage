@@ -2,21 +2,18 @@ package com.storage.system.user.service;
 
 import com.storage.common.dto.ImportResultVO;
 import com.storage.common.excel.ExcelCellUtils;
+import com.storage.common.excel.ExcelImportTemplate;
 import com.storage.common.exception.ImportFormatException;
 import com.storage.system.role.mapper.SysRoleMapper;
 import com.storage.system.user.dto.SysUserSaveDTO;
 import com.storage.system.user.excel.SysUserExcelColumn;
 import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -33,45 +30,8 @@ public class SysUserImportService {
     }
 
     public ImportResultVO importExcel(MultipartFile file) throws IOException {
-        if (file == null || file.isEmpty()) {
-            throw new ImportFormatException("请上传 Excel 文件");
-        }
-
-        String filename = file.getOriginalFilename();
-        if (filename == null || (!filename.endsWith(".xlsx") && !filename.endsWith(".xls"))) {
-            throw new ImportFormatException("仅支持 .xlsx 或 .xls 格式");
-        }
-
-        ImportResultVO result = new ImportResultVO();
-        List<ImportResultVO.ImportErrorVO> errors = new ArrayList<>();
-
-        try (Workbook workbook = WorkbookFactory.create(file.getInputStream())) {
-            Sheet sheet = workbook.getNumberOfSheets() > 0 ? workbook.getSheetAt(0) : null;
-            if (sheet == null) {
-                throw new ImportFormatException("Excel 文件中没有工作表");
-            }
-
-            int lastRow = sheet.getLastRowNum();
-            for (int i = 1; i <= lastRow; i++) {
-                Row row = sheet.getRow(i);
-                if (row == null || isEmptyRow(row)) {
-                    continue;
-                }
-
-                int excelRow = i + 1;
-                try {
-                    SysUserSaveDTO dto = parseRow(row);
-                    sysUserService.create(dto);
-                    result.setSuccessCount(result.getSuccessCount() + 1);
-                } catch (Exception ex) {
-                    result.setFailCount(result.getFailCount() + 1);
-                    errors.add(new ImportResultVO.ImportErrorVO(excelRow, ex.getMessage()));
-                }
-            }
-        }
-
-        result.setErrors(errors);
-        return result;
+        return ExcelImportTemplate.importRows(file, this::isEmptyRow, (excelRow, row) ->
+                sysUserService.create(parseRow(row)));
     }
 
     private SysUserSaveDTO parseRow(Row row) {
