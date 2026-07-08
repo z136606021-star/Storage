@@ -104,11 +104,13 @@
 
 - 运行时 schema 版本管理由 **Flyway** 负责，脚本位于 `backend/src/main/resources/db/migration/`，命名规范 `V{version}__{description}.sql`（例如 `V002__add_foo_column.sql`）。
 - 新增结构变更只追加 Flyway 版本脚本，禁止回改已发布版本；禁止绕过 Flyway 手工改已有卷结构。
+- 已应用到任何环境的迁移脚本视为不可变快照；出现 checksum mismatch 时必须恢复历史脚本原文，再用新的更高版本迁移承接变化，禁止通过清库、删卷、删除 `flyway_schema_history` 或人工重导数据解决。
 - Flyway 迁移失败必须阻断启动；`spring.sql.init` 主路径已关闭（`mode: never`）。
 - MySQL 不支持的 `ADD COLUMN IF NOT EXISTS`、`CREATE INDEX IF NOT EXISTS` 必须用 `INFORMATION_SCHEMA` 条件 DDL guard。
 - 迁移脚本不得 `USE storage` 或写死库名，必须使用连接串当前库。
 - 历史 `migration-*.sql` 与 `schema.sql` 仅作参考快照，不再参与运行时执行；H2 测试仍使用 `schema-test.sql` 快照。
 - 禁止把 `reset-db` / `docker compose down -v` 作为常规升级步骤；已有卷升级必须优先通过 Flyway 增量迁移完成。
+- 部署已有数据环境前必须先备份 MySQL；迁移脚本要保证可在现有卷上增量执行，不得要求用户清库后重新导入业务数据。
 - 涉及 DB 结构变更时，说明是否需要重启后端、是否影响已有卷、以及迁移脚本如何保障兼容历史数据。
 
 ## API 与校验门禁

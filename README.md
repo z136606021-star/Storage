@@ -110,6 +110,18 @@ powershell -ExecutionPolicy Bypass -File .\scripts\sync-worktree-env.ps1
 
 已有数据库卷升级时，Flyway 通过 `baseline-on-migrate` 兼容历史卷，仅执行新增版本脚本；禁止把 `down -v` / 清空卷作为常规升级路径。迁移脚本须为 **UTF-8** 编码；迁移失败会阻断启动以避免静默漏表/漏列。
 
+#### Flyway 升级与备份流程
+
+已有数据的环境升级必须保留数据库卷，不能通过重建数据库解决版本冲突。推荐流程：
+
+1. **先备份 MySQL**：部署前使用 `mysqldump` 或运维侧备份能力导出现有库，至少覆盖业务表与 `flyway_schema_history`。
+2. **再部署代码/镜像**：拉取新代码后按需执行 `docker compose ... up -d --build`，或使用 `start-dev.cmd` / `dev-up.cmd` 选择重建镜像。
+3. **让后端启动触发 Flyway**：后端启动时会自动执行尚未应用的 `Vxxx__*.sql` 增量脚本，保留已有导入数据。
+4. **遇到 checksum mismatch 先停手**：这表示某个已经执行过的迁移文件被改过。不要清卷、不要手工改业务表、不要删除 `flyway_schema_history`；应恢复该历史迁移文件原内容，把结构变化补成新的更高版本迁移。
+5. **迁移失败按错误处理数据**：例如唯一约束迁移发现历史重复数据时，先基于备份核对并清理冲突数据，再重新启动后端继续 Flyway；不要重新导库作为常规流程。
+
+发布后已经进入任何数据库的迁移脚本（例如 `V001__baseline_schema.sql`）视为不可变快照；后续表结构变化只能新增 `V002+`、`V003+` 这类增量脚本。
+
 默认连接信息见 [.env.example](.env.example)：
 
 - 宿主机访问 MySQL/MinIO 走映射端口（dev compose）
