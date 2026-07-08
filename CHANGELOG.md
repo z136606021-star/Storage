@@ -2,6 +2,7 @@
 
 | 日期 | 变更 |
 |------|------|
+| 2026-07-08 | README/AGENTS 补充发布 tag 规则：正式发布 tag 使用 `vMAJOR.MINOR.PATCH`（如 `v1.0.0`），打 tag 前需本地跑通 `docker-compose.yml` 服务与健康检查 |
 | 2026-07-08 | 增加 Flyway 迁移历史防回归测试：锁定已发布 `V001__baseline_schema.sql` 的 checksum，并校验台账自然键约束保留在 `V007` 增量迁移 |
 | 2026-07-08 | 修复 Flyway 历史迁移 checksum mismatch：恢复已发布 `V001__baseline_schema.sql`，保留 `V007` 承接台账自然键约束；README/AGENTS 补充已有数据环境先备份、禁止清卷重建、禁止修改已应用迁移的升级流程 |
 | 2026-07-07 | 出入库 Excel 导入跟齐业务图：入库导入按物料清单 + Bin 位校验配置，缺台账时自动创建后写入流水；台账前端写 API 与旧表单组件清理，`useExcelImportExport` 支持纯导出页面并复用采购清单下载 |

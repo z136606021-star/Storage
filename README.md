@@ -149,6 +149,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\sync-worktree-env.ps1
 - Nginx 前端入口包含 gzip、hash 静态资源长缓存、`index.html` no-cache、SPA fallback 与 `/api` 反向代理配置。
 - 后端默认不启用全局 CORS；Compose 通过 Nginx 同源代理 `/api/**`，本地 Vite 开发通过 dev proxy 转发 `/api/**`。
 - Linux/macOS/Git Bash 版脚本保持 LF 与可执行位；常规验证可运行 `bash -n scripts/*.sh` 与两套 `docker compose ... config`。
+- 正式发布前先在本地跑通 `docker-compose.yml` 服务并确认后端 `/health` 与前端入口正常；发布 tag 使用语义化版本格式 `vMAJOR.MINOR.PATCH`，例如 `v1.0.0`。
 
 ### 2. 启动后端
 

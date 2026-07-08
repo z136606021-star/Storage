@@ -31,6 +31,7 @@
 - 不要回滚或覆盖用户已有改动；遇到不相关脏工作区，忽略它；遇到相关改动，先理解再衔接。
 - 禁止提交 `.env`、真实密码、真实邮箱密码、API Key、访问令牌或本地构建产物。
 - 提交信息遵循 Conventional Commits：`feat:`、`fix:`、`chore:` 等。
+- 发布 tag 命名遵循语义化版本格式 `vMAJOR.MINOR.PATCH`，例如 `v1.0.0`；打 tag 前必须确认 `docker-compose.yml` 服务本地启动和健康检查通过。
 - 默认分支是 `main`；远端仓库是 `https://github.com/z136606021-star/Storage.git`。
 
 ## 复用门禁
