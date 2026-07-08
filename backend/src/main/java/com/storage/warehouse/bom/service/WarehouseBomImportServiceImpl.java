@@ -31,6 +31,7 @@ public class WarehouseBomImportServiceImpl implements WarehouseBomImportService 
         dto.setGenericName(row.getGenericName());
         dto.setBrand(row.getBrand());
         dto.setName(row.getName());
+        dto.setModel(row.getModel());
         dto.setRemark(row.getRemark());
         return dto;
     }
@@ -45,6 +46,9 @@ public class WarehouseBomImportServiceImpl implements WarehouseBomImportService 
         if (!StringUtils.hasText(dto.getName())) {
             throw new IllegalArgumentException("名称不能为空");
         }
+        if (!StringUtils.hasText(dto.getModel())) {
+            throw new IllegalArgumentException("型号不能为空");
+        }
     }
 
     private boolean isEmptyRow(WarehouseBomExportRow row) {
@@ -52,6 +56,7 @@ public class WarehouseBomImportServiceImpl implements WarehouseBomImportService 
                 && !StringUtils.hasText(row.getGenericName())
                 && !StringUtils.hasText(row.getBrand())
                 && !StringUtils.hasText(row.getName())
+                && !StringUtils.hasText(row.getModel())
                 && !StringUtils.hasText(row.getRemark());
     }
 }

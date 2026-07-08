@@ -27,7 +27,7 @@ services:
       MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin123}
     volumes:
       - minio_data:/data
-    command: server /data --console-address ":9001"
+    command: server --address 0.0.0.0:9000 /data
 
   backend:
     build:

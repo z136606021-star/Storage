@@ -22,5 +22,7 @@ public interface SafetyStockService {
 
     byte[] export(SafetyStockQueryDTO query) throws IOException;
 
+    byte[] exportPurchaseList(SafetyStockQueryDTO query) throws IOException;
+
     List<SafetyStockRecordVO> listByQuery(SafetyStockQueryDTO query);
 }

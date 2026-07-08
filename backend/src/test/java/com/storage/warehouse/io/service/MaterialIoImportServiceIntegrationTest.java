@@ -3,6 +3,10 @@ package com.storage.warehouse.io.service;
 import com.storage.common.dto.ImportResultVO;
 import com.storage.system.auth.service.AuthService;
 import com.storage.system.user.entity.SysUser;
+import com.storage.warehouse.bin.entity.WarehouseBin;
+import com.storage.warehouse.bin.mapper.WarehouseBinMapper;
+import com.storage.warehouse.bom.entity.WarehouseBom;
+import com.storage.warehouse.bom.mapper.WarehouseBomMapper;
 import com.storage.warehouse.io.entity.MaterialIoRecord;
 import com.storage.warehouse.io.excel.MaterialIoImportTemplateColumn;
 import com.storage.warehouse.io.mapper.MaterialIoRecordMapper;
@@ -45,6 +49,12 @@ class MaterialIoImportServiceIntegrationTest {
     @Autowired
     private MaterialIoRecordMapper materialIoRecordMapper;
 
+    @Autowired
+    private WarehouseBomMapper warehouseBomMapper;
+
+    @Autowired
+    private WarehouseBinMapper warehouseBinMapper;
+
     @MockBean
     private AuthService authService;
 
@@ -54,12 +64,29 @@ class MaterialIoImportServiceIntegrationTest {
     void setUp() {
         materialIoRecordMapper.delete(null);
         materialLedgerMapper.delete(null);
+        warehouseBomMapper.delete(null);
+        warehouseBinMapper.delete(null);
 
         SysUser operator = new SysUser();
         operator.setId(1L);
         operator.setUsername("tester");
         operator.setDisplayName("测试员");
         when(authService.currentUser()).thenReturn(operator);
+
+        WarehouseBom bom = new WarehouseBom();
+        bom.setCategory("耗材");
+        bom.setGenericName("测试物料");
+        bom.setBrand("品牌A");
+        bom.setName("测试品");
+        bom.setModel("T-001");
+        warehouseBomMapper.insert(bom);
+
+        WarehouseBin bin = new WarehouseBin();
+        bin.setBinCode("1-1-1");
+        bin.setRowNo(1);
+        bin.setColNo(1);
+        bin.setLevelNo(1);
+        warehouseBinMapper.insert(bin);
 
         ledger = new MaterialLedger();
         ledger.setCategory("耗材");
@@ -86,6 +113,77 @@ class MaterialIoImportServiceIntegrationTest {
         assertThat(result.getSuccessCount()).isEqualTo(1);
         assertThat(result.getFailCount()).isZero();
         assertThat(currentStock()).isEqualTo(15);
+    }
+
+    @Test
+    void importExcel_inboundFromBomAndBin_createsLedgerWhenMissing() throws IOException {
+        materialIoRecordMapper.delete(null);
+        materialLedgerMapper.delete(null);
+
+        List<String[]> rows = new ArrayList<>();
+        rows.add(ioRow("耗材", "测试物料", "品牌A", "测试品", "T-001", "1-1-1", "5", "", "", "入库"));
+        MockMultipartFile file = createImportTemplateExcel(rows);
+
+        ImportResultVO result = materialIoImportService.importExcel(file);
+
+        assertThat(result.getSuccessCount()).isEqualTo(1);
+        List<MaterialLedger> ledgers = materialLedgerMapper.selectList(null);
+        assertThat(ledgers).hasSize(1);
+        assertThat(ledgers.get(0).getStockQuantity()).isEqualTo(5);
+        assertThat(materialIoRecordMapper.selectCount(null)).isEqualTo(1);
+    }
+
+    @Test
+    void importExcel_inboundFromBomAndBin_withPastOperatedAt_createsLedgerAndRecord() throws IOException {
+        materialIoRecordMapper.delete(null);
+        materialLedgerMapper.delete(null);
+        LocalDateTime operatedAt = LocalDateTime.now().minusMinutes(1).withNano(0);
+
+        List<String[]> rows = new ArrayList<>();
+        rows.add(ioRow(
+                "耗材",
+                "测试物料",
+                "品牌A",
+                "测试品",
+                "T-001",
+                "1-1-1",
+                "5",
+                "",
+                "",
+                "入库",
+                OPERATED_AT_FORMATTER.format(operatedAt)
+        ));
+        MockMultipartFile file = createImportTemplateExcel(rows);
+
+        ImportResultVO result = materialIoImportService.importExcel(file);
+
+        assertThat(result.getSuccessCount()).isEqualTo(1);
+        assertThat(result.getFailCount()).isZero();
+        assertThat(materialLedgerMapper.selectList(null)).singleElement()
+                .extracting(MaterialLedger::getStockQuantity)
+                .isEqualTo(5);
+        assertThat(materialIoRecordMapper.selectList(null)).singleElement()
+                .extracting(MaterialIoRecord::getOperatedAt)
+                .isEqualTo(operatedAt);
+    }
+
+    @Test
+    void importExcel_inboundWithoutConfiguredBom_returnsRowErrorWithoutDbWrite() throws IOException {
+        materialIoRecordMapper.delete(null);
+        materialLedgerMapper.delete(null);
+        warehouseBomMapper.delete(null);
+
+        List<String[]> rows = new ArrayList<>();
+        rows.add(ioRow("耗材", "测试物料", "品牌A", "测试品", "T-001", "1-1-1", "5", "", "", "入库"));
+        MockMultipartFile file = createImportTemplateExcel(rows);
+
+        ImportResultVO result = materialIoImportService.importExcel(file);
+
+        assertThat(result.getSuccessCount()).isZero();
+        assertThat(result.getFailCount()).isGreaterThan(0);
+        assertThat(result.getErrors()).anyMatch(error -> error.getMessage().contains("物料清单"));
+        assertThat(materialLedgerMapper.selectCount(null)).isZero();
+        assertThat(materialIoRecordMapper.selectCount(null)).isZero();
     }
 
     @Test

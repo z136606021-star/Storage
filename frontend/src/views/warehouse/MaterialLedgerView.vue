@@ -1,21 +1,15 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ReloadOutlined, SearchOutlined } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
 import dayjs from 'dayjs'
 import {
-  batchDeleteMaterialLedger,
-  deleteMaterialLedger,
-  downloadImportTemplate,
   exportMaterialLedger,
   fetchMaterialLedgerDetail,
-  importMaterialLedger,
 } from '@/api/warehouse/materialLedger'
 import CrudDetailDrawer from '@/components/common/CrudDetailDrawer.vue'
 import CrudListPage from '@/components/common/CrudListPage.vue'
-import CrudRowActions from '@/components/common/CrudRowActions.vue'
-import MaterialLedgerFormModal from '@/components/warehouse/MaterialLedgerFormModal.vue'
 import MaterialIdentityDescriptions from '@/components/warehouse/MaterialIdentityDescriptions.vue'
 import WarehouseMaterialFilterPanel from '@/components/warehouse/WarehouseMaterialFilterPanel.vue'
 import { useCrudDetailDrawer } from '@/composables/useCrudDetailDrawer'
@@ -23,16 +17,13 @@ import { useExcelImportExport } from '@/composables/useExcelImportExport'
 import { useMaterialLedgerList } from '@/composables/useMaterialLedgerList'
 import { useMaterialLedgerRouteDetail } from '@/composables/useMaterialLedgerRouteDetail'
 import { defaultMaterialQuery } from '@/composables/useWarehouseMaterialFilters'
-import { useWritePermission } from '@/composables/useWritePermission'
 import { useAuth } from '@/composables/useAuth'
 import { useMenuStore } from '@/stores/menu'
 import type { MaterialLedger } from '@/types/warehouse/materialLedger'
-import { confirmBatchDelete, confirmDelete } from '@/utils/confirmDelete'
 import { displayValue, formatDateTime, formatUnitPrice } from '@/utils/format'
 import { getTableRowIndex } from '@/utils/tableIndex'
 import { materialIdentityColumns } from '@/utils/warehouseMaterialTable'
 
-const { canWrite } = useWritePermission('warehouse:material-ledger:write')
 const { hasPermission } = useAuth()
 const menu = useMenuStore()
 const route = useRoute()
@@ -43,9 +34,6 @@ const canViewMaterialIo = computed(() => hasPermission('warehouse:material-io:re
 const defaultQuery = {
   ...defaultMaterialQuery(),
 }
-
-const formOpen = ref(false)
-const editingRecord = ref<MaterialLedger | null>(null)
 
 const {
   queryForm,
@@ -67,7 +55,6 @@ const {
   rowSelection,
   hasSelection,
   clearSelection,
-  removeFromSelection,
 } = useMaterialLedgerList({
   loadErrorMessage: '加载物料台账失败，请确认后端服务已启动',
   enableRowSelection: true,
@@ -102,25 +89,17 @@ function handleReset() {
 
 const {
   exporting,
-  importing,
   batchExporting,
   handleExport,
   handleBatchExport,
-  handleImport,
-  handleDownloadTemplate,
 } = useExcelImportExport<ReturnType<typeof buildQueryParams>, { ids: number[] }>({
   exportFn: (params) => exportMaterialLedger(params ?? buildQueryParams()),
   batchExportFn: (params) => exportMaterialLedger(params),
-  importFn: importMaterialLedger,
-  templateFn: downloadImportTemplate,
   buildExportParams: buildQueryParams,
   buildBatchExportParams: (ids) => ({ ids }),
   getExportFilename: () => `物料台账-${dayjs().format('YYYY-MM-DD')}.xlsx`,
   getBatchExportFilename: () => `物料台账-勾选-${dayjs().format('YYYY-MM-DD')}.xlsx`,
-  getTemplateFilename: () => '物料台账导入模板.xlsx',
   exportSuccessMessage: '导出成功',
-  showFirstImportError: true,
-  onAfterImport: refreshAll,
 })
 
 const columns = [
@@ -138,30 +117,11 @@ const columns = [
   { title: '操作', key: 'action', width: 140, align: 'center' as const, fixed: 'right' as const },
 ]
 
-function handleCreate() {
-  editingRecord.value = null
-  formOpen.value = true
-}
-
-function handleEdit(record: MaterialLedger) {
-  editingRecord.value = record
-  formOpen.value = true
-}
-
-function handleEditFromDrawer() {
-  if (!detailRecord.value) {
-    return
-  }
-  editingRecord.value = detailRecord.value
-  drawerOpen.value = false
-  formOpen.value = true
-}
-
 function viewMaterialIoHistory() {
   if (!detailRecord.value) {
     return
   }
-  const target = menu.findRouteByComponentKey('MaterialIo')
+  const target = menu.findRouteByPermission('warehouse:material-io:read')
   if (!target) {
     return
   }
@@ -176,39 +136,6 @@ function onBatchExport() {
     return
   }
   handleBatchExport(selectedRowKeys.value.map((key) => Number(key)))
-}
-
-function handleDelete(record: MaterialLedger) {
-  confirmDelete({
-    title: '确认删除',
-    content: `确定删除物料「${record.name}」吗？`,
-    successMessage: '删除成功',
-    onDelete: async () => {
-      await deleteMaterialLedger(record.id)
-    },
-    onSuccess: async () => {
-      removeFromSelection(record.id)
-      await refreshAll()
-    },
-  })
-}
-
-function handleBatchDelete() {
-  if (!hasSelection.value) {
-    return
-  }
-  confirmBatchDelete({
-    count: selectedRowKeys.value.length,
-    entityLabel: '物料',
-    onDelete: async () => {
-      const ids = selectedRowKeys.value.map((key) => Number(key))
-      await batchDeleteMaterialLedger(ids)
-    },
-    onSuccess: async () => {
-      clearSelection()
-      await refreshAll()
-    },
-  })
 }
 
 onMounted(async () => {
@@ -231,25 +158,21 @@ setupRouteWatch()
     :data-source="dataSource"
     :pagination="pagination"
     :row-key="(record: MaterialLedger) => record.id"
-    :row-selection="canWrite ? rowSelection : undefined"
+    :row-selection="rowSelection"
     :custom-row="customRow"
     :scroll="{ x: 1180 }"
-    toolbar-create-green
+    :toolbar-show-create="false"
+    :toolbar-show-import="false"
+    :toolbar-show-template="false"
     toolbar-show-batch-export
-    :toolbar-template-requires-write="false"
-    :toolbar-show-batch-delete="canWrite"
-    :toolbar-can-write="canWrite"
-    :toolbar-importing="importing"
+    :toolbar-show-batch-delete="false"
+    :toolbar-can-write="false"
     :toolbar-exporting="exporting"
     :toolbar-batch-exporting="batchExporting"
     :toolbar-has-selection="hasSelection"
     @change="handleTableChange"
-    @toolbar-create="handleCreate"
     @toolbar-export="handleExport"
     @toolbar-batch-export="onBatchExport"
-    @toolbar-batch-delete="handleBatchDelete"
-    @toolbar-import="handleImport"
-    @toolbar-download-template="handleDownloadTemplate"
   >
     <template #filters>
       <WarehouseMaterialFilterPanel
@@ -289,30 +212,18 @@ setupRouteWatch()
         {{ record.remark ?? '' }}
       </template>
       <template v-else-if="column.key === 'action'">
-        <CrudRowActions
-          :can-write="canWrite"
-          @view="openDetail(record)"
-          @edit="handleEdit(record)"
-          @delete="handleDelete(record)"
-        />
+        <a-button type="link" size="small" @click="openDetail(record)">详情</a-button>
       </template>
     </template>
   </CrudListPage>
-
-  <MaterialLedgerFormModal
-    v-model:open="formOpen"
-    :record="editingRecord"
-    @success="refreshAll"
-  />
 
   <CrudDetailDrawer
     v-model:open="drawerOpen"
     title="物料详情"
     :width="480"
     :loading="detailLoading"
-    :show-edit="canWrite"
+    :show-edit="false"
     @close="handleCloseDetail"
-    @edit="handleEditFromDrawer"
   >
     <template v-if="detailRecord">
       <MaterialIdentityDescriptions :record="detailRecord" />

@@ -18,7 +18,7 @@ Worktree DB profile synced.
   Branch:   $WORKTREE_BRANCH
   Path:     $ROOT
   MySQL:    localhost:$STORAGE_MYSQL_PORT (container: $STORAGE_MYSQL_CONTAINER)
-  MinIO:    http://localhost:$STORAGE_MINIO_PORT (console: $STORAGE_MINIO_CONSOLE_PORT)
+  MinIO:    http://localhost:$STORAGE_MINIO_PORT
   Compose:  $COMPOSE_PROJECT_NAME
   Wrote:    $env_path
 

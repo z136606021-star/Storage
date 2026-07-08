@@ -23,11 +23,12 @@ public class MaterialLedgerUsageQueryServiceImpl implements MaterialLedgerUsageQ
     }
 
     @Override
-    public long countByBomCatalogKey(String category, String genericName, String brand, String name) {
+    public long countByBomCatalogKey(String category, String genericName, String brand, String name, String model) {
         LambdaQueryWrapper<MaterialLedger> wrapper = Wrappers.<MaterialLedger>lambdaQuery()
                 .eq(MaterialLedger::getCategory, category)
                 .eq(MaterialLedger::getGenericName, genericName)
-                .eq(MaterialLedger::getName, name);
+                .eq(MaterialLedger::getName, name)
+                .eq(MaterialLedger::getModel, model);
 
         if (StringUtils.hasText(brand)) {
             wrapper.eq(MaterialLedger::getBrand, brand);

@@ -30,6 +30,7 @@ public class WarehouseBomExportServiceImpl implements WarehouseBomExportService 
             row.setGenericName(record.getGenericName());
             row.setBrand(record.getBrand());
             row.setName(record.getName());
+            row.setModel(record.getModel());
             row.setRemark(record.getRemark());
             rows.add(row);
         }

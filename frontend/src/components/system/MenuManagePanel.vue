@@ -34,7 +34,7 @@ const columns = [
   { title: '类型', key: 'menuType', width: 90 },
   { title: '权限标识', dataIndex: 'permission', key: 'permission', ellipsis: true },
   { title: '路由', dataIndex: 'path', key: 'path', ellipsis: true, width: 180 },
-  { title: '组件 Key', dataIndex: 'componentKey', key: 'componentKey', ellipsis: true, width: 160 },
+  { title: '组件路径', dataIndex: 'componentKey', key: 'componentKey', ellipsis: true, width: 220 },
   { title: '显示', key: 'visible', width: 70 },
   { title: '排序', dataIndex: 'sortOrder', key: 'sortOrder', width: 70 },
   { title: '操作', key: 'actions', width: 200 },
@@ -148,7 +148,7 @@ async function handleSubmit() {
     && formState.path?.trim()
     && !formState.componentKey?.trim()
   ) {
-    message.warning('可见路由菜单必须填写组件 Key')
+    message.warning('可见路由菜单必须填写组件路径')
     return
   }
   const payload: SysMenuSave = {
@@ -305,10 +305,13 @@ onMounted(loadData)
         </a-form-item>
         <a-form-item
           v-if="formState.menuType === 'MENU' && formState.path?.trim()"
-          label="组件 Key"
+          label="组件路径"
           :required="formState.visible === 1"
         >
-          <a-input v-model:value="formState.componentKey" placeholder="填写已登记的组件 Key" />
+          <a-input
+            v-model:value="formState.componentKey"
+            placeholder="如 views/warehouse/MaterialLedgerView.vue"
+          />
         </a-form-item>
         <a-form-item label="图标">
           <a-input v-model:value="formState.icon" placeholder="Ant Design 图标名，如 SettingOutlined" />

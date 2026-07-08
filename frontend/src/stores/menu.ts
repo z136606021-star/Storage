@@ -117,10 +117,10 @@ export const useMenuStore = defineStore('menu', () => {
     return null
   }
 
-  function collectChildRoutes(parentComponentKey: string): MenuRouteInfo[] {
+  function collectChildRoutesByPermission(parentPermission: string): MenuRouteInfo[] {
     let children: MenuRouteInfo[] = []
     visitMenuRoutes((node, fullPath) => {
-      if (node.componentKey !== parentComponentKey) {
+      if (node.permission !== parentPermission) {
         return false
       }
       children = (node.children ?? [])
@@ -145,8 +145,8 @@ export const useMenuStore = defineStore('menu', () => {
     return children
   }
 
-  function findRouteByComponentKey(componentKey: string): MenuRouteInfo | null {
-    return visitMenuRoutes((node) => node.componentKey === componentKey)
+  function findRouteByPermission(permission: string): MenuRouteInfo | null {
+    return visitMenuRoutes((node) => node.permission === permission)
   }
 
   function findRouteByPath(path: string): MenuRouteInfo | null {
@@ -168,8 +168,8 @@ export const useMenuStore = defineStore('menu', () => {
     loadNavTree,
     ensureDynamicRoutes,
     clearMenusAndRoutes,
-    collectChildRoutes,
-    findRouteByComponentKey,
+    collectChildRoutesByPermission,
+    findRouteByPermission,
     findRouteByPath,
     getDefaultRoute,
   }

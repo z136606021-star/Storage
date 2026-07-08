@@ -38,21 +38,21 @@ async function loadStats() {
 }
 
 function goSafetyStock() {
-  const target = menu.findRouteByComponentKey('SafetyStock')
+  const target = menu.findRouteByPermission('warehouse:safety-stock:read')
   if (target) {
     router.push(target.path)
   }
 }
 
 function goMaterialIo() {
-  const target = menu.findRouteByComponentKey('MaterialIo')
+  const target = menu.findRouteByPermission('warehouse:material-io:read')
   if (target) {
     router.push(target.path)
   }
 }
 
 function goLedger(materialLedgerId: number) {
-  const target = menu.findRouteByComponentKey('MaterialLedger')
+  const target = menu.findRouteByPermission('warehouse:material-ledger:read')
   if (target) {
     router.push({ path: target.path, query: { materialLedgerId: String(materialLedgerId) } })
   }

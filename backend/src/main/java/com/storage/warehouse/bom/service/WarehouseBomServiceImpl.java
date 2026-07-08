@@ -59,17 +59,20 @@ public class WarehouseBomServiceImpl implements WarehouseBomService {
     }
 
     @Override
-    public boolean existsByCatalogKey(String category, String genericName, String brand, String name) {
-        if (!StringUtils.hasText(category) || !StringUtils.hasText(genericName) || !StringUtils.hasText(name)) {
+    public boolean existsByCatalogKey(String category, String genericName, String brand, String name, String model) {
+        if (!StringUtils.hasText(category)
+                || !StringUtils.hasText(genericName)
+                || !StringUtils.hasText(name)
+                || !StringUtils.hasText(model)) {
             return false;
         }
-        return warehouseBomMapper.selectCount(buildCatalogKeyWrapper(category, genericName, brand, name, null)) > 0;
+        return warehouseBomMapper.selectCount(buildCatalogKeyWrapper(category, genericName, brand, name, model, null)) > 0;
     }
 
     @Override
-    public void assertCatalogExists(String category, String genericName, String brand, String name) {
-        if (!existsByCatalogKey(category, genericName, brand, name)) {
-            throw new BusinessException("\u7269\u6599\u6e05\u5355\u4e2d\u4e0d\u5b58\u5728: " + formatCatalogLabel(category, genericName, brand, name));
+    public void assertCatalogExists(String category, String genericName, String brand, String name, String model) {
+        if (!existsByCatalogKey(category, genericName, brand, name, model)) {
+            throw new BusinessException("\u7269\u6599\u6e05\u5355\u4e2d\u4e0d\u5b58\u5728: " + formatCatalogLabel(category, genericName, brand, name, model));
         }
     }
 
@@ -78,7 +81,7 @@ public class WarehouseBomServiceImpl implements WarehouseBomService {
         return warehouseBomMapper.selectList(
                         Wrappers.<WarehouseBom>lambdaQuery()
                                 .orderByAsc(WarehouseBom::getCategory, WarehouseBom::getGenericName,
-                                        WarehouseBom::getBrand, WarehouseBom::getName)
+                                        WarehouseBom::getBrand, WarehouseBom::getName, WarehouseBom::getModel)
                 ).stream()
                 .map(this::toCatalogItem)
                 .collect(Collectors.toList());
@@ -148,13 +151,19 @@ public class WarehouseBomServiceImpl implements WarehouseBomService {
                 bom.getGenericName(),
                 bom.getBrand(),
                 bom.getName(),
-                formatCatalogLabel(bom.getCategory(), bom.getGenericName(), bom.getBrand(), bom.getName())
+                bom.getModel(),
+                formatCatalogLabel(bom.getCategory(), bom.getGenericName(), bom.getBrand(), bom.getName(), bom.getModel())
         );
     }
 
     private String formatCatalogLabel(String category, String genericName, String brand, String name) {
+        return formatCatalogLabel(category, genericName, brand, name, null);
+    }
+
+    private String formatCatalogLabel(String category, String genericName, String brand, String name, String model) {
         String brandPart = StringUtils.hasText(brand) ? brand.trim() : "\u2014";
-        return category.trim() + " / " + genericName.trim() + " / " + brandPart + " / " + name.trim();
+        String modelPart = StringUtils.hasText(model) ? model.trim() : "\u2014";
+        return category.trim() + " / " + genericName.trim() + " / " + brandPart + " / " + name.trim() + " / " + modelPart;
     }
 
     private LambdaQueryWrapper<WarehouseBom> buildCatalogKeyWrapper(
@@ -162,12 +171,14 @@ public class WarehouseBomServiceImpl implements WarehouseBomService {
             String genericName,
             String brand,
             String name,
+            String model,
             Long excludeId
     ) {
         LambdaQueryWrapper<WarehouseBom> wrapper = Wrappers.<WarehouseBom>lambdaQuery()
                 .eq(WarehouseBom::getCategory, category.trim())
                 .eq(WarehouseBom::getGenericName, genericName.trim())
-                .eq(WarehouseBom::getName, name.trim());
+                .eq(WarehouseBom::getName, name.trim())
+                .eq(WarehouseBom::getModel, model.trim());
 
         if (StringUtils.hasText(brand)) {
             wrapper.eq(WarehouseBom::getBrand, brand.trim());
@@ -183,7 +194,7 @@ public class WarehouseBomServiceImpl implements WarehouseBomService {
 
     private long countLedgerUsage(WarehouseBom bom) {
         return materialUsageQueryService.countByBomCatalogKey(
-                bom.getCategory(), bom.getGenericName(), bom.getBrand(), bom.getName());
+                bom.getCategory(), bom.getGenericName(), bom.getBrand(), bom.getName(), bom.getModel());
     }
 
     private void assertNotInUse(WarehouseBom bom) {
@@ -209,9 +220,9 @@ public class WarehouseBomServiceImpl implements WarehouseBomService {
 
     private void assertNotDuplicate(WarehouseBomSaveDTO dto, Long excludeId) {
         if (warehouseBomMapper.selectCount(
-                buildCatalogKeyWrapper(dto.getCategory(), dto.getGenericName(), dto.getBrand(), dto.getName(), excludeId)
+                buildCatalogKeyWrapper(dto.getCategory(), dto.getGenericName(), dto.getBrand(), dto.getName(), dto.getModel(), excludeId)
         ) > 0) {
-            throw new BusinessException("\u76f8\u540c\u54c1\u7c7b/\u7edf\u79f0/\u54c1\u724c/\u540d\u79f0\u7684\u7269\u6599\u6e05\u5355\u9879\u5df2\u5b58\u5728");
+            throw new BusinessException("相同品类/统称/品牌/名称/型号的物料清单项已存在");
         }
     }
 
@@ -219,7 +230,7 @@ public class WarehouseBomServiceImpl implements WarehouseBomService {
         if (bom == null) {
             return;
         }
-        bom.setImageUrl(fileStorageService.resolvePresignedUrl(bom.getImageObjectKey()));
+        bom.setImageUrl(fileStorageService.resolveAccessUrl(bom.getImageObjectKey()));
     }
 
     private void enrichImageUrl(List<WarehouseBom> list) {

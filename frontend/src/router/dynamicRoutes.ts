@@ -1,16 +1,15 @@
 import type { Router, RouteRecordRaw } from 'vue-router'
 import type { NavMenuNode } from '@/types/system'
-import { resolveRouteComponent } from '@/router/routeComponentRegistry'
+import { resolveRouteComponent } from '@/router/routeComponentResolver'
 
 const DYNAMIC_ROUTE_PARENT = 'AppRoot'
 
 const dynamicRouteNames = new Set<string>()
 
-const STABLE_ROUTE_NAMES: Record<string, string> = {
-  SystemManageLayout: 'SystemManage',
-  UserManage: 'UserManage',
-  RoleManagePanel: 'RoleManage',
-  MenuManagePanel: 'MenuManage',
+const STABLE_ROUTE_NAMES_BY_PERMISSION: Record<string, string> = {
+  'system:user:read': 'SystemManage',
+  'system:role:read': 'RoleManage',
+  'system:menu:read': 'MenuManage',
 }
 
 function normalizeChildPath(path: string) {
@@ -18,8 +17,8 @@ function normalizeChildPath(path: string) {
 }
 
 function routeNameFromNode(node: NavMenuNode) {
-  if (node.componentKey && STABLE_ROUTE_NAMES[node.componentKey]) {
-    return STABLE_ROUTE_NAMES[node.componentKey]
+  if (node.permission && STABLE_ROUTE_NAMES_BY_PERMISSION[node.permission]) {
+    return STABLE_ROUTE_NAMES_BY_PERMISSION[node.permission]
   }
   return `DynamicMenu${node.key}`
 }

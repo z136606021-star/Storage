@@ -14,7 +14,7 @@
 
 - 后端采用单模块内「大仓小仓」：`com.storage.common.*`、`com.storage.system.*`、`com.storage.warehouse.*`、`com.storage.infrastructure.*`；扁平技术包与根级 `com.storage.config` 已清空，横切配置分别归入 `common.config`、`system.auth.config`、`infrastructure.file.config`；新能力必须落入对应域包。
 - 跨域：`OperatorResolver`（系统域）供仓库域解析操作人；仓库域禁止直接注入系统 mapper 或 `*Impl`。
-- 前端域目录：`views/warehouse`、`views/system`；仓库 API/类型物理目录 `api/warehouse/`、`types/warehouse/`（根目录 shim 兼容旧 import）；动态路由 `component_key` 不变，视图路径以 `router/routeComponentRegistry.ts` 为 SSOT。
+- 前端域目录：`views/warehouse`、`views/system`；仓库 API/类型物理目录 `api/warehouse/`、`types/warehouse/`（根目录 shim 兼容旧 import）；动态路由 `component_key` 存前端模块路径（如 `views/warehouse/MaterialLedgerView.vue`），菜单表为 SSOT，前端仅通过 `import.meta.glob` 解析 `views/` 与 `components/` 下的可路由组件，禁止维护人工组件映射表。
 
 ## 文档分工
 
@@ -83,10 +83,11 @@
 - `service`：业务规则、事务、权限、库存不变量；新系统域能力优先落入 `com.storage.system.*`，共享契约放 `com.storage.common.*`。
 - `query` / `converter` / `excel`：资源专属随业务域；跨域工具放 `common.excel` / `common.web`。导出使用 EasyExcel + `*ExportRow` + `ExcelExportWriter` + `ExcelExportStyleHandlers`；导入继续 POI + `ExcelCellUtils` + `ImportResultVO`，新 Export/Import 须先检查是否可复用公共层。
 - 数据库字段同义只保留一套命名，例如 `generic_name`、`bin_location`、`project_ref`。
+- 物料台账是实时库存结果视图，常规库存变更必须通过出入库流水；新增入库从物料清单/BOM 与 Bin 位管理选择配置，出库从台账选择以校验库存。
 
 ## 环境变量门禁
 
-- 连接串、端口、密钥、桶名、CORS 来源禁止硬编码在 Java / TypeScript / Vue 业务代码中。
+- 连接串、端口、密钥、桶名禁止硬编码在 Java / TypeScript / Vue 业务代码中。
 - 配置 SSOT：
   - `.env.example`
   - `scripts/worktree-db.ps1`
@@ -97,7 +98,7 @@
 - 新增配置项时必须同步模板、脚本生成逻辑、应用读取处和文档说明。
 - `docker-compose.yml` / `docker-compose-dev.yml` 必须通过 service 级 `env_file: .env` 注入后端运行配置；Compose 中只保留端口映射、镜像变量名转换（如 `MYSQL_DATABASE`、`MINIO_ROOT_*`）与容器网络覆盖，禁止复制后端全量环境变量列表；healthcheck 禁止明文密码参数。
 - 脚本访问 MySQL 必须读取 `MYSQL_USER`、`MYSQL_PASSWORD`、`MYSQL_DB`，禁止写死 `-pstorage123`。
-- `CORS_ALLOWED_ORIGINS` 必须随前端端口或可信前端域名配置，禁止在 Java 配置中写死 `5173`。
+- 默认不启用后端全局 CORS；Compose 部署走 Nginx 同源代理，本地开发走 Vite proxy。确需第三方前端跨域直连后端时，应优先在 Nginx/网关层显式配置跨域策略。
 
 ## 数据库迁移门禁
 
@@ -126,7 +127,7 @@
 - 开发默认凭据（如 `admin123`、`storage123`、`minioadmin123`）仅限本地开发；生产部署必须轮换。
 - `.env` 和真实 SMTP 密码不得入库；`MAIL_PASSWORD` 应使用应用专用密码或部署侧密钥。
 - 忘记密码 token 只允许明文出现在邮件链接中，数据库只存哈希；过期和使用后必须失效。
-- 注册、登录、忘记密码、重置密码等公网入口必须配合 HTTPS、可信 CORS、JWT 安全配置和限流策略；当前鉴权主路径为 Shiro + JWT Bearer token。
+- 注册、登录、忘记密码、重置密码等公网入口必须配合 HTTPS、JWT 安全配置和限流策略；当前鉴权主路径为 Shiro + JWT Bearer token。跨域入口应由 Nginx/网关显式治理，默认后端不注册全局 CORS。
 - 文件上传安全校验以后端为准，至少校验大小、MIME 白名单和文件魔数；前端限制只做体验。
 - 生产环境必须评估是否关闭开放注册和 admin 自动重置密码。
 

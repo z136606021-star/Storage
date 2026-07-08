@@ -3,6 +3,7 @@ import type { PageResult } from '@/types/common'
 import type { FilterLinkageQuery, FilterOptions } from '@/types/warehouse/materialLedger'
 import type {
   SafetyStockExportQuery,
+  SafetyStockPurchaseListExportQuery,
   SafetyStockQuery,
   SafetyStockRecord,
   SafetyStockUpdatePayload,
@@ -43,6 +44,19 @@ export async function updateSafetyStock(
 
 export async function exportSafetyStock(query: SafetyStockExportQuery): Promise<Blob> {
   const { data } = await http.get<Blob>('/safety-stock/export', {
+    params: query,
+    paramsSerializer: {
+      indexes: null,
+    },
+    responseType: 'blob',
+  })
+  return data
+}
+
+export async function exportSafetyStockPurchaseList(
+  query: SafetyStockPurchaseListExportQuery,
+): Promise<Blob> {
+  const { data } = await http.get<Blob>('/safety-stock/purchase-list/export', {
     params: query,
     paramsSerializer: {
       indexes: null,

@@ -4,5 +4,5 @@ public interface MaterialUsageQueryService {
 
     long countByBinCode(String binCode);
 
-    long countByBomCatalogKey(String category, String genericName, String brand, String name);
+    long countByBomCatalogKey(String category, String genericName, String brand, String name, String model);
 }

@@ -193,7 +193,7 @@ public class SysMenuServiceImpl implements SysMenuService {
                 && Integer.valueOf(1).equals(dto.getVisible())
                 && StringUtils.hasText(dto.getPath())
                 && !StringUtils.hasText(dto.getComponentKey())) {
-            throw new BusinessException("可见路由菜单必须填写组件 Key");
+            throw new BusinessException("可见路由菜单必须填写组件路径");
         }
         if (StringUtils.hasText(dto.getPermission())) {
             long count = excludeId == null

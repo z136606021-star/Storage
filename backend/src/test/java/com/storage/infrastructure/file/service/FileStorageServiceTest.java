@@ -3,6 +3,7 @@ package com.storage.infrastructure.file.service;
 import com.storage.infrastructure.file.config.FileUploadProperties;
 import com.storage.infrastructure.file.config.MinioProperties;
 import com.storage.common.exception.BusinessException;
+import com.storage.infrastructure.file.entity.SysFile;
 import com.storage.infrastructure.file.mapper.SysFileMapper;
 import io.minio.MinioClient;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,7 +15,10 @@ import org.springframework.mock.web.MockMultipartFile;
 
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 @ExtendWith(MockitoExtension.class)
@@ -48,6 +52,26 @@ class FileStorageServiceTest {
                 fileUploadProperties,
                 sysFileMapper
         );
+    }
+
+    @Test
+    void resolveAccessUrl_returnsSameOriginPreviewUrl() {
+        String url = fileStorageService.resolveAccessUrl("2026-07-08/demo image.png");
+
+        assertThat(url).isEqualTo("/api/files/preview?objectKey=2026-07-08%2Fdemo+image.png");
+    }
+
+    @Test
+    void loadImage_withNonImageFile_rejectsBeforeMinioCall() {
+        SysFile record = new SysFile();
+        record.setObjectKey("2026-07-08/demo.txt");
+        record.setContentType("text/plain");
+        when(sysFileMapper.selectOne(any())).thenReturn(record);
+
+        assertThatThrownBy(() -> fileStorageService.loadImage("2026-07-08/demo.txt"))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("文件类型不支持预览");
+        verifyNoInteractions(minioClient);
     }
 
     @Test

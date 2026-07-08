@@ -11,6 +11,9 @@ export interface WarehouseBin {
 
 export interface WarehouseBinQuery {
   binCode?: string
+  rowNo?: number
+  colNo?: number
+  levelNo?: number
   page?: number
   pageSize?: number
 }

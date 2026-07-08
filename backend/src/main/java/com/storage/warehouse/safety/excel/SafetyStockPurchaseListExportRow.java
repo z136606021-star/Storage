@@ -1,10 +1,10 @@
-package com.storage.warehouse.bom.excel;
+package com.storage.warehouse.safety.excel;
 
 import lombok.Data;
 import org.jeecgframework.poi.excel.annotation.Excel;
 
 @Data
-public class WarehouseBomExportRow {
+public class SafetyStockPurchaseListExportRow {
 
     @Excel(name = "序号", orderNum = "0")
     private Integer index;
@@ -24,6 +24,18 @@ public class WarehouseBomExportRow {
     @Excel(name = "型号", orderNum = "5")
     private String model;
 
-    @Excel(name = "备注", orderNum = "6")
+    @Excel(name = "Bin位", orderNum = "6")
+    private String binLocation;
+
+    @Excel(name = "库存数量", orderNum = "7")
+    private Integer stockQuantity;
+
+    @Excel(name = "安全库存数", orderNum = "8")
+    private Integer safetyQuantity;
+
+    @Excel(name = "建议采购数", orderNum = "9")
+    private Integer suggestedPurchaseQuantity;
+
+    @Excel(name = "备注", orderNum = "10")
     private String remark;
 }

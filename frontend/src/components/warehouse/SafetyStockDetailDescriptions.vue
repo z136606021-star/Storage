@@ -15,7 +15,7 @@ const router = useRouter()
 const menu = useMenuStore()
 
 function viewMaterialLedger(materialLedgerId: number) {
-  const target = menu.findRouteByComponentKey('MaterialLedger')
+  const target = menu.findRouteByPermission('warehouse:material-ledger:read')
   if (!target) {
     message.info('台账菜单未配置')
     return
@@ -27,7 +27,7 @@ function viewMaterialLedger(materialLedgerId: number) {
 }
 
 function viewMaterialIo(materialLedgerId: number) {
-  const target = menu.findRouteByComponentKey('MaterialIo')
+  const target = menu.findRouteByPermission('warehouse:material-io:read')
   if (!target) {
     message.info('出入库菜单未配置')
     return

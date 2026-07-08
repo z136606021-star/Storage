@@ -3,6 +3,10 @@ package com.storage.warehouse.io.service;
 import com.storage.common.exception.BusinessException;
 import com.storage.system.auth.service.AuthService;
 import com.storage.system.user.entity.SysUser;
+import com.storage.warehouse.bin.entity.WarehouseBin;
+import com.storage.warehouse.bin.mapper.WarehouseBinMapper;
+import com.storage.warehouse.bom.entity.WarehouseBom;
+import com.storage.warehouse.bom.mapper.WarehouseBomMapper;
 import com.storage.warehouse.io.dto.MaterialIoBatchItemDTO;
 import com.storage.warehouse.io.dto.MaterialIoBatchSaveDTO;
 import com.storage.warehouse.io.dto.MaterialIoQueryDTO;
@@ -12,7 +16,6 @@ import com.storage.warehouse.io.dto.MaterialIoUpdateDTO;
 import com.storage.warehouse.io.mapper.MaterialIoRecordMapper;
 import com.storage.warehouse.ledger.entity.MaterialLedger;
 import com.storage.warehouse.ledger.mapper.MaterialLedgerMapper;
-import com.storage.warehouse.ledger.service.MaterialLedgerService;
 import com.storage.warehouse.safety.entity.SafetyStock;
 import com.storage.warehouse.safety.mapper.SafetyStockMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,9 +41,6 @@ class MaterialIoServiceIntegrationTest {
     private MaterialIoService materialIoService;
 
     @Autowired
-    private MaterialLedgerService materialLedgerService;
-
-    @Autowired
     private MaterialLedgerMapper materialLedgerMapper;
 
     @Autowired
@@ -49,22 +49,43 @@ class MaterialIoServiceIntegrationTest {
     @Autowired
     private SafetyStockMapper safetyStockMapper;
 
+    @Autowired
+    private WarehouseBomMapper warehouseBomMapper;
+
+    @Autowired
+    private WarehouseBinMapper warehouseBinMapper;
+
     @MockBean
     private AuthService authService;
 
     private Long ledgerId;
+    private Long bomId;
 
     @BeforeEach
     void setUp() {
         materialIoRecordMapper.delete(null);
-        materialLedgerMapper.delete(null);
         safetyStockMapper.delete(null);
+        materialLedgerMapper.delete(null);
+        warehouseBinMapper.delete(null);
+        warehouseBomMapper.delete(null);
 
         SysUser operator = new SysUser();
         operator.setId(1L);
         operator.setUsername("tester");
         operator.setDisplayName("测试员");
         when(authService.currentUser()).thenReturn(operator);
+
+        WarehouseBom bom = new WarehouseBom();
+        bom.setCategory("耗材");
+        bom.setGenericName("测试物料");
+        bom.setBrand("品牌A");
+        bom.setName("测试品");
+        bom.setModel("T-001");
+        warehouseBomMapper.insert(bom);
+        bomId = bom.getId();
+
+        insertBin("1-1-1", 1, 1, 1);
+        insertBin("2-3-4", 2, 3, 4);
 
         MaterialLedger ledger = new MaterialLedger();
         ledger.setCategory("耗材");
@@ -97,7 +118,7 @@ class MaterialIoServiceIntegrationTest {
         MaterialIoBatchSaveDTO batch = new MaterialIoBatchSaveDTO();
         batch.setIoType("IN");
         batch.setOperatedAt(operatedAt);
-        batch.setItems(List.of(batchItem(ledgerId, 2)));
+        batch.setItems(List.of(inboundItem(bomId, "1-1-1", 2)));
 
         var created = materialIoService.batchCreate(batch).get(0);
 
@@ -182,11 +203,51 @@ class MaterialIoServiceIntegrationTest {
     void inbound_increasesStock() {
         MaterialIoBatchSaveDTO batch = new MaterialIoBatchSaveDTO();
         batch.setIoType("IN");
-        batch.setItems(List.of(batchItem(ledgerId, 5)));
+        batch.setItems(List.of(inboundItem(bomId, "1-1-1", 5)));
 
         materialIoService.batchCreate(batch);
 
         assertThat(currentStock()).isEqualTo(15);
+    }
+
+    @Test
+    void batchInbound_fromBomAndBin_createsLedgerAndIncreasesStock() {
+        MaterialIoBatchSaveDTO batch = new MaterialIoBatchSaveDTO();
+        batch.setIoType("IN");
+        batch.setItems(List.of(inboundItem(bomId, "2-3-4", 6)));
+
+        var created = materialIoService.batchCreate(batch).get(0);
+
+        MaterialLedger createdLedger = materialLedgerMapper.selectById(created.getMaterialLedgerId());
+        assertThat(createdLedger.getCategory()).isEqualTo("耗材");
+        assertThat(createdLedger.getGenericName()).isEqualTo("测试物料");
+        assertThat(createdLedger.getBrand()).isEqualTo("品牌A");
+        assertThat(createdLedger.getName()).isEqualTo("测试品");
+        assertThat(createdLedger.getModel()).isEqualTo("T-001");
+        assertThat(createdLedger.getBinLocation()).isEqualTo("2-3-4");
+        assertThat(createdLedger.getStockQuantity()).isEqualTo(6);
+    }
+
+    @Test
+    void batchInbound_sameBomAndBin_increasesExistingLedger() {
+        MaterialIoBatchSaveDTO batch = new MaterialIoBatchSaveDTO();
+        batch.setIoType("IN");
+        batch.setItems(List.of(inboundItem(bomId, "1-1-1", 2)));
+
+        materialIoService.batchCreate(batch);
+
+        assertThat(currentStock()).isEqualTo(12);
+    }
+
+    @Test
+    void batchInbound_unknownBin_rejects() {
+        MaterialIoBatchSaveDTO batch = new MaterialIoBatchSaveDTO();
+        batch.setIoType("IN");
+        batch.setItems(List.of(inboundItem(bomId, "9-9-9", 2)));
+
+        assertThatThrownBy(() -> materialIoService.batchCreate(batch))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Bin位不存在");
     }
 
     @Test
@@ -280,15 +341,6 @@ class MaterialIoServiceIntegrationTest {
     }
 
     @Test
-    void ledgerDelete_withIoReference_throwsBusinessException() {
-        materialIoService.batchCreate(outboundBatch(ledgerId, 2));
-
-        assertThatThrownBy(() -> materialLedgerService.delete(ledgerId))
-                .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("出入库记录");
-    }
-
-    @Test
     void batchOutbound_projectUse_persistsProjectRef() {
         MaterialIoBatchSaveDTO batch = new MaterialIoBatchSaveDTO();
         batch.setIoType("OUT");
@@ -304,6 +356,15 @@ class MaterialIoServiceIntegrationTest {
 
     private int currentStock() {
         return materialLedgerMapper.selectById(ledgerId).getStockQuantity();
+    }
+
+    private void insertBin(String binCode, int rowNo, int colNo, int levelNo) {
+        WarehouseBin bin = new WarehouseBin();
+        bin.setBinCode(binCode);
+        bin.setRowNo(rowNo);
+        bin.setColNo(colNo);
+        bin.setLevelNo(levelNo);
+        warehouseBinMapper.insert(bin);
     }
 
     private MaterialIoBatchSaveDTO outboundBatch(Long ledgerId, int quantity) {
@@ -326,6 +387,14 @@ class MaterialIoServiceIntegrationTest {
         item.setMaterialLedgerId(ledgerId);
         item.setQuantity(quantity);
         item.setPurpose(purpose);
+        return item;
+    }
+
+    private MaterialIoBatchItemDTO inboundItem(Long bomId, String binLocation, int quantity) {
+        MaterialIoBatchItemDTO item = new MaterialIoBatchItemDTO();
+        item.setBomId(bomId);
+        item.setBinLocation(binLocation);
+        item.setQuantity(quantity);
         return item;
     }
 

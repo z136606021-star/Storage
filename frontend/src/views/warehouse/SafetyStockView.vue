@@ -1,9 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { ReloadOutlined, SearchOutlined } from '@ant-design/icons-vue'
+import { FileExcelOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
 import dayjs from 'dayjs'
-import { exportSafetyStock, fetchSafetyStockDetail } from '@/api/warehouse/safetyStock'
+import {
+  exportSafetyStock,
+  exportSafetyStockPurchaseList,
+  fetchSafetyStockDetail,
+} from '@/api/warehouse/safetyStock'
 import CrudDetailDrawer from '@/components/common/CrudDetailDrawer.vue'
 import CrudListPage from '@/components/common/CrudListPage.vue'
 import CrudRowActions from '@/components/common/CrudRowActions.vue'
@@ -17,7 +21,11 @@ import { useSafetyStockList } from '@/composables/useSafetyStockList'
 import { useWritePermission } from '@/composables/useWritePermission'
 import { useAuth } from '@/composables/useAuth'
 import { ALL_OPTION } from '@/constants/filter'
-import type { SafetyStockRecord } from '@/types/warehouse/safetyStock'
+import type {
+  SafetyStockExportQuery,
+  SafetyStockPurchaseListExportQuery,
+  SafetyStockRecord,
+} from '@/types/warehouse/safetyStock'
 import { displayValue } from '@/utils/format'
 import { getTableRowIndex } from '@/utils/tableIndex'
 import { materialIdentityColumns } from '@/utils/warehouseMaterialTable'
@@ -78,15 +86,30 @@ const {
   batchExporting,
   handleExport,
   handleBatchExport,
-} = useExcelImportExport<ReturnType<typeof buildQueryParams>, { ids: number[] }>({
+} = useExcelImportExport<SafetyStockExportQuery, SafetyStockExportQuery>({
   exportFn: (params) => exportSafetyStock(params ?? buildQueryParams()),
   batchExportFn: (params) => exportSafetyStock(params),
-  importFn: async () => ({ successCount: 0, failCount: 0, errors: [] }),
   buildExportParams: buildQueryParams,
   buildBatchExportParams: (ids) => ({ ...buildQueryParams(), ids }),
   getExportFilename: () => `安全库存-${dayjs().format('YYYY-MM-DD')}.xlsx`,
   getBatchExportFilename: () => `安全库存-勾选-${dayjs().format('YYYY-MM-DD')}.xlsx`,
   exportSuccessMessage: '导出成功',
+})
+
+const {
+  exporting: purchaseListExporting,
+  handleExport: handleExportPurchaseList,
+} = useExcelImportExport<SafetyStockPurchaseListExportQuery>({
+  exportFn: (params) => exportSafetyStockPurchaseList(params ?? { warningPeriod: '是' }),
+  buildExportParams: () => {
+    const selectedIds = selectedRowKeys.value.map((key) => Number(key))
+    return selectedIds.length > 0
+      ? { ...buildQueryParams(), ids: selectedIds }
+      : { ...buildQueryParams(), warningPeriod: '是' }
+  },
+  getExportFilename: () => `采购清单-${dayjs().format('YYYY-MM-DD')}.xlsx`,
+  exportSuccessMessage: '采购清单生成成功',
+  exportErrorMessage: '生成采购清单失败',
 })
 
 const columns = [
@@ -191,6 +214,16 @@ onMounted(async () => {
     @toolbar-export="handleExport"
     @toolbar-batch-export="onBatchExport"
   >
+    <template #toolbarPrepend>
+      <a-button
+        :loading="purchaseListExporting"
+        @click="handleExportPurchaseList"
+      >
+        <template #icon><FileExcelOutlined /></template>
+        生成采购清单
+      </a-button>
+    </template>
+
     <template #filters>
       <WarehouseMaterialFilterPanel
         :query-form="queryForm"

@@ -8,7 +8,7 @@ import { showImportResultMessage } from '@/utils/importResult'
 export interface ExcelImportExportOptions<Q = unknown, BatchQ = Q> {
   exportFn: (params?: Q) => Promise<Blob>
   batchExportFn?: (params: BatchQ) => Promise<Blob>
-  importFn: (file: File) => Promise<ImportResult>
+  importFn?: (file: File) => Promise<ImportResult>
   templateFn?: () => Promise<Blob>
   buildExportParams?: () => Q
   buildBatchExportParams?: (ids: number[]) => BatchQ
@@ -82,6 +82,9 @@ export function useExcelImportExport<Q = unknown, BatchQ = Q>(
   }
 
   async function handleImport(file: File) {
+    if (!options.importFn) {
+      return false
+    }
     importing.value = true
     try {
       const result = await options.importFn(file)

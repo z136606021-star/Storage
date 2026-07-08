@@ -112,7 +112,7 @@ CREATE TABLE material_ledger (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     category VARCHAR(64) NOT NULL COMMENT '品类',
     generic_name VARCHAR(64) NOT NULL COMMENT '统称',
-    brand VARCHAR(64) NULL COMMENT '品牌',
+    brand VARCHAR(64) NOT NULL DEFAULT '' COMMENT '品牌',
     name VARCHAR(128) NOT NULL COMMENT '名称',
     model VARCHAR(64) NOT NULL COMMENT '型号',
     bin_location VARCHAR(32) NOT NULL COMMENT 'Bin位',
@@ -123,7 +123,8 @@ CREATE TABLE material_ledger (
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_category (category),
     INDEX idx_generic_name (generic_name),
-    INDEX idx_bin_location (bin_location)
+    INDEX idx_bin_location (bin_location),
+    UNIQUE KEY uk_material_ledger_natural_key (category, generic_name, brand, name, model, bin_location)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE material_io_record (

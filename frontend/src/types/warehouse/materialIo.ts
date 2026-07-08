@@ -45,7 +45,9 @@ export interface MaterialIoQuery {
 }
 
 export interface MaterialIoBatchItemPayload {
-  materialLedgerId: number
+  materialLedgerId?: number
+  bomId?: number
+  binLocation?: string
   quantity: number
   remark?: string | null
   purpose?: string | null
@@ -86,6 +88,7 @@ export type MaterialIoExportQuery = Omit<MaterialIoQuery, 'page' | 'pageSize'>
 export interface MaterialIoFormRow {
   key: string
   materialLedgerId?: number
+  bomId?: number
   category?: string
   genericName?: string
   brand?: string | null

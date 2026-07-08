@@ -19,5 +19,7 @@ public class BomCatalogItemVO {
 
     private String name;
 
+    private String model;
+
     private String displayLabel;
 }

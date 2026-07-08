@@ -31,6 +31,7 @@ const defaultForm = (): WarehouseBomSavePayload => ({
   genericName: '',
   brand: null,
   name: '',
+  model: '',
   remark: null,
   imageObjectKey: null,
 })
@@ -45,6 +46,7 @@ const rules = {
   category: [{ required: true, message: '请输入品类', trigger: 'blur' }],
   genericName: [{ required: true, message: '请输入统称', trigger: 'blur' }],
   name: [{ required: true, message: '请输入名称', trigger: 'blur' }],
+  model: [{ required: true, message: '请输入型号', trigger: 'blur' }],
 }
 
 watch(
@@ -59,6 +61,7 @@ watch(
         genericName: props.record.genericName,
         brand: props.record.brand,
         name: props.record.name,
+        model: props.record.model,
         remark: props.record.remark,
         imageObjectKey: props.record.imageObjectKey,
       })
@@ -123,6 +126,7 @@ async function handleSubmit() {
     genericName: formState.genericName.trim(),
     brand: formState.brand?.trim() || null,
     name: formState.name.trim(),
+    model: formState.model.trim(),
     remark: formState.remark?.trim() || null,
     imageObjectKey: formState.imageObjectKey ?? null,
   }
@@ -168,6 +172,9 @@ async function handleSubmit() {
       </a-form-item>
       <a-form-item label="名称" name="name" required>
         <a-input v-model:value="formState.name" placeholder="请输入名称" allow-clear />
+      </a-form-item>
+      <a-form-item label="型号" name="model" required>
+        <a-input v-model:value="formState.model" placeholder="请输入型号" allow-clear />
       </a-form-item>
       <a-form-item label="备注" name="remark">
         <a-textarea

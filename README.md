@@ -38,7 +38,7 @@ docker compose --env-file .env -f docker-compose.yml up -d
 
 也可使用统一入口脚本：
 
-- Windows 双击：`start-dev.cmd` / `dev-up.cmd`（默认仅执行 `docker compose up -d`；可加 `-NoOpenBrowser` 跳过打开浏览器）
+- Windows 双击：`start-dev.cmd` / `dev-up.cmd`（会询问是否重建 Docker 镜像以应用最新前端代码；可加 `-NoOpenBrowser` 跳过打开浏览器）
 - Windows：`.\scripts\deploy-cli.ps1 -Profile dev [-Build]` / `-Profile prod`（dev 部署成功后会自动打开浏览器；可用 `-NoOpenBrowser` 跳过）
 - Linux/macOS/Git Bash：`./scripts/deploy-cli.sh --profile dev [--build]` / `--profile prod`（同上，可用 `--no-open-browser` 跳过；若执行权限丢失可用 `bash scripts/deploy-cli.sh ...`）
 
@@ -98,13 +98,13 @@ powershell -ExecutionPolicy Bypass -File .\scripts\sync-worktree-env.ps1
 
 **Git worktree 端口分配**（逻辑库名均为 `storage`，隔离靠端口 + 独立 Docker 卷）：
 
-| 分支 | Worktree 路径 | MySQL | MinIO API | MinIO 控制台 |
-|------|---------------|-------|-----------|--------------|
-| `main` | `E:/Storage`（Windows 示例；Linux/macOS 可为实际 clone 路径） | **3307** | 9000 | 9001 |
-| `feat/material-ledger` | `E:/Storage-worktrees/material-ledger`（示例） | **3308** | 9010 | 9011 |
-| `feat/material-io` | `E:/Storage-worktrees/material-io`（示例） | **3309** | 9020 | 9021 |
-| `feat/safety-stock` | `E:/Storage-worktrees/safety-stock`（示例） | **3310** | 9030 | 9031 |
-| `feat/config-mgmt` | `E:/Storage-worktrees/config-mgmt`（示例） | **3311** | 9040 | 9041 |
+| 分支 | Worktree 路径 | MySQL | MinIO API |
+|------|---------------|-------|-----------|
+| `main` | `E:/Storage`（Windows 示例；Linux/macOS 可为实际 clone 路径） | **3307** | 9000 |
+| `feat/material-ledger` | `E:/Storage-worktrees/material-ledger`（示例） | **3308** | 9010 |
+| `feat/material-io` | `E:/Storage-worktrees/material-io`（示例） | **3309** | 9020 |
+| `feat/safety-stock` | `E:/Storage-worktrees/safety-stock`（示例） | **3310** | 9030 |
+| `feat/config-mgmt` | `E:/Storage-worktrees/config-mgmt`（示例） | **3311** | 9040 |
 
 切换 worktree 或分支后务必先执行 `sync-worktree-env.ps1`（Windows）或 `sync-worktree-env.sh`（Linux/macOS/Git Bash），再 `docker compose --env-file .env up -d`。详见 [AGENTS.md](AGENTS.md)「Worktree 数据库隔离」。
 
@@ -122,12 +122,11 @@ powershell -ExecutionPolicy Bypass -File .\scripts\sync-worktree-env.ps1
 - `BACKEND_PORT`：后端 HTTP 端口（默认 `8080`）
 - `FRONTEND_PORT`：Vite 开发端口（默认 `5173`）
 - `VITE_API_PROXY`：仅本地 Vite 开发模式使用；Compose Nginx 部署不依赖该值
-- `CORS_ALLOWED_ORIGINS`：后端允许的前端来源（默认跟随 `FRONTEND_PORT`）
 - `APP_PUBLIC_BASE_URL`：忘记密码邮件链接使用的外部访问地址；base/prod 默认为 Nginx 入口 `http://localhost` 或真实域名，dev compose 会覆盖为 `http://localhost:${FRONTEND_PORT}`
 - `JWT_SECRET`：JWT HMAC 签名密钥（本地默认仅用于开发，生产必须改为部署侧强密钥）
 - `JWT_TTL_MINUTES`：JWT access token 有效期分钟数（默认 `120`）
 
-`sync-worktree-env.ps1` / `sync-worktree-env.sh` 会按分支重写 MySQL/MinIO 端口、容器名和卷名，但会保留已有 `.env` 或当前进程中的数据库/MinIO 凭据、`BACKEND_PORT` / `FRONTEND_PORT` / `VITE_API_PROXY` / `CORS_ALLOWED_ORIGINS` / `SESSION_COOKIE_*` / `RESET_ADMIN_PASSWORD_ON_STARTUP` / `JWT_*` / `UPLOAD_*` / `APP_PUBLIC_BASE_URL` / `PASSWORD_RESET_TOKEN_TTL_MINUTES` / `MAIL_*`，便于本地避开端口冲突和使用自定义本地密码。
+`sync-worktree-env.ps1` / `sync-worktree-env.sh` 会按分支重写 MySQL/MinIO 端口、容器名和卷名，但会保留已有 `.env` 或当前进程中的数据库/MinIO 凭据、`BACKEND_PORT` / `FRONTEND_PORT` / `VITE_API_PROXY` / `SESSION_COOKIE_*` / `RESET_ADMIN_PASSWORD_ON_STARTUP` / `JWT_*` / `UPLOAD_*` / `APP_PUBLIC_BASE_URL` / `PASSWORD_RESET_TOKEN_TTL_MINUTES` / `MAIL_*`，便于本地避开端口冲突和使用自定义本地密码。
 
 ### 部署交付核验
 
@@ -136,6 +135,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\sync-worktree-env.ps1
 - 前端由 `frontend/Dockerfile` 构建并通过 Nginx 暴露，`/api` 由 Nginx 反向代理到后端服务，Compose 部署不依赖本地 Vite 代理。
 - 容器内数据库与对象存储访问使用服务名：`mysql:3306`、`http://minio:9000`；Compose 仅在必要处覆盖这些容器网络地址，宿主机访问才使用映射端口。
 - Nginx 前端入口包含 gzip、hash 静态资源长缓存、`index.html` no-cache、SPA fallback 与 `/api` 反向代理配置。
+- 后端默认不启用全局 CORS；Compose 通过 Nginx 同源代理 `/api/**`，本地 Vite 开发通过 dev proxy 转发 `/api/**`。
 - Linux/macOS/Git Bash 版脚本保持 LF 与可执行位；常规验证可运行 `bash -n scripts/*.sh` 与两套 `docker compose ... config`。
 
 ### 2. 启动后端
@@ -176,7 +176,7 @@ cd frontend
 npm run dev
 ```
 
-前端默认地址：`http://localhost:5173`（或 `.env` 中 `FRONTEND_PORT`），开发环境通过 Vite 代理将 `/api` 转发至 `VITE_API_PROXY`（默认后端 8080）。
+前端默认地址：`http://localhost:5173`（或 `.env` 中 `FRONTEND_PORT`），开发环境通过 Vite 代理将 `/api` 转发至 `VITE_API_PROXY`（默认后端 8080），不需要后端 CORS。
 首次本地 Node 开发或 `package-lock.json` 变更时，再在 `frontend` 目录执行 `npm install`。
 
 ### Postman / curl 边界测试
@@ -202,10 +202,10 @@ npm run dev
 
 **动态菜单与路由**：
 
-- 业务路由由后端菜单树驱动：`sys_menu.path` 决定路由路径，`permission` 决定访问权限，`component_key` 决定前端懒加载组件。
+- 业务路由由后端菜单树驱动：`sys_menu.path` 决定路由路径，`permission` 决定访问权限，`component_key` 存前端模块路径并决定懒加载组件。
 - 前端固定路由仅保留登录、根布局和必要重定向；登录或刷新恢复后由 Pinia menu store 拉取 `/api/menus/nav-tree` 并动态注册业务路由。
-- 菜单管理新增“组件 Key”字段；可见且有路由路径的 `MENU` 必须填写组件 Key，隐藏动作权限可不填写。
-- 当前可用组件 Key：`MaterialLedger`、`MaterialIo`、`SafetyStock`、`InventoryStats`、`BinManage`、`BomManage`、`SystemManageLayout`、`UserManage`、`RoleManagePanel`、`MenuManagePanel`、`CustomerManage`、`ShellPlaceholder`。
+- 菜单管理维护“组件路径”；可见且有路由路径的 `MENU` 必须填写组件路径，隐藏动作权限可不填写。
+- 组件路径以 `views/` 或 `components/` 开头，例如 `views/warehouse/MaterialLedgerView.vue`、`components/system/MenuManagePanel.vue`；前端通过 `import.meta.glob` 解析可路由模块，不再维护人工组件映射表。
 
 ### 样式约定（Less）
 
@@ -233,9 +233,41 @@ curl -X POST http://localhost:8080/api/files/upload \
   -F "file=@README.md"
 ```
 
-先调用 `POST /api/auth/login` 获取 `accessToken`，再用 Bearer token 携带凭证上传。MinIO 控制台：`http://localhost:9001`（`minioadmin` / `minioadmin123`）。
+先调用 `POST /api/auth/login` 获取 `accessToken`，再用 Bearer token 携带凭证上传。MinIO API 默认映射到 `http://localhost:9000`；MinIO Console 不作为固定交付入口，若部署侧需要控制台可单独配置新版兼容的 console 监听参数。
 
 物料清单图片可在 **配置管理 → 物料清单** 新增/编辑弹窗中上传（JPG/PNG/WebP/GIF，≤5MB）；后端会校验大小、MIME 白名单与图片魔数，保存后列表与详情展示缩略图。Excel 导入导出不含图片列。
+
+## 仓库业务流程
+
+仓库模块以 **物料台账** 作为实时库存数据库：台账记录当前仓库中每种物料的库存数量与所在 Bin 位；新增库存必须通过入库流水累加，领用必须通过出库流水扣减，避免直接手工改台账导致库存失真。
+
+```mermaid
+flowchart TD
+  Admin["系统管理员"] --> Config["配置管理"]
+  Config --> Bin["Bin 位管理"]
+  Config --> Bom["物料清单管理"]
+  Bin --> Ledger["物料台账"]
+  Bom --> Ledger
+  Purchase["采购员\n采购员根据预警信息列出采购清单"] --> Inbound["物料入库 +"]
+  Inbound --> Ledger
+  Ledger --> Outbound["物料出库 +"]
+  Ledger --> Safety["安全库存\n维护安全库存数；台账库存低于该数时预警并变成底色"]
+  Safety --> Purchase
+```
+
+流程口径：
+
+1. **基础配置信息**：系统管理员先维护配置管理中的 **Bin 位管理** 与 **物料清单管理**。Bin 位是库存位置唯一来源，物料清单是入库物料基础信息来源。
+2. **基于配置入库**：采购来的物料登记入库时，选择物料清单中的物料明细，并选择需要存放的 Bin 位；提交后同步增加到物料台账。
+3. **台账增减库存**：物料台账只记录库存结果。入库会增加台账库存，出库会扣减台账库存。
+4. **从台账领出**：出库用于仓库中取出物料投入使用，必须从台账选择现有库存物料，确保库存不足、安全库存预警等校验准确。
+5. **安全库存联动采购**：安全库存读取台账信息；当台账库存低于安全库存数时展示预警，采购员可在安全库存页按当前筛选或勾选预警行生成采购清单。
+6. **采购后回收入库**：采购清单只承载补货建议，不处理采购审批/财务结算；物料到货后仍回到物料入库，按物料清单 + Bin 位写入台账。
+
+迁移说明：
+
+- `V007__material_ledger_natural_key_unique.sql` 会将台账 `brand = NULL` 归一为空串，并为 `category + generic_name + brand + name + model + bin_location` 加唯一约束，防止同一物料同一 Bin 位拆成多条库存。
+- 已有数据库卷升级时只需重启后端触发 Flyway；如果历史数据中存在重复台账，迁移会阻断启动，需要先人工核对出入库流水并清理重复台账，不会自动合并库存。
 
 ## 当前功能
 
@@ -247,12 +279,11 @@ curl -X POST http://localhost:8080/api/files/upload \
 - [x] **第七期壳层 UI 补全**：动态 TabBar（ADMIN 预置个人中心/项目中心）、壳层 `/platform/*` 路由、侧栏点击无 toast
 - [x] **第八期 DevX**：`dev-up` 一键环境、`health-check` 自检、`cleanup-legacy-docker`、MySQL 就绪等待、`material_ledger` 中文修复迁移
 - [x] 完整平台壳层（侧栏动态导航 + 顶部可关闭页签 + 退出登录）
-- [x] 物料台账列表页（筛选、分页、行选择）
+- [x] 物料台账列表页（筛选、分页、行选择，定位为实时库存查询视图）
 - [x] 后端分页查询 API 与筛选选项 API
 - [x] 物料台账查看详情（右侧抽屉）
 - [x] 物料台账导出 Excel（按当前筛选条件导出全部结果）
-- [x] 物料台账 CRUD（新增/编辑/删除，库存数量只读）
-- [x] 物料台账 Excel 导入与批量导出/批量删除
+- [x] 物料台账只读化：保留详情、导出、批量导出和出入库历史，隐藏新增/导入/模板/编辑/删除入口
 - [x] 物料台账筛选联动（品类 → 统称 → 品牌 → 型号；Bin 位来自 Bin 主数据）
 - [x] 公共复用基础层（前端 http/types/utils、后端 converter/query/excel/web）
 - [x] **第十一期 11.1 Bin位管理**：CRUD + Excel + 台账 Bin 下拉/保存校验（`warehouse_bin` 主数据）
@@ -260,7 +291,7 @@ curl -X POST http://localhost:8080/api/files/upload \
 - [x] **第十一期 11.3 台账 ↔ 物料清单关联**：表单「从清单选择」、四元组严格校验、`GET /api/materials/bom-catalog`、清单删除引用保护
 - [x] **第十一期 11.4 物料清单 MinIO 图片**：`image_object_key` 持久化、表单上传/预览/清除、列表与详情缩略图
 - [x] 客户管理业务 CRUD、忘记密码
-- [x] **第十三期物料出入库**：`material_io_record` 流水、批量入库/出库、台账选择器、库存联动、Excel 导入导出（`warehouse:material-io:write`）
+- [x] **第十三期物料出入库**：`material_io_record` 流水、批量入库/出库、库存联动、Excel 导入导出（`warehouse:material-io:write`）
 - [x] **第十四期物料出入库完善**：筛选联动修复、Excel 原子导入、台账选择器联动筛选、批量表单库存列、台账删除 IO 引用保护、只读用户可下载模板
 - [x] **第十五期物料出入库优化**：后端集成测试、可用库存 UI、台账↔出入库追溯、编辑禁改类型、出库选择器增强
 - [x] **第十六期物料出入库复用与契约**：`useWarehouseMaterialFilters`/`WarehouseMaterialFilterPanel`、深链 composable、IO↔台账互跳、后端 ioType/重复物料不变量
@@ -270,9 +301,14 @@ curl -X POST http://localhost:8080/api/files/upload \
 - [x] **第二十期列表复用与深链闭环**：`useMaterialIoList`、深链列表定位与 URL 同步、Excel 导入出库超库存行级报错、深链/库存单测扩展
 - [x] **第二十一期追溯快捷与契约瘦身**：上下文条新增入库/出库、`useCrudRouteDetail`、`MaterialIoUpdateDTO`、详情复制链接
 - [x] **第二十二期安全库存管理**：`safety_stock` 表、预警黄行、导出/编辑 upsert、`SafetyStockView`、`warehouse:safety-stock:write`
+- [x] **安全库存采购清单**：安全库存页可按当前筛选或勾选预警行生成采购清单 Excel，建议采购数 = 安全库存数 - 当前库存；采购清单不承接审批/结算，后续到货仍通过入库流水回写台账
 - [x] **第二十三期出入库业务语义补全**：`purpose` 用途枚举、出库必填、列表筛选/Excel；`GET /api/material-io/safety-hints` 出库预警；新增补录 `operatedAt`；`useMaterialIoSafetyHint`
 - [x] **第二十四期出入库 UI 优化**：`MaterialIoFilterPanel`、`MaterialIoContextBar`、工具栏「更多」、新增弹窗条件列与预警列、安全确认 checkbox
 - [x] **第二十五期库存统计与项目关联**：`GET /api/warehouse-stats/overview`、`InventoryStatsView`、`project_ref` 项目编号、出入库工具栏新增下拉
+- [x] **物料台账只读与入库配置选择**：新增入库从物料清单/BOM 选择物料基础信息，从 Bin 位管理选择位置并支持编号/排/列/层定位；出库仍从台账选择以保障库存校验
+- [x] **出入库导入配置化入库**：Excel 入库行按物料清单 + Bin 位校验配置，台账不存在时自动创建 0 库存台账后写入入库流水；出库导入仍必须匹配现有台账并校验库存
+- [x] **物料台账 API 写入口收口**：外部台账 Controller 仅保留查询/筛选/导出/详情，库存新增、扣减与到货补录统一走出入库流水；DB 增加台账自然键唯一约束
+- [x] **Excel 导出复用优化**：`useExcelImportExport` 支持纯导出页面可选导入函数，安全库存采购清单复用同一 Blob 下载/错误处理流程
 - [x] **第二十六期客户管理与忘记密码**：`sys_customer` CRUD/Excel、`CustomerManageView`、`POST /api/auth/forgot-password`、登录页 `?tab=forgot`
 - [x] **第三十期忘记密码邮件链接重置**：Google SMTP 环境变量预留、`password_reset_token`、`POST /api/auth/reset-password`、登录页 `?tab=reset&token=...`
 - [x] **第二十七期差距收敛**：文档与客户占位表述同步、台账路由读权限、注册可选邮箱 + admin 种子邮箱、库存统计 `recentDays` 选择器、台账/Bin/客户 import 集成测试、GitHub Actions CI
@@ -283,7 +319,7 @@ curl -X POST http://localhost:8080/api/files/upload \
 - [x] **第三十二期安全门禁复查与上传加固**：复核环境变量、CORS、Session、忘记密码、迁移脚本与敏感信息门禁；上传增加图片魔数校验
 - [x] **第三十三期系统环境变量一致性审核**：`.env.example` 与 `worktree-db.ps1` 变量清单一致；启动脚本显式注入后端运行环境变量；文档补齐 SSOT
 - [x] **第三十五期 Pinia + JWT 鉴权迁移**：Pinia auth store、JWT access token、本地刷新恢复、Bearer 请求注入、无状态 Shiro JWT 认证链路
-- [x] **第三十六期动态菜单与动态路由**：菜单 `component_key` 契约、Pinia menu store、登录后动态注册业务路由、菜单管理维护组件 Key
+- [x] **第三十六期动态菜单与动态路由**：菜单 `component_key` 契约、Pinia menu store、登录后动态注册业务路由、菜单管理维护组件路径
 - [x] **第三十七期样式预处理器统一**：引入 Less、`frontend/src/styles/` 公共 token/mixins、布局与 CRUD 公共层迁移、代表业务页验证
 - [x] **P8 Flyway 数据库版本管理**：Flyway 接管 schema 迁移、`V001__baseline_schema.sql` baseline、关闭 `spring.sql.init` 主路径、CI MySQL Flyway 校验
 - [x] **P1–P10 架构收敛**：Compose backend healthcheck、JWT 登出黑名单、动态路由系统管理嵌套契约、Pinia store 测试基线（详见 [ROADMAP.md](ROADMAP.md)）
@@ -308,7 +344,7 @@ curl -X POST http://localhost:8080/api/files/upload \
 - `POST /api/auth/register` 是否对公网开放须由部署侧显式评估；忘记密码接口已改为邮件一次性链接，但仍需配合 HTTPS、可信前端域名与限流策略
 - 忘记密码 token 仅明文出现在邮件链接中，数据库保存 SHA-256 哈希，默认 30 分钟过期且使用后失效；失败限流为单实例内存级（15 分钟 5 次），多实例生产需迁移到 Redis/网关限流
 - Google SMTP 默认按 Gmail 直连预留：`smtp.gmail.com:587` + STARTTLS；`MAIL_PASSWORD` 使用 Google 应用专用密码，不提交真实邮箱密码。公司 Workspace relay 可通过环境变量切换到 `smtp-relay.gmail.com`
-- 当前鉴权主路径为 Shiro + JWT；access token 存储在前端 localStorage。`POST /api/auth/logout` 会将当前 Bearer token 的 `jti` 写入服务端黑名单，登出后同 token 无法继续访问受保护 API。生产环境需启用 HTTPS，`JWT_SECRET` 必须使用部署侧强密钥，`CORS_ALLOWED_ORIGINS` 必须仅配置可信前端域名，并持续防护 XSS 风险
+- 当前鉴权主路径为 Shiro + JWT；access token 存储在前端 localStorage。`POST /api/auth/logout` 会将当前 Bearer token 的 `jti` 写入服务端黑名单，登出后同 token 无法继续访问受保护 API。生产环境需启用 HTTPS，`JWT_SECRET` 必须使用部署侧强密钥，并持续防护 XSS 风险；如需第三方前端跨域直连后端，应优先在 Nginx/网关层显式配置跨域策略
 - 默认管理员密码自动重置能力仅建议本地排障开启，生产应关闭该初始化开关，避免启动时回退弱密码
 - 文件上传以后端校验为准：当前限制 JPG/PNG/WebP/GIF、默认 ≤5MB，并校验图片魔数，前端限制仅用于体验优化
 - GitHub Actions CI：[`CI workflow`](https://github.com/z136606021-star/Storage/blob/main/.github/workflows/ci.yml)（后端测试 + 前端测试/构建）

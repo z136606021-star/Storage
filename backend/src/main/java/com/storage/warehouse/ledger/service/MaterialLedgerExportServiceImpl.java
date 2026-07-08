@@ -18,10 +18,6 @@ public class MaterialLedgerExportServiceImpl implements MaterialLedgerExportServ
         return exportWorkbook(records);
     }
 
-    public byte[] exportTemplate() throws IOException {
-        return exportWorkbook(List.of());
-    }
-
     private byte[] exportWorkbook(List<MaterialLedger> records) throws IOException {
         List<MaterialLedgerExportRow> rows = new ArrayList<>();
         int rowIndex = 1;

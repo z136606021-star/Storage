@@ -28,6 +28,9 @@ const { canWrite } = useWritePermission('warehouse:bin:write')
 
 const queryForm = reactive({
   binCode: '',
+  rowNo: undefined as number | undefined,
+  colNo: undefined as number | undefined,
+  levelNo: undefined as number | undefined,
 })
 
 const formOpen = ref(false)
@@ -36,6 +39,9 @@ const editingRecord = ref<WarehouseBin | null>(null)
 function buildQueryParams() {
   return {
     binCode: queryForm.binCode.trim() || undefined,
+    rowNo: queryForm.rowNo,
+    colNo: queryForm.colNo,
+    levelNo: queryForm.levelNo,
   }
 }
 
@@ -99,6 +105,9 @@ const columns = [
 
 function handleReset() {
   queryForm.binCode = ''
+  queryForm.rowNo = undefined
+  queryForm.colNo = undefined
+  queryForm.levelNo = undefined
   handleResetQuery()
   clearSelection()
   loadData()
@@ -197,6 +206,30 @@ onMounted(loadData)
             placeholder="关键字查找"
             style="width: 200px"
             @press-enter="handleSearch"
+          />
+        </a-form-item>
+        <a-form-item label="排">
+          <a-input-number
+            v-model:value="queryForm.rowNo"
+            :min="1"
+            :precision="0"
+            style="width: 96px"
+          />
+        </a-form-item>
+        <a-form-item label="列">
+          <a-input-number
+            v-model:value="queryForm.colNo"
+            :min="1"
+            :precision="0"
+            style="width: 96px"
+          />
+        </a-form-item>
+        <a-form-item label="层">
+          <a-input-number
+            v-model:value="queryForm.levelNo"
+            :min="1"
+            :precision="0"
+            style="width: 96px"
           />
         </a-form-item>
         <a-form-item>

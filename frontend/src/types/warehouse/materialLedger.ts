@@ -15,17 +15,6 @@ export interface MaterialLedger {
   updatedAt?: string
 }
 
-export interface MaterialSavePayload {
-  category: string
-  genericName: string
-  brand?: string | null
-  name: string
-  model: string
-  binLocation: string
-  unitPrice?: number | null
-  remark?: string | null
-}
-
 export interface MaterialQuery {
   category?: string
   genericName?: string
@@ -58,6 +47,6 @@ export interface BomCatalogItem {
   genericName: string
   brand: string | null
   name: string
+  model: string
   displayLabel: string
 }
-

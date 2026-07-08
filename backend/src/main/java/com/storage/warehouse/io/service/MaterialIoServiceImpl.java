@@ -1,11 +1,16 @@
 package com.storage.warehouse.io.service;
 
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.storage.common.dto.BatchDeleteDTO;
 import com.storage.common.dto.FilterOptionsVO;
 import com.storage.common.dto.PageResult;
 import com.storage.common.exception.BusinessException;
 import com.storage.system.user.contract.OperatorInfo;
 import com.storage.system.user.contract.OperatorResolver;
+import com.storage.warehouse.bin.entity.WarehouseBin;
+import com.storage.warehouse.bin.mapper.WarehouseBinMapper;
+import com.storage.warehouse.bom.entity.WarehouseBom;
+import com.storage.warehouse.bom.mapper.WarehouseBomMapper;
 import com.storage.warehouse.io.converter.MaterialIoConverter;
 import com.storage.warehouse.io.dto.MaterialIoBatchItemDTO;
 import com.storage.warehouse.io.dto.MaterialIoBatchSaveDTO;
@@ -20,11 +25,13 @@ import com.storage.warehouse.io.mapper.MaterialIoRecordMapper;
 import com.storage.warehouse.io.query.MaterialIoQueryBuilder;
 import com.storage.warehouse.ledger.entity.MaterialLedger;
 import com.storage.warehouse.ledger.mapper.MaterialLedgerMapper;
+import com.storage.warehouse.ledger.query.MaterialLedgerQueryBuilder;
 import com.storage.warehouse.shared.dto.FilterLinkageQueryDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -40,6 +47,8 @@ public class MaterialIoServiceImpl implements MaterialIoService {
 
     private final MaterialIoRecordMapper materialIoRecordMapper;
     private final MaterialLedgerMapper materialLedgerMapper;
+    private final WarehouseBomMapper warehouseBomMapper;
+    private final WarehouseBinMapper warehouseBinMapper;
     private final OperatorResolver operatorResolver;
     private final MaterialIoConverter materialIoConverter;
     private final MaterialIoReadService materialIoReadService;
@@ -89,7 +98,9 @@ public class MaterialIoServiceImpl implements MaterialIoService {
         Map<Long, MaterialLedger> lockedLedgers = materialStockMutationService.lockLedgersInOrder(distinctLedgerIds);
 
         for (MaterialIoSaveDTO dto : dtos) {
-            LocalDateTime operatedAt = resolveOperatedAt(dto.getOperatedAt(), lockedLedgers.get(dto.getMaterialLedgerId()));
+            LocalDateTime operatedAt = MaterialIoQueryBuilder.isInbound(dto.getIoType())
+                    ? resolveOperatedAt(dto.getOperatedAt(), List.of())
+                    : resolveOperatedAt(dto.getOperatedAt(), lockedLedgers.get(dto.getMaterialLedgerId()));
             createRecord(dto, operator.getId(), operatedAt, lockedLedgers);
         }
         return dtos.size();
@@ -101,8 +112,12 @@ public class MaterialIoServiceImpl implements MaterialIoService {
         String ioType = MaterialIoQueryBuilder.normalizeIoType(dto.getIoType());
         MaterialIoQueryBuilder.assertValidIoType(ioType);
 
-        List<Long> itemLedgerIds = dto.getItems().stream()
-                .map(MaterialIoBatchItemDTO::getMaterialLedgerId)
+        List<MaterialIoSaveDTO> saveDtos = dto.getItems().stream()
+                .map(item -> toBatchSaveDto(item, ioType))
+                .toList();
+
+        List<Long> itemLedgerIds = saveDtos.stream()
+                .map(MaterialIoSaveDTO::getMaterialLedgerId)
                 .toList();
         assertNoDuplicateLedgerIds(itemLedgerIds);
 
@@ -110,11 +125,12 @@ public class MaterialIoServiceImpl implements MaterialIoService {
 
         List<Long> ledgerIds = itemLedgerIds.stream().distinct().toList();
         Map<Long, MaterialLedger> lockedLedgers = materialStockMutationService.lockLedgersInOrder(ledgerIds);
-        LocalDateTime operatedAt = resolveOperatedAt(dto.getOperatedAt(), lockedLedgers.values());
+        LocalDateTime operatedAt = MaterialIoQueryBuilder.isInbound(ioType)
+                ? resolveOperatedAt(dto.getOperatedAt(), List.of())
+                : resolveOperatedAt(dto.getOperatedAt(), lockedLedgers.values());
 
         List<MaterialIoRecordVO> created = new ArrayList<>();
-        for (MaterialIoBatchItemDTO item : dto.getItems()) {
-            MaterialIoSaveDTO saveDto = materialIoConverter.toSaveDto(item, ioType);
+        for (MaterialIoSaveDTO saveDto : saveDtos) {
             MaterialIoRecord record = createRecord(saveDto, operator.getId(), operatedAt, lockedLedgers);
             MaterialLedger ledger = lockedLedgers.get(record.getMaterialLedgerId());
             created.add(materialIoConverter.toVo(record, ledger, operator));
@@ -230,6 +246,64 @@ public class MaterialIoServiceImpl implements MaterialIoService {
         );
         materialIoRecordMapper.insert(entity);
         return entity;
+    }
+
+    private MaterialIoSaveDTO toBatchSaveDto(MaterialIoBatchItemDTO item, String ioType) {
+        if (MaterialIoQueryBuilder.isInbound(ioType)) {
+            Long materialLedgerId = resolveInboundLedgerId(item);
+            MaterialIoSaveDTO dto = materialIoConverter.toSaveDto(item, ioType);
+            dto.setMaterialLedgerId(materialLedgerId);
+            return dto;
+        }
+        if (item.getMaterialLedgerId() == null) {
+            throw new BusinessException("请选择物料台账");
+        }
+        return materialIoConverter.toSaveDto(item, ioType);
+    }
+
+    private Long resolveInboundLedgerId(MaterialIoBatchItemDTO item) {
+        if (item.getBomId() == null) {
+            throw new BusinessException("入库请选择物料清单");
+        }
+        if (!StringUtils.hasText(item.getBinLocation())) {
+            throw new BusinessException("入库请选择Bin位");
+        }
+
+        WarehouseBom bom = warehouseBomMapper.selectById(item.getBomId());
+        if (bom == null) {
+            throw new BusinessException("物料清单不存在");
+        }
+        String binLocation = item.getBinLocation().trim();
+        boolean binExists = warehouseBinMapper.selectCount(
+                Wrappers.<WarehouseBin>lambdaQuery()
+                        .eq(WarehouseBin::getBinCode, binLocation)
+        ) > 0;
+        if (!binExists) {
+            throw new BusinessException("Bin位不存在: " + binLocation);
+        }
+
+        MaterialLedger existing = materialLedgerMapper.selectOne(MaterialLedgerQueryBuilder.byNaturalKey(
+                bom.getCategory(),
+                bom.getGenericName(),
+                bom.getBrand(),
+                bom.getName(),
+                bom.getModel(),
+                binLocation
+        ));
+        if (existing != null) {
+            return existing.getId();
+        }
+
+        MaterialLedger ledger = new MaterialLedger();
+        ledger.setCategory(bom.getCategory());
+        ledger.setGenericName(bom.getGenericName());
+        ledger.setBrand(StringUtils.hasText(bom.getBrand()) ? bom.getBrand().trim() : "");
+        ledger.setName(bom.getName());
+        ledger.setModel(bom.getModel());
+        ledger.setBinLocation(binLocation);
+        ledger.setStockQuantity(0);
+        materialLedgerMapper.insert(ledger);
+        return ledger.getId();
     }
 
     private LocalDateTime resolveOperatedAt(LocalDateTime operatedAt, MaterialLedger ledger) {

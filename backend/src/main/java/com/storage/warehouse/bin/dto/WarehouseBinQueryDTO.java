@@ -9,6 +9,12 @@ public class WarehouseBinQueryDTO {
 
     private String binCode;
 
+    private Integer rowNo;
+
+    private Integer colNo;
+
+    private Integer levelNo;
+
     private List<Long> ids;
 
     private Integer page = 1;

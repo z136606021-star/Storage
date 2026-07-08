@@ -26,6 +26,8 @@ export interface SafetyStockExportQuery extends SafetyStockQuery {
   ids?: number[]
 }
 
+export type SafetyStockPurchaseListExportQuery = SafetyStockExportQuery
+
 export interface SafetyStockUpdatePayload {
   safetyQuantity: number
   warningEnabled: boolean

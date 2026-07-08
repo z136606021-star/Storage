@@ -49,6 +49,14 @@ public class SafetyStockController {
         return ExcelResponseBuilder.build(content, filename);
     }
 
+    @GetMapping("/purchase-list/export")
+    @RequiresPermissions("warehouse:safety-stock:read")
+    public ResponseEntity<byte[]> exportPurchaseList(SafetyStockQueryDTO query) throws IOException {
+        byte[] content = safetyStockService.exportPurchaseList(query);
+        String filename = "采购清单-" + LocalDate.now() + ".xlsx";
+        return ExcelResponseBuilder.build(content, filename);
+    }
+
     @GetMapping("/{materialLedgerId}")
     @RequiresPermissions("warehouse:safety-stock:read")
     public SafetyStockRecordVO getByMaterialLedgerId(@PathVariable Long materialLedgerId) {

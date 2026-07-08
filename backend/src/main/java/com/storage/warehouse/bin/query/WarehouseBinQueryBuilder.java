@@ -23,6 +23,18 @@ public final class WarehouseBinQueryBuilder {
             wrapper.like(WarehouseBin::getBinCode, query.getBinCode().trim());
         }
 
+        if (query.getRowNo() != null) {
+            wrapper.eq(WarehouseBin::getRowNo, query.getRowNo());
+        }
+
+        if (query.getColNo() != null) {
+            wrapper.eq(WarehouseBin::getColNo, query.getColNo());
+        }
+
+        if (query.getLevelNo() != null) {
+            wrapper.eq(WarehouseBin::getLevelNo, query.getLevelNo());
+        }
+
         wrapper.orderByAsc(WarehouseBin::getRowNo, WarehouseBin::getColNo, WarehouseBin::getLevelNo);
         return wrapper;
     }

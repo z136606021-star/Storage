@@ -4,6 +4,7 @@ export interface WarehouseBom {
   genericName: string
   brand: string | null
   name: string
+  model: string
   remark: string | null
   imageObjectKey: string | null
   imageUrl: string | null
@@ -16,6 +17,7 @@ export interface WarehouseBomQuery {
   genericName?: string
   brand?: string
   name?: string
+  model?: string
   page?: number
   pageSize?: number
 }
@@ -25,6 +27,7 @@ export interface WarehouseBomSavePayload {
   genericName: string
   brand?: string | null
   name: string
+  model: string
   remark?: string | null
   imageObjectKey?: string | null
 }

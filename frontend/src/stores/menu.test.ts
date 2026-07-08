@@ -5,6 +5,10 @@ import { routes } from '@/router/routes'
 import { useMenuStore } from '@/stores/menu'
 import type { NavMenuNode } from '@/types/system'
 
+const MATERIAL_LEDGER_COMPONENT = 'views/warehouse/MaterialLedgerView.vue'
+const SYSTEM_MANAGE_COMPONENT = 'views/system/SystemManageLayout.vue'
+const ROLE_MANAGE_COMPONENT = 'components/system/RoleManagePanel.vue'
+
 vi.mock('@/api/system/menu', () => ({
   fetchNavTree: vi.fn(),
 }))
@@ -30,7 +34,7 @@ describe('menu store dynamic routes', () => {
           label: '物料台账',
           path: '/configured-ledger',
           permission: 'warehouse:material-ledger:read',
-          componentKey: 'MaterialLedger',
+          componentKey: MATERIAL_LEDGER_COMPONENT,
         },
       ] satisfies NavMenuNode[],
     } as never)
@@ -46,7 +50,7 @@ describe('menu store dynamic routes', () => {
     )
   })
 
-  it('skips unknown component keys without blocking other routes', async () => {
+  it('skips unknown component paths without blocking other routes', async () => {
     const { fetchNavTree } = await import('@/api/system/menu')
     vi.mocked(fetchNavTree).mockResolvedValue({
       data: [
@@ -55,14 +59,14 @@ describe('menu store dynamic routes', () => {
           label: '物料台账',
           path: '/configured-ledger',
           permission: 'warehouse:material-ledger:read',
-          componentKey: 'MaterialLedger',
+          componentKey: MATERIAL_LEDGER_COMPONENT,
         },
         {
           key: '999',
           label: '未知页面',
           path: '/unknown',
           permission: 'unknown:read',
-          componentKey: 'UnknownComponent',
+          componentKey: 'views/warehouse/UnknownView.vue',
         },
       ] satisfies NavMenuNode[],
     } as never)
@@ -84,7 +88,7 @@ describe('menu store dynamic routes', () => {
           label: '用户管理',
           path: '/configured-system',
           permission: 'system:user:read',
-          componentKey: 'SystemManageLayout',
+          componentKey: SYSTEM_MANAGE_COMPONENT,
           visible: 1,
           children: [
             {
@@ -92,7 +96,7 @@ describe('menu store dynamic routes', () => {
               label: '角色管理',
               path: 'roles',
               permission: 'system:role:read',
-              componentKey: 'RoleManagePanel',
+              componentKey: ROLE_MANAGE_COMPONENT,
               visible: 0,
             },
           ],
@@ -107,10 +111,10 @@ describe('menu store dynamic routes', () => {
     expect(router.hasRoute('SystemManage')).toBe(true)
     expect(router.hasRoute('RoleManage')).toBe(true)
     expect(router.resolve('/configured-system/roles').matched.some((record) => record.name === 'RoleManage')).toBe(true)
-    expect(menu.findRouteByComponentKey('SystemManageLayout')?.path).toBe('/configured-system')
-    expect(menu.collectChildRoutes('SystemManageLayout')).toEqual([
+    expect(menu.findRouteByPermission('system:user:read')?.path).toBe('/configured-system')
+    expect(menu.collectChildRoutesByPermission('system:user:read')).toEqual([
       expect.objectContaining({
-        componentKey: 'RoleManagePanel',
+        componentKey: ROLE_MANAGE_COMPONENT,
         path: '/configured-system/roles',
       }),
     ])
@@ -124,7 +128,7 @@ describe('menu store dynamic routes', () => {
           key: '201',
           label: '无路径菜单',
           permission: 'system:user:read',
-          componentKey: 'SystemManageLayout',
+          componentKey: SYSTEM_MANAGE_COMPONENT,
           visible: 1,
         },
       ] satisfies NavMenuNode[],
@@ -152,7 +156,7 @@ describe('menu store dynamic routes', () => {
               label: '物料台账',
               path: '/configured-ledger',
               permission: 'warehouse:material-ledger:read',
-              componentKey: 'MaterialLedger',
+              componentKey: MATERIAL_LEDGER_COMPONENT,
               visible: 1,
             },
           ],
@@ -167,7 +171,7 @@ describe('menu store dynamic routes', () => {
     expect(menu.getDefaultRoute()).toEqual(expect.objectContaining({
       label: '物料台账',
       path: '/configured-ledger',
-      componentKey: 'MaterialLedger',
+      componentKey: MATERIAL_LEDGER_COMPONENT,
     }))
   })
 
@@ -180,7 +184,7 @@ describe('menu store dynamic routes', () => {
           label: '物料台账',
           path: '/configured-ledger',
           permission: 'warehouse:material-ledger:read',
-          componentKey: 'MaterialLedger',
+          componentKey: MATERIAL_LEDGER_COMPONENT,
         },
       ] satisfies NavMenuNode[],
     } as never)

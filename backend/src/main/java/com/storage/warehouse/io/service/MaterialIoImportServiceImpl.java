@@ -3,13 +3,17 @@ package com.storage.warehouse.io.service;
 import com.storage.common.dto.ImportResultVO;
 import com.storage.common.excel.AutoPoiExcelTemplate;
 import com.storage.common.exception.ImportFormatException;
+import com.storage.warehouse.bin.service.WarehouseBinService;
+import com.storage.warehouse.bom.service.WarehouseBomService;
 import com.storage.warehouse.io.dto.MaterialIoSaveDTO;
 import com.storage.warehouse.io.excel.MaterialIoImportTemplateRow;
 import com.storage.warehouse.io.query.MaterialIoQueryBuilder;
+import com.storage.warehouse.ledger.dto.MaterialSaveDTO;
 import com.storage.warehouse.ledger.entity.MaterialLedger;
 import com.storage.warehouse.ledger.service.MaterialLedgerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -33,7 +37,10 @@ public class MaterialIoImportServiceImpl implements MaterialIoImportService {
     private final MaterialIoService materialIoService;
     private final MaterialLedgerService materialLedgerService;
     private final MaterialStockMutationService materialStockMutationService;
+    private final WarehouseBinService warehouseBinService;
+    private final WarehouseBomService warehouseBomService;
 
+    @Transactional
     public ImportResultVO importExcel(MultipartFile file) throws IOException {
         ImportResultVO result = new ImportResultVO();
         AutoPoiExcelTemplate.ParsedRows<ValidImportRow> parsedRows = AutoPoiExcelTemplate.parseRows(
@@ -55,10 +62,17 @@ public class MaterialIoImportServiceImpl implements MaterialIoImportService {
             throw new ImportFormatException("Excel 中没有有效数据行");
         }
 
-        errors.addAll(collectDuplicateLedgerErrors(validRows));
+        errors.addAll(collectDuplicateMaterialErrors(validRows));
         if (!errors.isEmpty()) {
             return buildFailureResult(errors);
         }
+
+        errors.addAll(collectUnresolvableMaterialErrors(validRows));
+        if (!errors.isEmpty()) {
+            return buildFailureResult(errors);
+        }
+
+        resolveLedgerIds(validRows);
 
         List<MaterialIoSaveDTO> validDtos = validRows.stream().map(ValidImportRow::dto).toList();
         List<Long> ledgerIds = validDtos.stream()
@@ -91,30 +105,18 @@ public class MaterialIoImportServiceImpl implements MaterialIoImportService {
     private ValidImportRow parseValidRow(int excelRow, MaterialIoImportTemplateRow row) {
         MaterialIoSaveDTO dto = parseRow(row);
         validateDto(dto);
-        MaterialLedger ledger = materialLedgerService.findByMaterialKey(
-                dto.getCategory(),
-                dto.getGenericName(),
-                dto.getBrand(),
-                dto.getName(),
-                dto.getModel(),
-                dto.getBinLocation()
-        );
-        if (ledger == null) {
-            throw new IllegalArgumentException("未找到匹配的物料台账记录");
-        }
-        dto.setMaterialLedgerId(ledger.getId());
         return new ValidImportRow(excelRow, dto);
     }
 
-    private List<ImportResultVO.ImportErrorVO> collectDuplicateLedgerErrors(List<ValidImportRow> validRows) {
-        Map<Long, List<Integer>> rowsByLedger = new HashMap<>();
+    private List<ImportResultVO.ImportErrorVO> collectDuplicateMaterialErrors(List<ValidImportRow> validRows) {
+        Map<MaterialKey, List<Integer>> rowsByMaterial = new HashMap<>();
         for (ValidImportRow row : validRows) {
-            rowsByLedger.computeIfAbsent(row.dto().getMaterialLedgerId(), ignored -> new ArrayList<>())
+            rowsByMaterial.computeIfAbsent(MaterialKey.from(row.dto()), ignored -> new ArrayList<>())
                     .add(row.excelRow());
         }
 
         List<ImportResultVO.ImportErrorVO> errors = new ArrayList<>();
-        for (List<Integer> rows : rowsByLedger.values()) {
+        for (List<Integer> rows : rowsByMaterial.values()) {
             if (rows.size() <= 1) {
                 continue;
             }
@@ -123,6 +125,62 @@ public class MaterialIoImportServiceImpl implements MaterialIoImportService {
             }
         }
         return errors;
+    }
+
+    private List<ImportResultVO.ImportErrorVO> collectUnresolvableMaterialErrors(List<ValidImportRow> validRows) {
+        List<ImportResultVO.ImportErrorVO> errors = new ArrayList<>();
+        for (ValidImportRow row : validRows) {
+            MaterialIoSaveDTO dto = row.dto();
+            try {
+                if (MaterialIoQueryBuilder.isInbound(dto.getIoType())) {
+                    assertInboundConfigExists(dto);
+                } else if (findLedger(dto) == null) {
+                    errors.add(new ImportResultVO.ImportErrorVO(row.excelRow(), "未找到匹配的物料台账记录"));
+                }
+            } catch (RuntimeException ex) {
+                errors.add(new ImportResultVO.ImportErrorVO(row.excelRow(), ex.getMessage()));
+            }
+        }
+        return errors;
+    }
+
+    private void resolveLedgerIds(List<ValidImportRow> validRows) {
+        for (ValidImportRow row : validRows) {
+            MaterialIoSaveDTO dto = row.dto();
+            MaterialLedger ledger = findLedger(dto);
+            if (ledger == null && MaterialIoQueryBuilder.isInbound(dto.getIoType())) {
+                ledger = materialLedgerService.create(toMaterialSaveDto(dto));
+            }
+            dto.setMaterialLedgerId(ledger.getId());
+        }
+    }
+
+    private void assertInboundConfigExists(MaterialIoSaveDTO dto) {
+        warehouseBinService.assertBinExists(dto.getBinLocation());
+        warehouseBomService.assertCatalogExists(
+                dto.getCategory(), dto.getGenericName(), dto.getBrand(), dto.getName(), dto.getModel());
+    }
+
+    private MaterialLedger findLedger(MaterialIoSaveDTO dto) {
+        return materialLedgerService.findByMaterialKey(
+                dto.getCategory(),
+                dto.getGenericName(),
+                dto.getBrand(),
+                dto.getName(),
+                dto.getModel(),
+                dto.getBinLocation()
+        );
+    }
+
+    private MaterialSaveDTO toMaterialSaveDto(MaterialIoSaveDTO dto) {
+        MaterialSaveDTO material = new MaterialSaveDTO();
+        material.setCategory(dto.getCategory());
+        material.setGenericName(dto.getGenericName());
+        material.setBrand(dto.getBrand());
+        material.setName(dto.getName());
+        material.setModel(dto.getModel());
+        material.setBinLocation(dto.getBinLocation());
+        return material;
     }
 
     private ImportResultVO buildFailureResult(List<ImportResultVO.ImportErrorVO> errors) {
@@ -213,5 +271,29 @@ public class MaterialIoImportServiceImpl implements MaterialIoImportService {
     }
 
     private record ValidImportRow(int excelRow, MaterialIoSaveDTO dto) {
+    }
+
+    private record MaterialKey(
+            String category,
+            String genericName,
+            String brand,
+            String name,
+            String model,
+            String binLocation
+    ) {
+        static MaterialKey from(MaterialIoSaveDTO dto) {
+            return new MaterialKey(
+                    normalize(dto.getCategory()),
+                    normalize(dto.getGenericName()),
+                    normalize(dto.getBrand()),
+                    normalize(dto.getName()),
+                    normalize(dto.getModel()),
+                    normalize(dto.getBinLocation())
+            );
+        }
+
+        private static String normalize(String value) {
+            return StringUtils.hasText(value) ? value.trim() : "";
+        }
     }
 }

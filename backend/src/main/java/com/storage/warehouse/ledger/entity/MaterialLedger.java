@@ -19,7 +19,7 @@ public class MaterialLedger {
 
     private String genericName;
 
-    private String brand;
+    private String brand = "";
 
     private String name;
 

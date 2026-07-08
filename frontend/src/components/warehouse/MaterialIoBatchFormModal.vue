@@ -8,6 +8,8 @@ import { batchCreateMaterialIo, updateMaterialIo } from '@/api/warehouse/materia
 import { fetchMaterialLedgerDetail } from '@/api/warehouse/materialLedger'
 import { getErrorMessage } from '@/api/http'
 import MaterialLedgerPickerModal from '@/components/warehouse/MaterialLedgerPickerModal.vue'
+import WarehouseBinPickerModal from '@/components/warehouse/WarehouseBinPickerModal.vue'
+import WarehouseBomPickerModal from '@/components/warehouse/WarehouseBomPickerModal.vue'
 import { outboundPurposeOptions } from '@/constants/materialIoPurpose'
 import {
   confirmSafetyStockSubmit,
@@ -17,6 +19,8 @@ import {
 import { useMaterialIoStock } from '@/composables/useMaterialIoStock'
 import type { MaterialLedger } from '@/types/warehouse/materialLedger'
 import type { IoType, MaterialIoFormRow, MaterialIoRecord } from '@/types/warehouse/materialIo'
+import type { WarehouseBin } from '@/types/warehouse/warehouseBin'
+import type { WarehouseBom } from '@/types/warehouse/warehouseBom'
 import { displayValue } from '@/utils/format'
 import { materialIdentityColumns } from '@/utils/warehouseMaterialTable'
 
@@ -40,7 +44,9 @@ const ioType = ref<IoType>('IN')
 const operatedAt = ref<Dayjs>(dayjs())
 const rows = ref<MaterialIoFormRow[]>([])
 const selectedRowKeys = ref<string[]>([])
-const pickerOpen = ref(false)
+const ledgerPickerOpen = ref(false)
+const bomPickerOpen = ref(false)
+const binPickerOpen = ref(false)
 const pickingRowKey = ref<string | null>(null)
 
 const isEdit = computed(() => !!props.record)
@@ -89,7 +95,7 @@ const tableColumns = computed(() => {
   }
   cols.push(
     { title: '备注', key: 'remark', width: 120 },
-    { title: '操作', key: 'action', width: 100, align: 'center' as const },
+    { title: '操作', key: 'action', width: 170, align: 'center' as const },
   )
   return cols
 })
@@ -105,8 +111,6 @@ const rowSelection = computed(() => {
     },
   }
 })
-
-const pickerOutboundMode = computed(() => !isEdit.value && ioType.value === 'OUT')
 
 function createEmptyRow(): MaterialIoFormRow {
   return {
@@ -134,6 +138,10 @@ function rowFromLedger(material: MaterialLedger, key: string): MaterialIoFormRow
     projectRef: '',
     remark: '',
   }
+}
+
+function rowHasMaterial(record: MaterialIoFormRow) {
+  return ioType.value === 'IN' ? record.bomId != null : record.materialLedgerId != null
 }
 
 async function resetForm() {
@@ -169,7 +177,7 @@ async function resetForm() {
     return
   }
   ioType.value = props.initialIoType ?? 'IN'
-  if (props.initialLedger) {
+  if (ioType.value === 'OUT' && props.initialLedger) {
     rows.value = [rowFromLedger(props.initialLedger, 'prefill-row')]
     return
   }
@@ -203,23 +211,43 @@ function handleBatchRemoveRows() {
   selectedRowKeys.value = []
 }
 
-function openPicker(rowKey: string) {
+function openLedgerPicker(rowKey: string) {
   pickingRowKey.value = rowKey
-  pickerOpen.value = true
+  ledgerPickerOpen.value = true
 }
 
-function handleIdentityCellClick(record: MaterialIoFormRow) {
-  if (isEdit.value || record.materialLedgerId) {
+function openBomPicker(rowKey: string) {
+  pickingRowKey.value = rowKey
+  bomPickerOpen.value = true
+}
+
+function openBinPicker(rowKey: string) {
+  pickingRowKey.value = rowKey
+  binPickerOpen.value = true
+}
+
+function handleIdentityCellClick(record: MaterialIoFormRow, columnKey: string) {
+  if (isEdit.value) {
     return
   }
-  openPicker(record.key)
+  if (ioType.value === 'IN') {
+    if (columnKey === 'binLocation' && !record.binLocation) {
+      openBinPicker(record.key)
+    } else if (!record.bomId) {
+      openBomPicker(record.key)
+    }
+    return
+  }
+  if (!record.materialLedgerId) {
+    openLedgerPicker(record.key)
+  }
 }
 
 function stopCellInputPropagation(event: Event) {
   event.stopPropagation()
 }
 
-function handleMaterialSelect(material: MaterialLedger) {
+function handleLedgerSelect(material: MaterialLedger) {
   if (!pickingRowKey.value) {
     return
   }
@@ -245,22 +273,52 @@ function handleMaterialSelect(material: MaterialLedger) {
   pickingRowKey.value = null
 }
 
-function validateOutboundRows(): boolean {
-  for (let i = 0; i < rows.value.length; i += 1) {
-    const row = rows.value[i]
-    if (!row.materialLedgerId) {
-      continue
-    }
-    const available = availableStockForRow(row, i)
-    if (available != null && (row.quantity ?? 0) > available) {
-      message.warning(`第 ${i + 1} 行出库数量不能超过可用库存 ${available}`)
-      if (available > 0) {
-        row.quantity = available
-      }
-      return false
-    }
+function hasInboundDuplicate(row: MaterialIoFormRow, bomId: number, binLocation?: string) {
+  if (!binLocation) {
+    return false
   }
-  return true
+  return rows.value.some(
+    (item) => item.key !== row.key && item.bomId === bomId && item.binLocation === binLocation,
+  )
+}
+
+function handleBomSelect(material: WarehouseBom) {
+  if (!pickingRowKey.value) {
+    return
+  }
+  const row = rows.value.find((item) => item.key === pickingRowKey.value)
+  if (!row) {
+    return
+  }
+  if (hasInboundDuplicate(row, material.id, row.binLocation)) {
+    message.warning('该物料和 Bin 位已在其他行中选择，请合并数量或删除重复行')
+    return
+  }
+  row.bomId = material.id
+  row.materialLedgerId = undefined
+  row.category = material.category
+  row.genericName = material.genericName
+  row.brand = material.brand
+  row.name = material.name
+  row.model = material.model
+  row.stockQuantity = undefined
+  pickingRowKey.value = null
+}
+
+function handleBinSelect(bin: WarehouseBin) {
+  if (!pickingRowKey.value) {
+    return
+  }
+  const row = rows.value.find((item) => item.key === pickingRowKey.value)
+  if (!row) {
+    return
+  }
+  if (row.bomId != null && hasInboundDuplicate(row, row.bomId, bin.binCode)) {
+    message.warning('该物料和 Bin 位已在其他行中选择，请合并数量或删除重复行')
+    return
+  }
+  row.binLocation = bin.binCode
+  pickingRowKey.value = null
 }
 
 function validateRows(): boolean {
@@ -271,9 +329,20 @@ function validateRows(): boolean {
   for (let i = 0; i < rows.value.length; i += 1) {
     const row = rows.value[i]
     const rowNo = i + 1
-    if (!row.materialLedgerId) {
-      message.warning(`第 ${rowNo} 行请选择物料台账`)
-      return false
+    if (ioType.value === 'IN') {
+      if (!row.bomId) {
+        message.warning(`第 ${rowNo} 行请选择物料清单`)
+        return false
+      }
+      if (!row.binLocation) {
+        message.warning(`第 ${rowNo} 行请选择Bin位`)
+        return false
+      }
+    } else {
+      if (!row.materialLedgerId) {
+        message.warning(`第 ${rowNo} 行请选择物料台账`)
+        return false
+      }
     }
     if (!row.quantity || row.quantity < 1) {
       message.warning(`第 ${rowNo} 行数量必须大于 0`)
@@ -314,13 +383,25 @@ async function submitPayload() {
       await batchCreateMaterialIo({
         ioType: ioType.value,
         operatedAt: operatedAt.value.format('YYYY-MM-DDTHH:mm:ss'),
-        items: rows.value.map((row) => ({
-          materialLedgerId: row.materialLedgerId!,
-          quantity: row.quantity!,
-          remark: row.remark?.trim() || null,
-          purpose: row.purpose || null,
-          projectRef: row.purpose === 'PROJECT_USE' ? row.projectRef?.trim() || null : null,
-        })),
+        items: rows.value.map((row) => {
+          const base = {
+            quantity: row.quantity!,
+            remark: row.remark?.trim() || null,
+          }
+          if (ioType.value === 'IN') {
+            return {
+              ...base,
+              bomId: row.bomId!,
+              binLocation: row.binLocation!,
+            }
+          }
+          return {
+            ...base,
+            materialLedgerId: row.materialLedgerId!,
+            purpose: row.purpose || null,
+            projectRef: row.purpose === 'PROJECT_USE' ? row.projectRef?.trim() || null : null,
+          }
+        }),
       })
       message.success('提交成功')
     }
@@ -362,10 +443,16 @@ watch(
 )
 
 watch(ioType, (newType, oldType) => {
-  if (isEdit.value || newType !== 'OUT' || oldType === 'OUT') {
+  if (isEdit.value || newType === oldType) {
     return
   }
-  validateOutboundRows()
+  rows.value = rows.value.map((row) => ({
+    ...createEmptyRow(),
+    key: row.key,
+    quantity: row.quantity ?? 1,
+    remark: row.remark ?? '',
+  }))
+  selectedRowKeys.value = []
 })
 </script>
 
@@ -438,14 +525,17 @@ watch(ioType, (newType, oldType) => {
         <template v-else-if="IDENTITY_KEYS.includes(column.key as typeof IDENTITY_KEYS[number])">
           <div
             class="identity-cell"
-            :class="{ 'material-picker-cell': !isEdit && !record.materialLedgerId }"
-            @click="handleIdentityCellClick(record)"
+            :class="{ 'material-picker-cell': !isEdit && ((ioType === 'IN' && column.key === 'binLocation' && !record.binLocation) || !rowHasMaterial(record)) }"
+            @click="handleIdentityCellClick(record, String(column.key))"
           >
-            <span v-if="record.materialLedgerId">
+            <span v-if="record[column.key as keyof MaterialIoFormRow]">
               {{ displayValue(record[column.key as keyof MaterialIoFormRow]) }}
             </span>
             <span v-else-if="!isEdit && column.key === 'category'" class="picker-hint">
               点击选择物料
+            </span>
+            <span v-else-if="!isEdit && ioType === 'IN' && column.key === 'binLocation'" class="picker-hint">
+              点击选择Bin
             </span>
             <span v-else-if="!isEdit" class="picker-placeholder">—</span>
             <span v-else>-</span>
@@ -503,12 +593,28 @@ watch(ioType, (newType, oldType) => {
         <template v-else-if="column.key === 'action'">
           <a-space v-if="!isEdit" :size="0">
             <a-button
-              v-if="record.materialLedgerId"
+              v-if="ioType === 'OUT'"
               type="link"
               size="small"
-              @click="openPicker(record.key)"
+              @click="openLedgerPicker(record.key)"
             >
-              重选
+              {{ record.materialLedgerId ? '重选' : '选择' }}
+            </a-button>
+            <a-button
+              v-if="ioType === 'IN'"
+              type="link"
+              size="small"
+              @click="openBomPicker(record.key)"
+            >
+              {{ record.bomId ? '重选物料' : '选物料' }}
+            </a-button>
+            <a-button
+              v-if="ioType === 'IN'"
+              type="link"
+              size="small"
+              @click="openBinPicker(record.key)"
+            >
+              {{ record.binLocation ? '重选Bin' : '选Bin' }}
             </a-button>
             <a-button
               type="link"
@@ -530,9 +636,17 @@ watch(ioType, (newType, oldType) => {
   </a-modal>
 
   <MaterialLedgerPickerModal
-    v-model:open="pickerOpen"
-    :outbound-mode="pickerOutboundMode"
-    @select="handleMaterialSelect"
+    v-model:open="ledgerPickerOpen"
+    :outbound-mode="!isEdit && ioType === 'OUT'"
+    @select="handleLedgerSelect"
+  />
+  <WarehouseBomPickerModal
+    v-model:open="bomPickerOpen"
+    @select="handleBomSelect"
+  />
+  <WarehouseBinPickerModal
+    v-model:open="binPickerOpen"
+    @select="handleBinSelect"
   />
 </template>
 

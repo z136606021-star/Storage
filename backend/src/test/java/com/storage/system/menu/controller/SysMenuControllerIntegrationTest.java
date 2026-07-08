@@ -63,7 +63,7 @@ class SysMenuControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("可见路由菜单必须填写组件 Key"));
+                .andExpect(jsonPath("$.message").value("可见路由菜单必须填写组件路径"));
     }
 
     @Test
@@ -92,7 +92,7 @@ class SysMenuControllerIntegrationTest {
         mockMvc.perform(get("/api/menus/nav-tree")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].componentKey").value("MaterialLedger"))
+                .andExpect(jsonPath("$[0].componentKey").value("views/warehouse/MaterialLedgerView.vue"))
                 .andExpect(jsonPath("$[0].permission").value("warehouse:material-ledger:read"));
     }
 

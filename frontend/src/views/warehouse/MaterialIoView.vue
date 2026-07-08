@@ -251,7 +251,7 @@ function viewMaterialLedger() {
   if (!detailRecord.value?.materialLedgerId) {
     return
   }
-  const target = menu.findRouteByComponentKey('MaterialLedger')
+  const target = menu.findRouteByPermission('warehouse:material-ledger:read')
   if (!target) {
     return
   }

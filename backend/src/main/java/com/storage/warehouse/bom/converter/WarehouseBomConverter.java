@@ -19,6 +19,7 @@ public class WarehouseBomConverter {
         entity.setGenericName(dto.getGenericName().trim());
         entity.setBrand(trimToNull(dto.getBrand()));
         entity.setName(dto.getName().trim());
+        entity.setModel(dto.getModel().trim());
         entity.setRemark(trimToNull(dto.getRemark()));
         entity.setImageObjectKey(trimToNull(dto.getImageObjectKey()));
     }

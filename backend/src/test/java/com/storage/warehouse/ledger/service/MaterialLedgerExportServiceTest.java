@@ -90,15 +90,4 @@ class MaterialLedgerExportServiceTest {
         }
     }
 
-    @Test
-    void exportTemplate_writesHeaderOnly() throws IOException {
-        byte[] bytes = exportService.exportTemplate();
-
-        try (Workbook workbook = WorkbookFactory.create(new ByteArrayInputStream(bytes))) {
-            Sheet sheet = workbook.getSheetAt(0);
-            assertThat(sheet.getSheetName()).isEqualTo("物料台账");
-            assertThat(sheet.getRow(0)).isNotNull();
-            assertThat(sheet.getRow(1)).isNull();
-        }
-    }
 }

@@ -80,6 +80,13 @@ public class SafetyStockServiceImpl implements SafetyStockService {
     }
 
     @Override
+    public byte[] exportPurchaseList(SafetyStockQueryDTO query) throws IOException {
+        SafetyStockQueryDTO warningQuery = copyQuery(query);
+        warningQuery.setWarningPeriod("是");
+        return safetyStockExportService.exportPurchaseList(listByQuery(warningQuery));
+    }
+
+    @Override
     public List<SafetyStockRecordVO> listByQuery(SafetyStockQueryDTO query) {
         List<SafetyStockRecordVO> records = safetyStockMapper.selectJoinedList(query);
         enrichRecords(records);
@@ -104,5 +111,24 @@ public class SafetyStockServiceImpl implements SafetyStockService {
                         .eq(SafetyStock::getMaterialLedgerId, materialLedgerId)
                         .last("LIMIT 1")
         );
+    }
+
+    private SafetyStockQueryDTO copyQuery(SafetyStockQueryDTO source) {
+        SafetyStockQueryDTO target = new SafetyStockQueryDTO();
+        if (source == null) {
+            return target;
+        }
+        target.setIds(source.getIds());
+        target.setPage(source.getPage());
+        target.setPageSize(source.getPageSize());
+        target.setCategory(source.getCategory());
+        target.setGenericName(source.getGenericName());
+        target.setBrand(source.getBrand());
+        target.setName(source.getName());
+        target.setModel(source.getModel());
+        target.setBinLocation(source.getBinLocation());
+        target.setSafetyQuantityKeyword(source.getSafetyQuantityKeyword());
+        target.setWarningPeriod(source.getWarningPeriod());
+        return target;
     }
 }

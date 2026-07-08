@@ -26,6 +26,7 @@ class WarehouseBomExportServiceTest {
         bom.setGenericName("电阻");
         bom.setBrand("YAGEO");
         bom.setName("贴片电阻");
+        bom.setModel("RC0603");
         bom.setRemark("常用料");
 
         byte[] bytes = exportService.export(List.of(bom));
@@ -51,6 +52,8 @@ class WarehouseBomExportServiceTest {
                     .isEqualTo("YAGEO");
             assertThat(ExcelCellUtils.getCellString(dataRow, WarehouseBomExcelColumn.NAME.getIndex()))
                     .isEqualTo("贴片电阻");
+            assertThat(ExcelCellUtils.getCellString(dataRow, WarehouseBomExcelColumn.MODEL.getIndex()))
+                    .isEqualTo("RC0603");
             assertThat(ExcelCellUtils.getCellString(dataRow, WarehouseBomExcelColumn.REMARK.getIndex()))
                     .isEqualTo("常用料");
         }

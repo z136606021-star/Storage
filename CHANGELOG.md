@@ -2,6 +2,12 @@
 
 | 日期 | 变更 |
 |------|------|
+| 2026-07-07 | 出入库 Excel 导入跟齐业务图：入库导入按物料清单 + Bin 位校验配置，缺台账时自动创建后写入流水；台账前端写 API 与旧表单组件清理，`useExcelImportExport` 支持纯导出页面并复用采购清单下载 |
+| 2026-07-07 | 按业务逻辑图补全安全库存采购闭环：安全库存页新增“生成采购清单”，后端新增 `GET /api/safety-stock/purchase-list/export`，建议采购数按安全库存数减当前库存计算；外部台账写 API 收口为只读查询/导出，新增 `V007` 台账自然键唯一约束并对历史重复数据 fail-fast |
+| 2026-07-07 | README 补充仓库业务流程图解读：配置管理维护 Bin 位与物料清单，入库基于配置写入台账，出库从台账领用，安全库存预警联动采购清单 |
+| 2026-07-07 | 物料台账只读化与入库配置选择：台账页隐藏新增/导入/模板/编辑/删除入口；批量入库改从物料清单/BOM 选择物料、从 Bin 位管理按编号/排/列/层选择位置；后端入库校验 Bin 位存在并按 BOM+Bin 创建/累加台账 |
+| 2026-07-07 | 动态路由组件路径收口：移除前端人工组件映射表，`sys_menu.component_key` 改为菜单维护的 `views/` / `components/` 模块路径，新增 Flyway `V005` 迁移旧短 key，菜单管理文案同步为“组件路径” |
+| 2026-07-07 | MinIO/CORS 部署修复：Compose MinIO command 改为 `server --address 0.0.0.0:9000 /data`；移除后端全局 `CorsFilter` 与 `CORS_ALLOWED_ORIGINS`，统一通过 Nginx/Vite proxy 同源转发 `/api/**`，避免 `Invalid CORS request` |
 | 2026-07-07 | Compose/Nginx 部署收口：backend 改用 service 级 `env_file: .env` 注入配置，仅保留容器网络覆盖；Nginx 增加 gzip、静态资源缓存、`index.html` no-cache、SPA fallback 与代理超时/转发头 |
 | 2026-07-07 | Linux 适配与文档收口：Bash 脚本提交可执行位并固定 LF；`dev-up.sh` 默认不再隐式 `--build`；README 补齐 Linux/macOS/Git Bash 自检、清理旧容器与部署核验；AGENTS 增加脚本跨平台门禁 |
 | 2026-07-07 | Docker 部署细节收口：dev compose 覆盖 frontend 端口避免同时暴露 80/5173；`APP_PUBLIC_BASE_URL` 默认回归 base Nginx 入口，dev profile 单独覆盖为 `FRONTEND_PORT` |

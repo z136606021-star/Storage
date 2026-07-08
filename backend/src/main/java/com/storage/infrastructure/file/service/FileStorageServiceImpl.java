@@ -2,26 +2,27 @@ package com.storage.infrastructure.file.service;
 
 import com.storage.infrastructure.file.config.FileUploadProperties;
 import com.storage.infrastructure.file.config.MinioProperties;
+import com.storage.infrastructure.file.dto.FileContentVO;
 import com.storage.infrastructure.file.dto.FileUploadVO;
 import com.storage.infrastructure.file.entity.SysFile;
 import com.storage.common.exception.BusinessException;
 import com.storage.infrastructure.file.mapper.SysFileMapper;
-import io.minio.GetPresignedObjectUrlArgs;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import io.minio.GetObjectArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
-import io.minio.http.Method;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.InputStream;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
@@ -67,16 +68,49 @@ public class FileStorageServiceImpl implements FileStorageService {
                 .originalName(originalName)
                 .contentType(file.getContentType())
                 .sizeBytes(file.getSize())
-                .url(resolvePresignedUrl(objectKey))
+                .url(resolveAccessUrl(objectKey))
                 .build();
     }
 
     @Override
-    public String resolvePresignedUrl(String objectKey) {
+    public String resolveAccessUrl(String objectKey) {
         if (!StringUtils.hasText(objectKey)) {
             return null;
         }
-        return buildPresignedUrl(objectKey.trim());
+        String encoded = URLEncoder.encode(objectKey.trim(), StandardCharsets.UTF_8);
+        return "/api/files/preview?objectKey=" + encoded;
+    }
+
+    @Override
+    public FileContentVO loadImage(String objectKey) {
+        if (!StringUtils.hasText(objectKey)) {
+            throw new BusinessException("文件不存在");
+        }
+        String normalizedObjectKey = objectKey.trim();
+        SysFile record = sysFileMapper.selectOne(Wrappers.<SysFile>lambdaQuery()
+                .eq(SysFile::getObjectKey, normalizedObjectKey)
+                .last("LIMIT 1"));
+        if (record == null) {
+            throw new BusinessException("文件不存在");
+        }
+        if (!StringUtils.hasText(record.getContentType())
+                || !record.getContentType().toLowerCase(Locale.ROOT).startsWith("image/")) {
+            throw new BusinessException("文件类型不支持预览");
+        }
+        try {
+            InputStream inputStream = minioClient.getObject(GetObjectArgs.builder()
+                    .bucket(minioProperties.getBucket())
+                    .object(normalizedObjectKey)
+                    .build());
+            return new FileContentVO(
+                    inputStream,
+                    record.getOriginalName(),
+                    record.getContentType(),
+                    record.getSizeBytes()
+            );
+        } catch (Exception ex) {
+            throw new BusinessException("文件读取失败，请确认 MinIO 服务已启动");
+        }
     }
 
     private String buildObjectKey(String originalName) {
@@ -144,16 +178,4 @@ public class FileStorageServiceImpl implements FileStorageService {
         return true;
     }
 
-    private String buildPresignedUrl(String objectKey) {
-        try {
-            return minioClient.getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder()
-                    .method(Method.GET)
-                    .bucket(minioProperties.getBucket())
-                    .object(objectKey)
-                    .expiry(1, TimeUnit.HOURS)
-                    .build());
-        } catch (Exception ex) {
-            return null;
-        }
-    }
 }

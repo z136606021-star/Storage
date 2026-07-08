@@ -3,6 +3,7 @@ package com.storage.warehouse.safety.service;
 import com.storage.common.excel.ExcelCellUtils;
 import com.storage.warehouse.safety.dto.SafetyStockRecordVO;
 import com.storage.warehouse.safety.excel.SafetyStockExcelColumn;
+import com.storage.warehouse.safety.excel.SafetyStockPurchaseListExcelColumn;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -85,6 +86,34 @@ class SafetyStockExportServiceTest {
       assertThat(sheet.getSheetName()).isEqualTo("安全库存");
       assertThat(sheet.getRow(0)).isNotNull();
       assertThat(sheet.getRow(1)).isNull();
+    }
+  }
+
+  @Test
+  void exportPurchaseList_writesOnlyWarningRowsWithSuggestedQuantity() throws IOException {
+    SafetyStockRecordVO inWarning = sampleRecord(true);
+    SafetyStockRecordVO normal = sampleRecord(false);
+
+    byte[] bytes = exportService.exportPurchaseList(List.of(inWarning, normal));
+
+    try (Workbook workbook = WorkbookFactory.create(new ByteArrayInputStream(bytes))) {
+      Sheet sheet = workbook.getSheetAt(0);
+      assertThat(sheet.getSheetName()).isEqualTo("采购清单");
+
+      Row headerRow = sheet.getRow(0);
+      String[] headers = SafetyStockPurchaseListExcelColumn.headers();
+      for (int i = 0; i < headers.length; i++) {
+        assertThat(ExcelCellUtils.getCellString(headerRow, i)).isEqualTo(headers[i]);
+      }
+
+      Row firstDataRow = sheet.getRow(1);
+      assertThat(ExcelCellUtils.getCellString(firstDataRow, SafetyStockPurchaseListExcelColumn.NAME.getIndex()))
+          .isEqualTo("贴片电阻");
+      assertThat(ExcelCellUtils.getCellString(
+          firstDataRow,
+          SafetyStockPurchaseListExcelColumn.SUGGESTED_PURCHASE_QUANTITY.getIndex()
+      )).isEqualTo("5");
+      assertThat(sheet.getRow(2)).isNull();
     }
   }
 

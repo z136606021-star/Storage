@@ -116,6 +116,7 @@ CREATE TABLE warehouse_bom (
     generic_name VARCHAR(64) NOT NULL,
     brand VARCHAR(64) NULL,
     name VARCHAR(128) NOT NULL,
+    model VARCHAR(64) NULL,
     remark VARCHAR(255) NULL,
     image_object_key VARCHAR(512) NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -126,7 +127,7 @@ CREATE TABLE material_ledger (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     category VARCHAR(64) NOT NULL,
     generic_name VARCHAR(64) NOT NULL,
-    brand VARCHAR(64) NULL,
+    brand VARCHAR(64) NOT NULL DEFAULT '',
     name VARCHAR(128) NOT NULL,
     model VARCHAR(64) NOT NULL,
     bin_location VARCHAR(32) NOT NULL,
@@ -134,7 +135,8 @@ CREATE TABLE material_ledger (
     unit_price DECIMAL(10, 2) NULL,
     remark VARCHAR(255) NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (category, generic_name, brand, name, model, bin_location)
 );
 
 CREATE TABLE material_io_record (
@@ -171,12 +173,12 @@ INSERT INTO sys_role (id, code, name, status) VALUES
 (2, 'USER', '普通用户', 1);
 
 INSERT INTO sys_menu (id, parent_id, name, permission, path, component_key, sort_order, visible) VALUES
-(1, NULL, '物料台账', 'warehouse:material-ledger:read', '/warehouse/material-ledger', 'MaterialLedger', 10, 1),
+(1, NULL, '物料台账', 'warehouse:material-ledger:read', '/warehouse/material-ledger', 'views/warehouse/MaterialLedgerView.vue', 10, 1),
 (2, NULL, '物料台账写', 'warehouse:material-ledger:write', NULL, NULL, 11, 0),
-(3, NULL, '菜单管理', 'system:menu:read', '/system/menus', 'MenuManagePanel', 30, 1),
+(3, NULL, '菜单管理', 'system:menu:read', '/system/menus', 'components/system/MenuManagePanel.vue', 30, 1),
 (4, NULL, '菜单写', 'system:menu:write', NULL, NULL, 31, 0),
-(5, NULL, '项目中心读', 'platform:project:read', '/platform/project', 'ShellPlaceholder', 40, 0),
-(6, 3, '菜单隐藏子页', 'system:menu:child', 'child', 'ShellPlaceholder', 32, 0);
+(5, NULL, '项目中心读', 'platform:project:read', '/platform/project', 'views/platform/ShellPlaceholderView.vue', 40, 0),
+(6, 3, '菜单隐藏子页', 'system:menu:child', 'child', 'views/platform/ShellPlaceholderView.vue', 32, 0);
 
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 (1, 1),

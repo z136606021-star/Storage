@@ -49,6 +49,7 @@ class MaterialLedgerServiceIntegrationTest {
         bom.setGenericName("测试统称");
         bom.setBrand("品牌A");
         bom.setName("测试品");
+        bom.setModel("M-001");
         warehouseBomMapper.insert(bom);
     }
 

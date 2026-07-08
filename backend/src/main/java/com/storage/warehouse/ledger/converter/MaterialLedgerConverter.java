@@ -23,7 +23,7 @@ public class MaterialLedgerConverter {
     public void applySaveDto(MaterialLedger entity, MaterialSaveDTO dto) {
         entity.setCategory(dto.getCategory().trim());
         entity.setGenericName(dto.getGenericName().trim());
-        entity.setBrand(trimToNull(dto.getBrand()));
+        entity.setBrand(trimToEmpty(dto.getBrand()));
         entity.setName(dto.getName().trim());
         entity.setModel(dto.getModel().trim());
         entity.setBinLocation(dto.getBinLocation().trim());
@@ -34,6 +34,13 @@ public class MaterialLedgerConverter {
     private String trimToNull(String value) {
         if (!StringUtils.hasText(value)) {
             return null;
+        }
+        return value.trim();
+    }
+
+    private String trimToEmpty(String value) {
+        if (!StringUtils.hasText(value)) {
+            return "";
         }
         return value.trim();
     }

@@ -9,13 +9,13 @@ const router = useRouter()
 const menu = useMenuStore()
 
 const tabs = computed(() => {
-  const parent = menu.findRouteByComponentKey('SystemManageLayout')
+  const parent = menu.findRouteByPermission('system:user:read')
   if (!parent) {
     return []
   }
   return [
     { key: parent.componentKey ?? parent.key, label: parent.label, path: parent.path },
-    ...menu.collectChildRoutes('SystemManageLayout').map((child) => ({
+    ...menu.collectChildRoutesByPermission('system:user:read').map((child) => ({
       key: child.componentKey ?? child.key,
       label: child.label,
       path: child.path,
