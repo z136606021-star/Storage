@@ -2,6 +2,8 @@
 
 | 日期 | 变更 |
 |------|------|
+| 2026-07-08 | 后端 DTO/Entity/VO 映射接入 MapStruct：替换客户与仓库 converter 中手写 `new + setter` 字段搬运，抽取 `StringMapping` 处理 trim/空值规则，并在 AGENTS 写入禁止手写 DTO2Entity 搬运的门禁 |
+| 2026-07-08 | 仓库后端包结构瘦身：移除 `warehouse` 下 bin/bom/io/ledger/safety/stats 二次业务分包，收敛为 controller/service/mapper/dto/entity/excel 等按层目录；台账导出与引用计数并回 `MaterialLedgerService`，简单计数改用 MyBatis-Plus Wrapper |
 | 2026-07-08 | README/AGENTS 补充发布 tag 规则：正式发布 tag 使用 `vMAJOR.MINOR.PATCH`（如 `v1.0.0`），打 tag 前需本地跑通 `docker-compose.yml` 服务与健康检查 |
 | 2026-07-08 | 增加 Flyway 迁移历史防回归测试：锁定已发布 `V001__baseline_schema.sql` 的 checksum，并校验台账自然键约束保留在 `V007` 增量迁移 |
 | 2026-07-08 | 修复 Flyway 历史迁移 checksum mismatch：恢复已发布 `V001__baseline_schema.sql`，保留 `V007` 承接台账自然键约束；README/AGENTS 补充已有数据环境先备份、禁止清卷重建、禁止修改已应用迁移的升级流程 |

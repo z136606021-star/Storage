@@ -11,12 +11,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
         "com.storage.system.user.mapper",
         "com.storage.system.menu.mapper",
         "com.storage.system.auth.mapper",
-        "com.storage.warehouse.bin.mapper",
-        "com.storage.warehouse.bom.mapper",
-        "com.storage.warehouse.ledger.mapper",
-        "com.storage.warehouse.safety.mapper",
-        "com.storage.warehouse.stats.mapper",
-        "com.storage.warehouse.io.mapper",
+        "com.storage.warehouse.mapper",
         "com.storage.infrastructure.file.mapper"
 })
 public class StorageApplication {

@@ -1,34 +1,29 @@
 package com.storage.system.customer.converter;
 
+import com.storage.common.mapper.StringMapping;
 import com.storage.system.customer.dto.SysCustomerSaveDTO;
 import com.storage.system.customer.entity.SysCustomer;
-import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
+import org.mapstruct.InheritConfiguration;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.MappingTarget;
 
-@Component
-public class SysCustomerConverter {
+@Mapper(componentModel = "spring", uses = StringMapping.class)
+public interface SysCustomerConverter {
 
-    public SysCustomer toNewEntity(SysCustomerSaveDTO dto) {
-        SysCustomer entity = new SysCustomer();
-        applySaveDto(entity, dto);
-        return entity;
-    }
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "customerCode", source = "customerCode", qualifiedByName = "trim")
+    @Mapping(target = "name", source = "name", qualifiedByName = "trim")
+    @Mapping(target = "contactName", source = "contactName", qualifiedByName = "trimToNull")
+    @Mapping(target = "phone", source = "phone", qualifiedByName = "trimToNull")
+    @Mapping(target = "email", source = "email", qualifiedByName = "trimToNull")
+    @Mapping(target = "address", source = "address", qualifiedByName = "trimToNull")
+    @Mapping(target = "remark", source = "remark", qualifiedByName = "trimToNull")
+    @Mapping(target = "status", source = "status", defaultValue = "1")
+    SysCustomer toNewEntity(SysCustomerSaveDTO dto);
 
-    public void applySaveDto(SysCustomer entity, SysCustomerSaveDTO dto) {
-        entity.setCustomerCode(dto.getCustomerCode().trim());
-        entity.setName(dto.getName().trim());
-        entity.setContactName(trimToNull(dto.getContactName()));
-        entity.setPhone(trimToNull(dto.getPhone()));
-        entity.setEmail(trimToNull(dto.getEmail()));
-        entity.setAddress(trimToNull(dto.getAddress()));
-        entity.setRemark(trimToNull(dto.getRemark()));
-        entity.setStatus(dto.getStatus() != null ? dto.getStatus() : 1);
-    }
-
-    private String trimToNull(String value) {
-        if (!StringUtils.hasText(value)) {
-            return null;
-        }
-        return value.trim();
-    }
+    @InheritConfiguration(name = "toNewEntity")
+    void applySaveDto(@MappingTarget SysCustomer entity, SysCustomerSaveDTO dto);
 }

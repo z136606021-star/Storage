@@ -5,7 +5,7 @@
 ## 技术栈
 
 - **前端**：Vue 3 + TypeScript + Vite + Ant Design Vue 4（组件自动按需导入）+ Less（样式预处理器）
-- **后端**：Java 17+ + Spring Boot 3 + MyBatis Plus + Apache Shiro + EasyExcel（导出）+ Apache POI（导入与测试）
+- **后端**：Java 17+ + Spring Boot 3 + MyBatis Plus + MapStruct（DTO/Entity/VO 映射）+ Apache Shiro + EasyExcel（导出）+ Apache POI（导入与测试）
 - **数据库**：MySQL 8
 - **对象存储**：MinIO
 
@@ -15,7 +15,7 @@
 
 **业务域目录（P9 已完成）**：
 
-- 后端：`com.storage.common.*`（含 `common.config`）、`com.storage.system.*`（含 `system.auth.config`）、`com.storage.warehouse.*`、`com.storage.infrastructure.file.*`（含 `file.config`）；详见 [ROADMAP.md](ROADMAP.md) P9。
+- 后端：`com.storage.common.*`（含 `common.config`）、`com.storage.system.*`（含 `system.auth.config`）、`com.storage.warehouse.*`（仓库单模块按 controller/service/mapper/dto/entity/excel 分层）、`com.storage.infrastructure.file.*`（含 `file.config`）；详见 [ROADMAP.md](ROADMAP.md) P9。
 - 前端：`views/warehouse`、`views/system`；canonical 路径 `api/warehouse`、`types/warehouse`、`api/system`、`types/system`（根目录 shim 兼容旧 import）。
 
 ## 快速启动

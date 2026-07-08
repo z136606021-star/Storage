@@ -53,10 +53,12 @@ const filterOptions = computed(() => ({
 }))
 
 function buildQueryParams() {
+  const optionValue = (value: string) => (value === ALL_OPTION ? undefined : value)
+
   return {
-    category: queryForm.category,
-    genericName: queryForm.genericName,
-    brand: queryForm.brand,
+    category: optionValue(queryForm.category),
+    genericName: optionValue(queryForm.genericName),
+    brand: optionValue(queryForm.brand),
     name: queryForm.name.trim() || undefined,
     model: queryForm.model.trim() || undefined,
   }

@@ -132,7 +132,7 @@
 
 - [x] 试点 `MaterialLedgerService` → 接口 + `MaterialLedgerServiceImpl` 实现类。
 - [x] `MaterialLedgerController`、`MaterialIoService`、`MaterialIoImportService`、`SafetyStockServiceImpl` 依赖接口注入。
-- [x] `MaterialLedgerImportService`、`MaterialLedgerExportService` 继续独立，未合并回主 Service。
+- [x] 台账导出逻辑已合并回 `MaterialLedgerService`，不再保留独立 `MaterialLedgerExportService` 文件。
 
 ### 第四阶段（物料出入库，已完成）
 
@@ -203,24 +203,24 @@
 - [x] CI 增加 Flyway 迁移校验。
 - [x] 复测新库初始化、旧库升级、重复启动不重复执行迁移。
 
-## P9：业务域模块拆分（大仓小仓模式）
+## P9：业务域模块拆分
 
 ### 当前事实
 
-- **路线已冻结**：采用单 JAR 内按业务包拆分（`com.storage.common.*` / `com.storage.system.*` / `com.storage.warehouse.*` / `com.storage.infrastructure.*`），暂不拆 Maven 多模块。
+- **路线已冻结**：采用单 JAR 内按顶层业务域拆分（`com.storage.common.*` / `com.storage.system.*` / `com.storage.warehouse.*` / `com.storage.infrastructure.*`），暂不拆 Maven 多模块。
 - **跨域规则**：仓库域只能依赖系统域接口或只读契约，禁止直接依赖 `*Impl` 或系统 mapper；REST path、权限码、DTO JSON、Flyway 脚本不因拆包而变更。
-- **已完成（Phase 0–11）**：
-  - `@MapperScan` 按域精确扫描各 `*.mapper` 包（禁止扫描 `com.storage` 根包）。
+- **已完成（Phase 0–13）**：
+  - `@MapperScan` 按域精确扫描 mapper 包（禁止扫描 `com.storage` 根包）。
   - `com.storage.common.*`：共享 DTO/异常/Excel/Web/Config（`CorsConfig`、`WebMvcConfig`、`MybatisPlusConfig`、`PasswordConfig`）。
   - `com.storage.system.{customer,role,user,menu,auth}.*`：系统域垂直切片；`OperatorResolver` 供仓库域解析操作人；鉴权配置（`JwtProperties`、`AdminPasswordInitializer`）归入 `system.auth.config`。
-  - `com.storage.warehouse.{bin,bom,ledger,shared,safety,stats,io}.*`：仓库域垂直切片。
+  - `com.storage.warehouse.*`：仓库域作为单一 module，按 `controller` / `service` / `mapper` / `dto` / `entity` / `excel` 等层级组织，不再按 bin/bom/io/ledger/safety/stats 二次业务分包。
   - `com.storage.infrastructure.file.*`：文件上传/MinIO 边界（含 `file.config`：`MinioConfig`、`MinioProperties`、`FileUploadProperties`）。
   - 前端：`views/warehouse`、`views/system`；`api/warehouse`、`types/warehouse`、`api/system`、`types/system` 为 canonical 路径，根目录 shim 保留兼容。
 - **持续要求**：新增能力优先落入对应域包；PR 附带模块化与复用结论。
 
 ### 目标
 
-- 按业务域拆分模块（参考大仓小仓模式）：至少区分 **仓库域**（`warehouse`：台账、出入库、安全库存、Bin、清单、统计等）与 **系统域**（`system`：用户、角色、菜单、客户、鉴权等），避免单包膨胀到上百个 Service 文件难以维护。
+- 按顶层业务域拆分模块：至少区分 **仓库域**（`warehouse`：台账、出入库、安全库存、Bin、清单、统计等）与 **系统域**（`system`：用户、角色、菜单、客户、鉴权等）；仓库域内部保持按层分包，避免过多小 service/interface 文件。
 - 各域内保持高内聚、低耦合；跨域依赖通过接口或稳定契约，不直接穿透实现细节。
 
 ### 待办清单
@@ -229,15 +229,12 @@
 - [x] 制定分阶段迁移计划并落地首批样板（客户管理垂直切片 + common 层 + 前端轻量对齐）。
 - [x] 前端 `views` / `api` / `types` 按域对齐（仓库域目录 + shim；`component_key` 不变）。
 - [x] 文档与 AGENTS 复用门禁同步更新域边界说明。
-- [x] Phase 4：`com.storage.warehouse.bin.*`（Bin 位垂直切片）。
-- [x] Phase 5：`com.storage.infrastructure.file.*` 文件上传边界 + `com.storage.warehouse.bom.*`。
-- [x] Phase 6：`com.storage.warehouse.shared.*` 仓库共享 DTO + `com.storage.warehouse.ledger.*`。
-- [x] Phase 7：`com.storage.warehouse.safety.*` + `com.storage.warehouse.stats.*`。
-- [x] Phase 8：系统域操作人契约 + `com.storage.warehouse.io.*`（出入库与库存变更）。
+- [x] Phase 4–8：曾按仓库子业务垂直切片迁移，后续 Phase 13 已回收为仓库单 module 按层分包。
 - [x] Phase 9：`com.storage.system.role.*` / `user.*` / `menu.*`（含 `MenuNavController`）。
 - [x] Phase 10：`com.storage.system.auth.*`（Auth、Shiro、PasswordReset）。
 - [x] Phase 11：前端 import 收敛、动态路由例外文档化、删除扁平包遗留。
 - [x] Phase 12：根级 `com.storage.config` 收口至 `common.config` / `system.auth.config` / `infrastructure.file.config`；删除根级技术包。
+- [x] Phase 13：仓库域从 `warehouse.{bin,bom,ledger,shared,safety,stats,io}.*` 回收为单 module 按层分包；简单 CRUD/计数优先 MyBatis-Plus Service/Wrapper，复杂 SQL 保留在 mapper。
 
 ### 仓库域后续迁移顺序（Phase 4+）
 
@@ -290,7 +287,7 @@
 
 1. `SafetyStockExportService`（已完成试点）
 2. `WarehouseBinExportService`、`SysRoleExportService`、`SysCustomerExportService`（已完成第二批）
-3. `WarehouseBomExportService`、`MaterialLedgerExportService`（已完成第三批）
+3. `WarehouseBomExportService`（已完成第三批）；物料台账导出已并回 `MaterialLedgerService`
 4. `SysUserExportService`、`MaterialIoExportService`（已完成第四批；含导入模板 `MaterialIoImportTemplateRow`）
 
 **Import（暂保留 POI + `ExcelCellUtils` + `*ExcelColumn`）**：
