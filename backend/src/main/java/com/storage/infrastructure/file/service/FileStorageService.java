@@ -11,4 +11,6 @@ public interface FileStorageService {
     String resolveAccessUrl(String objectKey);
 
     FileContentVO loadImage(String objectKey);
+
+    FileContentVO loadFile(String objectKey);
 }

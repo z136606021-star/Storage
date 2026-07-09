@@ -43,7 +43,13 @@ class FileStorageServiceTest {
                 "image/jpeg",
                 "image/png",
                 "image/webp",
-                "image/gif"
+                "image/gif",
+                "application/pdf",
+                "application/msword",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                "application/vnd.ms-excel",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "text/plain"
         ));
 
         fileStorageService = new FileStorageServiceImpl(
@@ -94,14 +100,29 @@ class FileStorageServiceTest {
     void upload_withUnsupportedContentType_rejectsBeforeMinioCall() {
         MockMultipartFile file = new MockMultipartFile(
                 "file",
-                "note.txt",
-                "text/plain",
+                "app.exe",
+                "application/x-msdownload",
                 "demo".getBytes()
         );
 
         assertThatThrownBy(() -> fileStorageService.upload(file, null))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage("文件类型不支持");
+        verifyNoInteractions(minioClient, sysFileMapper);
+    }
+
+    @Test
+    void upload_withForgedPdfContentType_rejectsBeforeMinioCall() {
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "fake.pdf",
+                "application/pdf",
+                "not a pdf".getBytes()
+        );
+
+        assertThatThrownBy(() -> fileStorageService.upload(file, null))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("文件内容与类型不匹配");
         verifyNoInteractions(minioClient, sysFileMapper);
     }
 

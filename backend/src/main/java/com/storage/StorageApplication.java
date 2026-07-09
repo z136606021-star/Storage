@@ -12,6 +12,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
         "com.storage.system.menu.mapper",
         "com.storage.system.auth.mapper",
         "com.storage.design.mapper",
+        "com.storage.experience.mapper",
         "com.storage.warehouse.mapper",
         "com.storage.infrastructure.file.mapper"
 })

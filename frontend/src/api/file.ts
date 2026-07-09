@@ -9,3 +9,11 @@ export async function uploadFile(file: File): Promise<FileUploadResult> {
   })
   return data
 }
+
+export async function downloadFile(objectKey: string): Promise<Blob> {
+  const { data } = await http.get<Blob>('/files/download', {
+    params: { objectKey },
+    responseType: 'blob',
+  })
+  return data
+}

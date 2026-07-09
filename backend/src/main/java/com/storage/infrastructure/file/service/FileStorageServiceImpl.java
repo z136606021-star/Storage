@@ -83,6 +83,20 @@ public class FileStorageServiceImpl implements FileStorageService {
 
     @Override
     public FileContentVO loadImage(String objectKey) {
+        SysFile record = findFileRecord(objectKey);
+        if (!StringUtils.hasText(record.getContentType())
+                || !record.getContentType().toLowerCase(Locale.ROOT).startsWith("image/")) {
+            throw new BusinessException("文件类型不支持预览");
+        }
+        return loadObject(record);
+    }
+
+    @Override
+    public FileContentVO loadFile(String objectKey) {
+        return loadObject(findFileRecord(objectKey));
+    }
+
+    private SysFile findFileRecord(String objectKey) {
         if (!StringUtils.hasText(objectKey)) {
             throw new BusinessException("文件不存在");
         }
@@ -93,14 +107,14 @@ public class FileStorageServiceImpl implements FileStorageService {
         if (record == null) {
             throw new BusinessException("文件不存在");
         }
-        if (!StringUtils.hasText(record.getContentType())
-                || !record.getContentType().toLowerCase(Locale.ROOT).startsWith("image/")) {
-            throw new BusinessException("文件类型不支持预览");
-        }
+        return record;
+    }
+
+    private FileContentVO loadObject(SysFile record) {
         try {
             InputStream inputStream = minioClient.getObject(GetObjectArgs.builder()
                     .bucket(minioProperties.getBucket())
-                    .object(normalizedObjectKey)
+                    .object(record.getObjectKey())
                     .build());
             return new FileContentVO(
                     inputStream,
@@ -137,10 +151,10 @@ public class FileStorageServiceImpl implements FileStorageService {
         if (!allowed) {
             throw new BusinessException("文件类型不支持");
         }
-        validateImageSignature(file, normalizedContentType);
+        validateContentSignature(file, normalizedContentType);
     }
 
-    private void validateImageSignature(MultipartFile file, String normalizedContentType) {
+    private void validateContentSignature(MultipartFile file, String normalizedContentType) {
         try (InputStream inputStream = file.getInputStream()) {
             byte[] header = inputStream.readNBytes(12);
             boolean valid = switch (normalizedContentType) {
@@ -154,6 +168,16 @@ public class FileStorageServiceImpl implements FileStorageService {
                         && Arrays.equals(Arrays.copyOfRange(header, 8, 12), "WEBP".getBytes(StandardCharsets.US_ASCII));
                 case "image/gif" -> startsWith(header, "GIF87a".getBytes(StandardCharsets.US_ASCII))
                         || startsWith(header, "GIF89a".getBytes(StandardCharsets.US_ASCII));
+                case "application/pdf" -> startsWith(header, "%PDF".getBytes(StandardCharsets.US_ASCII));
+                case "application/msword", "application/vnd.ms-excel" -> startsWith(header, new byte[] {
+                        (byte) 0xD0, (byte) 0xCF, 0x11, (byte) 0xE0
+                });
+                case "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ->
+                        startsWith(header, new byte[] {0x50, 0x4B, 0x03, 0x04})
+                                || startsWith(header, new byte[] {0x50, 0x4B, 0x05, 0x06})
+                                || startsWith(header, new byte[] {0x50, 0x4B, 0x07, 0x08});
+                case "text/plain" -> true;
                 default -> false;
             };
             if (!valid) {

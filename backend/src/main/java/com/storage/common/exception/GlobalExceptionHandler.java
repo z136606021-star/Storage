@@ -1,13 +1,15 @@
 package com.storage.common.exception;
 
+import com.storage.design.exception.DesignGuideNotFoundException;
+import com.storage.design.exception.DesignProductTypeNotFoundException;
+import com.storage.design.exception.DesignStageNotFoundException;
+import com.storage.experience.exception.ExperienceRecordNotFoundException;
+import com.storage.experience.exception.ExperienceTypeNotFoundException;
 import com.storage.warehouse.exception.MaterialIoNotFoundException;
 import com.storage.warehouse.exception.MaterialLedgerNotFoundException;
 import com.storage.warehouse.exception.SafetyStockNotFoundException;
 import com.storage.warehouse.exception.WarehouseBinNotFoundException;
 import com.storage.warehouse.exception.WarehouseBomNotFoundException;
-import com.storage.design.exception.DesignGuideNotFoundException;
-import com.storage.design.exception.DesignProductTypeNotFoundException;
-import com.storage.design.exception.DesignStageNotFoundException;
 import com.storage.system.customer.exception.SysCustomerNotFoundException;
 import org.apache.shiro.authz.UnauthenticatedException;
 import org.apache.shiro.authz.UnauthorizedException;
@@ -86,6 +88,18 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(DesignGuideNotFoundException.class)
     public ResponseEntity<Map<String, String>> handleDesignGuideNotFound(DesignGuideNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(ExperienceRecordNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleExperienceRecordNotFound(ExperienceRecordNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(ExperienceTypeNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleExperienceTypeNotFound(ExperienceTypeNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(Map.of("message", ex.getMessage()));
     }

@@ -8,16 +8,18 @@
 - 技术栈：Vue 3 + TypeScript + Vite + Ant Design Vue；Java 17 + Spring Boot 3.3 + MyBatis Plus + Apache Shiro；MySQL 8；MinIO。
 - 仓库模块只承接物料相关资源流转：物料台账、出入库、安全库存、库存统计、Bin 位、物料清单、通用上传。
 - 设计指引是独立于仓库管理的新平台模块，用于维护产品类型、项目阶段、适用范围与检查项，不承接库存、采购、财务或项目进度职责。
+- 经验库是独立平台能力，承接经验类型、经验记录、影响/建议/行动方案、关联项目标签与附件；不要放入仓库域或与物料库存不变量耦合。
 - 不要把项目管理、采购审批、财务结算、客户验收、项目进度编排等职责硬塞进仓库模块。
 - 系统管理当前包含用户、角色、菜单、客户管理；新增系统级能力时要确认是否属于本仓库边界。
 
 ## 业务域物理分包
 
-- 后端采用单模块按域分包：`com.storage.common.*`、`com.storage.system.*`、`com.storage.warehouse.*`、`com.storage.design.*`、`com.storage.infrastructure.*`；扁平技术包与根级 `com.storage.config` 已清空，横切配置分别归入 `common.config`、`system.auth.config`、`infrastructure.file.config`；新能力必须落入对应域包。
+- 后端采用单模块按域分包：`com.storage.common.*`、`com.storage.system.*`、`com.storage.warehouse.*`、`com.storage.design.*`、`com.storage.experience.*`、`com.storage.infrastructure.*`；扁平技术包与根级 `com.storage.config` 已清空，横切配置分别归入 `common.config`、`system.auth.config`、`infrastructure.file.config`；新能力必须落入对应域包。
 - 仓库域本身就是一个 module，后端按层组织为 `warehouse.controller`、`warehouse.service`、`warehouse.mapper`、`warehouse.dto`、`warehouse.entity`、`warehouse.excel` 等；不要再按 bin/bom/io/ledger/safety/stats 二次业务分包。
 - 设计指引域按层组织为 `design.controller`、`design.service`、`design.mapper`、`design.dto`、`design.entity`、`design.excel` 等；不要放入 `warehouse` 或 `system`。
-- 跨域：`OperatorResolver`（系统域）供仓库域、设计指引域解析操作人；业务域禁止直接注入系统 mapper 或 `*Impl`。
-- 前端域目录：`views/warehouse`、`views/system`、`views/design`；仓库 API/类型物理目录 `api/warehouse/`、`types/warehouse/`（根目录 shim 兼容旧 import），设计指引目录为 `api/design/`、`types/design/`；动态路由 `component_key` 存前端模块路径（如 `views/warehouse/MaterialLedgerView.vue`），菜单表为 SSOT，前端仅通过 `import.meta.glob` 解析 `views/` 与 `components/` 下的可路由组件，禁止维护人工组件映射表。
+- 经验库域按层组织为 `experience.controller`、`experience.service`、`experience.mapper`、`experience.dto`、`experience.entity`、`experience.excel` 等；不要放入 `warehouse` 或 `system`。
+- 跨域：`OperatorResolver`（系统域）供仓库域、设计指引域、经验库域解析操作人；业务域禁止直接注入系统 mapper 或 `*Impl`。
+- 前端域目录：`views/warehouse`、`views/system`、`views/design`、`views/experience`；仓库 API/类型物理目录 `api/warehouse/`、`types/warehouse/`（根目录 shim 兼容旧 import），设计指引目录为 `api/design/`、`types/design/`，经验库目录为 `api/experience/`、`types/experience/`；动态路由 `component_key` 存前端模块路径（如 `views/warehouse/MaterialLedgerView.vue`），菜单表为 SSOT，前端仅通过 `import.meta.glob` 解析 `views/` 与 `components/` 下的可路由组件，禁止维护人工组件映射表。
 
 ## 文档分工
 
@@ -50,6 +52,7 @@
 | 后端仓库域 | `com.storage.warehouse.*`（controller/service/mapper/dto/entity/excel 等按层目录） |
 | 后端系统域 | `com.storage.system.*`（customer/role/user/menu/auth） |
 | 后端设计指引域 | `com.storage.design.*`（controller/service/mapper/dto/entity/excel 等按层目录） |
+| 后端经验域 | `com.storage.experience.*`（controller/service/mapper/dto/entity/excel 等按层目录） |
 | 后端基础设施 | `com.storage.infrastructure.*`（file/MinIO） |
 | 数据库 | `backend/src/main/resources/db/migration/` |
 
