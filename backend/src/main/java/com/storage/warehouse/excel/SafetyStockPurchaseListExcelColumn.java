@@ -10,7 +10,7 @@ public enum SafetyStockPurchaseListExcelColumn {
     NAME(4, "名称"),
     MODEL(5, "型号"),
     BIN_LOCATION(6, "Bin位"),
-    STOCK_QUANTITY(7, "库存数量"),
+    STOCK_QUANTITY(7, "库存总数"),
     SAFETY_QUANTITY(8, "安全库存数"),
     SUGGESTED_PURCHASE_QUANTITY(9, "建议采购数"),
     REMARK(10, "备注");

@@ -26,7 +26,7 @@ export interface UseSafetyStockListOptions {
 export function useSafetyStockList(options: UseSafetyStockListOptions = {}) {
   const {
     loadErrorMessage = '加载安全库存列表失败',
-    paginationDefaults = { showSizeChanger: false, position: ['bottomCenter'] },
+    paginationDefaults = { position: ['bottomCenter'] },
     enableRowSelection = true,
   } = options
 

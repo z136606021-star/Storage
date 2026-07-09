@@ -9,24 +9,32 @@ import com.storage.common.exception.BusinessException;
 import com.storage.common.query.PageSupport;
 import com.storage.infrastructure.file.service.FileStorageService;
 import com.storage.warehouse.converter.WarehouseBomConverter;
+import com.storage.warehouse.dto.BomCatalogItemVO;
+import com.storage.warehouse.dto.BomFilterOptionsVO;
+import com.storage.warehouse.dto.FilterLinkageQueryDTO;
 import com.storage.warehouse.dto.WarehouseBomQueryDTO;
 import com.storage.warehouse.dto.WarehouseBomSaveDTO;
 import com.storage.warehouse.entity.MaterialLedger;
 import com.storage.warehouse.entity.WarehouseBom;
+import com.storage.warehouse.entity.WarehouseBomImage;
 import com.storage.warehouse.exception.WarehouseBomNotFoundException;
 import com.storage.warehouse.mapper.MaterialLedgerMapper;
+import com.storage.warehouse.mapper.WarehouseBomImageMapper;
 import com.storage.warehouse.mapper.WarehouseBomMapper;
 import com.storage.warehouse.query.WarehouseBomQueryBuilder;
-import com.storage.warehouse.dto.BomCatalogItemVO;
-import com.storage.warehouse.dto.BomFilterOptionsVO;
-import com.storage.warehouse.dto.FilterLinkageQueryDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -36,6 +44,7 @@ public class WarehouseBomServiceImpl extends ServiceImpl<WarehouseBomMapper, War
         implements WarehouseBomService {
 
     private final MaterialLedgerMapper materialLedgerMapper;
+    private final WarehouseBomImageMapper warehouseBomImageMapper;
     private final WarehouseBomConverter warehouseBomConverter;
     private final WarehouseBomExportService warehouseBomExportService;
     private final FileStorageService fileStorageService;
@@ -46,7 +55,7 @@ public class WarehouseBomServiceImpl extends ServiceImpl<WarehouseBomMapper, War
                 PageSupport.page(query.getPage(), query.getPageSize()),
                 WarehouseBomQueryBuilder.build(query)
         );
-        enrichImageUrl(result.getRecords());
+        enrichImages(result.getRecords());
         return PageSupport.result(result);
     }
 
@@ -56,7 +65,7 @@ public class WarehouseBomServiceImpl extends ServiceImpl<WarehouseBomMapper, War
         if (bom == null) {
             throw new WarehouseBomNotFoundException(id);
         }
-        enrichImageUrl(bom);
+        enrichImages(bom);
         return bom;
     }
 
@@ -64,57 +73,79 @@ public class WarehouseBomServiceImpl extends ServiceImpl<WarehouseBomMapper, War
     public boolean existsByCatalogKey(String category, String genericName, String brand, String name, String model) {
         if (!StringUtils.hasText(category)
                 || !StringUtils.hasText(genericName)
-                || !StringUtils.hasText(name)
-                || !StringUtils.hasText(model)) {
+                || !StringUtils.hasText(name)) {
             return false;
         }
-        return count(buildCatalogKeyWrapper(category, genericName, brand, name, model, null)) > 0;
+        WarehouseBom bom = findByNaturalKey(category, genericName, brand, name);
+        if (bom == null) {
+            return false;
+        }
+        if (!StringUtils.hasText(model)) {
+            return true;
+        }
+        return Objects.equals(normalizeModel(bom.getModel()), normalizeModel(model));
     }
 
     @Override
     public void assertCatalogExists(String category, String genericName, String brand, String name, String model) {
-        if (!existsByCatalogKey(category, genericName, brand, name, model)) {
-            throw new BusinessException("\u7269\u6599\u6e05\u5355\u4e2d\u4e0d\u5b58\u5728: " + formatCatalogLabel(category, genericName, brand, name, model));
+        WarehouseBom bom = findByNaturalKey(category, genericName, brand, name);
+        if (bom == null) {
+            throw new BusinessException("物料清单中不存在: " + formatCatalogLabel(category, genericName, brand, name, model));
+        }
+        if (StringUtils.hasText(model) && !Objects.equals(normalizeModel(bom.getModel()), normalizeModel(model))) {
+            throw new BusinessException("物料清单规格不匹配: " + formatCatalogLabel(category, genericName, brand, name, model));
         }
     }
 
     @Override
     public List<BomCatalogItemVO> listCatalogSummaries() {
         return list(Wrappers.<WarehouseBom>lambdaQuery()
-                        .orderByAsc(WarehouseBom::getCategory, WarehouseBom::getGenericName,
-                                WarehouseBom::getBrand, WarehouseBom::getName, WarehouseBom::getModel))
+                        .orderByDesc(WarehouseBom::getUpdatedAt, WarehouseBom::getId))
                 .stream()
                 .map(this::toCatalogItem)
                 .collect(Collectors.toList());
     }
 
     @Override
+    @Transactional
     public WarehouseBom create(WarehouseBomSaveDTO dto) {
         assertNotDuplicate(dto, null);
         WarehouseBom entity = warehouseBomConverter.toNewEntity(dto);
+        entity.setImageObjectKey(resolvePrimaryImageObjectKey(dto));
         save(entity);
-        enrichImageUrl(entity);
+        replaceImages(entity.getId(), resolveImageObjectKeys(dto));
+        enrichImages(entity);
         return entity;
     }
 
     @Override
+    @Transactional
     public WarehouseBom update(Long id, WarehouseBomSaveDTO dto) {
-        WarehouseBom existing = getById(id);
+        WarehouseBom existing = super.getById(id);
+        if (existing == null) {
+            throw new WarehouseBomNotFoundException(id);
+        }
         assertNotDuplicate(dto, id);
         warehouseBomConverter.applySaveDto(existing, dto);
+        existing.setImageObjectKey(resolvePrimaryImageObjectKey(dto));
         updateById(existing);
-        enrichImageUrl(existing);
+        replaceImages(id, resolveImageObjectKeys(dto));
+        enrichImages(existing);
         return existing;
     }
 
     @Override
+    @Transactional
     public void delete(Long id) {
         WarehouseBom existing = getById(id);
         assertNotInUse(existing);
+        warehouseBomImageMapper.delete(Wrappers.<WarehouseBomImage>lambdaQuery()
+                .eq(WarehouseBomImage::getBomId, id));
         removeById(id);
     }
 
     @Override
+    @Transactional
     public void batchDelete(BatchDeleteDTO dto) {
         for (Long id : dto.getIds()) {
             delete(id);
@@ -123,7 +154,9 @@ public class WarehouseBomServiceImpl extends ServiceImpl<WarehouseBomMapper, War
 
     @Override
     public List<WarehouseBom> listByQuery(WarehouseBomQueryDTO query) {
-        return list(WarehouseBomQueryBuilder.build(query));
+        List<WarehouseBom> records = list(WarehouseBomQueryBuilder.build(query));
+        enrichImages(records);
+        return records;
     }
 
     @Override
@@ -157,29 +190,27 @@ public class WarehouseBomServiceImpl extends ServiceImpl<WarehouseBomMapper, War
         );
     }
 
-    private String formatCatalogLabel(String category, String genericName, String brand, String name) {
-        return formatCatalogLabel(category, genericName, brand, name, null);
-    }
-
     private String formatCatalogLabel(String category, String genericName, String brand, String name, String model) {
-        String brandPart = StringUtils.hasText(brand) ? brand.trim() : "\u2014";
-        String modelPart = StringUtils.hasText(model) ? model.trim() : "\u2014";
+        String brandPart = StringUtils.hasText(brand) ? brand.trim() : "—";
+        String modelPart = StringUtils.hasText(model) ? model.trim() : "—";
         return category.trim() + " / " + genericName.trim() + " / " + brandPart + " / " + name.trim() + " / " + modelPart;
     }
 
-    private LambdaQueryWrapper<WarehouseBom> buildCatalogKeyWrapper(
+    private WarehouseBom findByNaturalKey(String category, String genericName, String brand, String name) {
+        return getOne(buildNaturalKeyWrapper(category, genericName, brand, name, null));
+    }
+
+    private LambdaQueryWrapper<WarehouseBom> buildNaturalKeyWrapper(
             String category,
             String genericName,
             String brand,
             String name,
-            String model,
             Long excludeId
     ) {
         LambdaQueryWrapper<WarehouseBom> wrapper = Wrappers.<WarehouseBom>lambdaQuery()
                 .eq(WarehouseBom::getCategory, category.trim())
                 .eq(WarehouseBom::getGenericName, genericName.trim())
-                .eq(WarehouseBom::getName, name.trim())
-                .eq(WarehouseBom::getModel, model.trim());
+                .eq(WarehouseBom::getName, name.trim());
 
         if (StringUtils.hasText(brand)) {
             wrapper.eq(WarehouseBom::getBrand, brand.trim());
@@ -197,9 +228,11 @@ public class WarehouseBomServiceImpl extends ServiceImpl<WarehouseBomMapper, War
         LambdaQueryWrapper<MaterialLedger> wrapper = Wrappers.<MaterialLedger>lambdaQuery()
                 .eq(MaterialLedger::getCategory, bom.getCategory())
                 .eq(MaterialLedger::getGenericName, bom.getGenericName())
-                .eq(MaterialLedger::getName, bom.getName())
-                .eq(MaterialLedger::getModel, bom.getModel());
+                .eq(MaterialLedger::getName, bom.getName());
 
+        if (StringUtils.hasText(bom.getModel())) {
+            wrapper.eq(MaterialLedger::getModel, bom.getModel());
+        }
         if (StringUtils.hasText(bom.getBrand())) {
             wrapper.eq(MaterialLedger::getBrand, bom.getBrand());
         } else {
@@ -212,7 +245,7 @@ public class WarehouseBomServiceImpl extends ServiceImpl<WarehouseBomMapper, War
     private void assertNotInUse(WarehouseBom bom) {
         long count = countLedgerUsage(bom);
         if (count > 0) {
-            throw new BusinessException("\u8be5\u7269\u6599\u6e05\u5355\u9879\u5df2\u88ab " + count + " \u6761\u7269\u6599\u53f0\u8d26\u5f15\u7528\uff0c\u65e0\u6cd5\u5220\u9664");
+            throw new BusinessException("该物料清单项已被 " + count + " 条物料台账引用，无法删除");
         }
     }
 
@@ -231,24 +264,84 @@ public class WarehouseBomServiceImpl extends ServiceImpl<WarehouseBomMapper, War
     }
 
     private void assertNotDuplicate(WarehouseBomSaveDTO dto, Long excludeId) {
-        if (count(
-                buildCatalogKeyWrapper(dto.getCategory(), dto.getGenericName(), dto.getBrand(), dto.getName(), dto.getModel(), excludeId)
-        ) > 0) {
-            throw new BusinessException("相同品类/统称/品牌/名称/型号的物料清单项已存在");
+        if (count(buildNaturalKeyWrapper(dto.getCategory(), dto.getGenericName(), dto.getBrand(), dto.getName(), excludeId)) > 0) {
+            throw new BusinessException("相同品类/统称/品牌/名称的物料清单项已存在");
         }
     }
 
-    private void enrichImageUrl(WarehouseBom bom) {
+    private List<String> resolveImageObjectKeys(WarehouseBomSaveDTO dto) {
+        LinkedHashSet<String> keys = new LinkedHashSet<>();
+        if (!CollectionUtils.isEmpty(dto.getImageObjectKeys())) {
+            dto.getImageObjectKeys().stream()
+                    .filter(StringUtils::hasText)
+                    .map(String::trim)
+                    .forEach(keys::add);
+        }
+        if (StringUtils.hasText(dto.getImageObjectKey())) {
+            keys.add(dto.getImageObjectKey().trim());
+        }
+        return new ArrayList<>(keys);
+    }
+
+    private String resolvePrimaryImageObjectKey(WarehouseBomSaveDTO dto) {
+        List<String> keys = resolveImageObjectKeys(dto);
+        return keys.isEmpty() ? null : keys.get(0);
+    }
+
+    private void replaceImages(Long bomId, List<String> objectKeys) {
+        warehouseBomImageMapper.delete(Wrappers.<WarehouseBomImage>lambdaQuery()
+                .eq(WarehouseBomImage::getBomId, bomId));
+        if (CollectionUtils.isEmpty(objectKeys)) {
+            return;
+        }
+        for (int i = 0; i < objectKeys.size(); i++) {
+            WarehouseBomImage image = new WarehouseBomImage();
+            image.setBomId(bomId);
+            image.setObjectKey(objectKeys.get(i));
+            image.setSortOrder(i);
+            warehouseBomImageMapper.insert(image);
+        }
+    }
+
+    private void enrichImages(WarehouseBom bom) {
         if (bom == null) {
             return;
         }
-        bom.setImageUrl(fileStorageService.resolveAccessUrl(bom.getImageObjectKey()));
+        enrichImages(List.of(bom));
     }
 
-    private void enrichImageUrl(List<WarehouseBom> list) {
-        if (list == null || list.isEmpty()) {
+    private void enrichImages(List<WarehouseBom> records) {
+        if (CollectionUtils.isEmpty(records)) {
             return;
         }
-        list.forEach(this::enrichImageUrl);
+        List<Long> bomIds = records.stream().map(WarehouseBom::getId).toList();
+        List<WarehouseBomImage> images = warehouseBomImageMapper.selectList(
+                Wrappers.<WarehouseBomImage>lambdaQuery()
+                        .in(WarehouseBomImage::getBomId, bomIds)
+                        .orderByAsc(WarehouseBomImage::getSortOrder, WarehouseBomImage::getId)
+        );
+        Map<Long, List<WarehouseBomImage>> imagesByBomId = images.stream()
+                .collect(Collectors.groupingBy(WarehouseBomImage::getBomId));
+
+        for (WarehouseBom bom : records) {
+            List<WarehouseBomImage> bomImages = imagesByBomId.getOrDefault(bom.getId(), List.of());
+            List<String> objectKeys = bomImages.stream()
+                    .map(WarehouseBomImage::getObjectKey)
+                    .filter(StringUtils::hasText)
+                    .toList();
+            if (objectKeys.isEmpty() && StringUtils.hasText(bom.getImageObjectKey())) {
+                objectKeys = List.of(bom.getImageObjectKey());
+            }
+            bom.setImageObjectKeys(objectKeys);
+            bom.setImageUrls(objectKeys.stream()
+                    .map(fileStorageService::resolveAccessUrl)
+                    .toList());
+            bom.setImageObjectKey(objectKeys.isEmpty() ? null : objectKeys.get(0));
+            bom.setImageUrl(objectKeys.isEmpty() ? null : fileStorageService.resolveAccessUrl(objectKeys.get(0)));
+        }
+    }
+
+    private String normalizeModel(String model) {
+        return StringUtils.hasText(model) ? model.trim() : "";
     }
 }

@@ -115,7 +115,7 @@ public class MaterialIoReadServiceImpl implements MaterialIoReadService {
             SafetyStock safetyStock = safetyMap.get(ledgerId);
             if (safetyStock != null) {
                 hint.setSafetyQuantity(safetyStock.getSafetyQuantity());
-                hint.setWarningEnabled(safetyStock.getWarningEnabled());
+                hint.setWarningEnabled(SafetyStockWarningStatus.isAutoWarningEnabled(safetyStock.getSafetyQuantity()));
             }
             hints.add(hint);
         }

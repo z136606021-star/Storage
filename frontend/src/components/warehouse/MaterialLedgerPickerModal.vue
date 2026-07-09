@@ -78,8 +78,6 @@ const {
 
   loadErrorMessage: '加载物料台账失败',
 
-  paginationDefaults: { showSizeChanger: true, pageSize: 10 },
-
 })
 
 

@@ -102,7 +102,6 @@ const {
   fetchPage: fetchWarehouseBomPage,
   buildQueryParams,
   loadErrorMessage: '加载物料清单失败',
-  paginationDefaults: { showSizeChanger: true },
   enableRowSelection: true,
 })
 
@@ -153,7 +152,7 @@ const columns = [
   { title: '统称', dataIndex: 'genericName', key: 'genericName', width: 100, ellipsis: true },
   { title: '品牌', dataIndex: 'brand', key: 'brand', width: 80, ellipsis: true },
   { title: '名称', dataIndex: 'name', key: 'name', width: 140, ellipsis: true },
-  { title: '型号', dataIndex: 'model', key: 'model', width: 120, ellipsis: true },
+  { title: '规格', dataIndex: 'model', key: 'model', width: 120, ellipsis: true },
   { title: '备注', dataIndex: 'remark', key: 'remark', ellipsis: true, minWidth: 100 },
   { title: '图片', key: 'image', width: 72, align: 'center' as const },
   { title: '更新日期', dataIndex: 'updatedAt', key: 'updatedAt', width: 170 },
@@ -308,7 +307,7 @@ onMounted(async () => {
             </a-form-item>
           </a-col>
           <a-col :xs="24" :sm="12" :md="8" :lg="6">
-            <a-form-item label="型号" class="filter-item">
+            <a-form-item label="规格" class="filter-item">
               <a-input
                 v-model:value="queryForm.model"
                 placeholder="关键字查找"
@@ -333,14 +332,18 @@ onMounted(async () => {
         {{ displayValue(record.remark) }}
       </template>
       <template v-else-if="column.key === 'image'">
-        <a-image
-          v-if="record.imageUrl"
-          :src="record.imageUrl"
-          :width="48"
-          :height="48"
-          :preview="{ src: record.imageUrl }"
-          style="object-fit: cover; border-radius: 4px"
-        />
+        <div v-if="record.imageUrls?.length || record.imageUrl" class="image-cell">
+          <a-image
+            :src="record.imageUrls?.[0] ?? record.imageUrl"
+            :width="48"
+            :height="48"
+            :preview="{ src: record.imageUrls?.[0] ?? record.imageUrl }"
+            style="object-fit: cover; border-radius: 4px"
+          />
+          <span v-if="(record.imageUrls?.length ?? 0) > 1" class="image-count">
+            +{{ (record.imageUrls?.length ?? 0) - 1 }}
+          </span>
+        </div>
         <span v-else>—</span>
       </template>
       <template v-else-if="column.key === 'updatedAt'">
@@ -372,11 +375,21 @@ onMounted(async () => {
       <a-descriptions-item label="统称">{{ detailRecord.genericName }}</a-descriptions-item>
       <a-descriptions-item label="品牌">{{ displayValue(detailRecord.brand) }}</a-descriptions-item>
       <a-descriptions-item label="名称">{{ detailRecord.name }}</a-descriptions-item>
-      <a-descriptions-item label="型号">{{ detailRecord.model }}</a-descriptions-item>
+      <a-descriptions-item label="规格">{{ displayValue(detailRecord.model) }}</a-descriptions-item>
       <a-descriptions-item label="备注">{{ displayValue(detailRecord.remark) }}</a-descriptions-item>
       <a-descriptions-item label="图片">
+        <a-image-preview-group v-if="detailRecord.imageUrls?.length">
+          <a-space wrap>
+            <a-image
+              v-for="(url, index) in detailRecord.imageUrls"
+              :key="`${detailRecord.id}-${index}`"
+              :src="url"
+              :width="96"
+            />
+          </a-space>
+        </a-image-preview-group>
         <a-image
-          v-if="detailRecord.imageUrl"
+          v-else-if="detailRecord.imageUrl"
           :src="detailRecord.imageUrl"
           :width="120"
           :preview="{ src: detailRecord.imageUrl }"
@@ -416,5 +429,17 @@ onMounted(async () => {
 .filter-actions-col {
   display: flex;
   align-items: flex-start;
+}
+
+.image-cell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.image-count {
+  margin-left: 4px;
+  font-size: 12px;
+  color: @color-text-tertiary;
 }
 </style>

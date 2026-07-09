@@ -21,12 +21,11 @@ const emit = defineEmits<{
 const formRef = ref<FormInstance>()
 const submitting = ref(false)
 
-const defaultForm = (): SafetyStockUpdatePayload => ({
+const defaultForm = (): Pick<SafetyStockUpdatePayload, 'safetyQuantity'> => ({
   safetyQuantity: 0,
-  warningEnabled: false,
 })
 
-const formState = reactive<SafetyStockUpdatePayload>(defaultForm())
+const formState = reactive(defaultForm())
 
 watch(
   () => props.open,
@@ -35,7 +34,6 @@ watch(
       return
     }
     formState.safetyQuantity = props.record.safetyQuantity ?? 0
-    formState.warningEnabled = props.record.warningEnabled ?? false
   },
 )
 
@@ -58,7 +56,7 @@ async function handleSubmit() {
   try {
     await updateSafetyStock(props.record.materialLedgerId, {
       safetyQuantity: formState.safetyQuantity,
-      warningEnabled: formState.warningEnabled,
+      warningEnabled: formState.safetyQuantity > 0,
     })
     message.success('保存成功')
     emit('update:open', false)
@@ -90,7 +88,7 @@ const rules = {
     <MaterialIdentityDescriptions v-if="identityRecord" :record="identityRecord" />
 
     <a-descriptions :column="1" bordered size="small" class="detail-block stock-block">
-      <a-descriptions-item label="库存数量">
+      <a-descriptions-item label="库存总数">
         {{ displayValue(record?.stockQuantity) }}
       </a-descriptions-item>
     </a-descriptions>
@@ -108,13 +106,6 @@ const rules = {
           :min="0"
           :precision="0"
           style="width: 100%"
-        />
-      </a-form-item>
-      <a-form-item label="预警开关" name="warningEnabled">
-        <a-switch
-          v-model:checked="formState.warningEnabled"
-          checked-children="开"
-          un-checked-children="关"
         />
       </a-form-item>
     </a-form>

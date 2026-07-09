@@ -30,8 +30,10 @@ public class MaterialIoExportServiceImpl implements MaterialIoExportService {
             row.setModel(record.getModel());
             row.setBinLocation(record.getBinLocation());
             row.setQuantity(record.getQuantity());
-            row.setPurpose(MaterialIoPurpose.purposeLabel(record.getPurpose()));
+            row.setUnitPrice(record.getUnitPrice());
             row.setRemark(record.getRemark());
+            row.setPurpose(record.getPurposeLabel());
+            row.setProjectRef(record.getProjectRef());
             row.setIoType(MaterialIoQueryBuilder.ioTypeLabel(record.getIoType()));
             row.setOperator(formatOperator(record));
             row.setOperatedAt(record.getOperatedAt() == null ? "" : DATE_TIME_FORMATTER.format(record.getOperatedAt()));

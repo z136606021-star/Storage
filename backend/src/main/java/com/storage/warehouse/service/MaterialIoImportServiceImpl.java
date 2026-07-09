@@ -200,9 +200,10 @@ public class MaterialIoImportServiceImpl implements MaterialIoImportService {
         dto.setModel(row.getModel());
         dto.setBinLocation(row.getBinLocation());
         dto.setQuantity(parseQuantity(row.getQuantity()));
-        String purposeRaw = row.getPurpose();
-        dto.setPurpose(MaterialIoPurpose.normalizePurpose(purposeRaw));
+        dto.setUnitPrice(parseUnitPrice(row.getUnitPrice()));
         dto.setRemark(row.getRemark());
+        dto.setPurpose(row.getPurpose());
+        dto.setProjectRef(row.getProjectRef());
         dto.setIoType(MaterialIoQueryBuilder.normalizeIoType(row.getIoType()));
         dto.setOperatedAt(parseOperatedAt(row.getOperatedAt()));
         return dto;
@@ -231,17 +232,6 @@ public class MaterialIoImportServiceImpl implements MaterialIoImportService {
         MaterialIoPurpose.validatePurposeForIoType(dto.getIoType(), dto.getPurpose());
     }
 
-    private LocalDateTime parseOperatedAt(String value) {
-        if (!StringUtils.hasText(value)) {
-            return null;
-        }
-        try {
-            return LocalDateTime.parse(value.trim(), OPERATED_AT_FORMATTER);
-        } catch (DateTimeParseException ex) {
-            throw new IllegalArgumentException("操作时间格式不正确，应为 yyyy-MM-dd HH:mm:ss");
-        }
-    }
-
     private Integer parseQuantity(String value) {
         if (!StringUtils.hasText(value)) {
             return null;
@@ -257,6 +247,32 @@ public class MaterialIoImportServiceImpl implements MaterialIoImportService {
         }
     }
 
+    private java.math.BigDecimal parseUnitPrice(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        try {
+            java.math.BigDecimal unitPrice = new java.math.BigDecimal(value.trim());
+            if (unitPrice.signum() < 0) {
+                throw new IllegalArgumentException("单价不能为负数");
+            }
+            return unitPrice;
+        } catch (NumberFormatException ex) {
+            throw new IllegalArgumentException("单价格式不正确");
+        }
+    }
+
+    private LocalDateTime parseOperatedAt(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        try {
+            return LocalDateTime.parse(value.trim(), OPERATED_AT_FORMATTER);
+        } catch (DateTimeParseException ex) {
+            throw new IllegalArgumentException("操作时间格式不正确，应为 yyyy-MM-dd HH:mm:ss");
+        }
+    }
+
     private boolean isEmptyRow(MaterialIoImportTemplateRow row) {
         return !StringUtils.hasText(row.getCategory())
                 && !StringUtils.hasText(row.getGenericName())
@@ -265,8 +281,10 @@ public class MaterialIoImportServiceImpl implements MaterialIoImportService {
                 && !StringUtils.hasText(row.getModel())
                 && !StringUtils.hasText(row.getBinLocation())
                 && !StringUtils.hasText(row.getQuantity())
-                && !StringUtils.hasText(row.getPurpose())
+                && !StringUtils.hasText(row.getUnitPrice())
                 && !StringUtils.hasText(row.getRemark())
+                && !StringUtils.hasText(row.getPurpose())
+                && !StringUtils.hasText(row.getProjectRef())
                 && !StringUtils.hasText(row.getIoType());
     }
 

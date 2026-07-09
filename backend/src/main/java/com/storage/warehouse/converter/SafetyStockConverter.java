@@ -44,6 +44,8 @@ public interface SafetyStockConverter {
         if (safetyStock == null) {
             vo.setSafetyQuantity(0);
             vo.setWarningEnabled(false);
+        } else {
+            vo.setWarningEnabled(SafetyStockWarningStatus.isAutoWarningEnabled(vo.getSafetyQuantity()));
         }
         enrichWarningPeriod(vo);
     }

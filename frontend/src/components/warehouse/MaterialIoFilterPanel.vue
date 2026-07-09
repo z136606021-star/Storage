@@ -1,19 +1,13 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue'
 import type { Dayjs } from 'dayjs'
 import { ReloadOutlined, SearchOutlined } from '@ant-design/icons-vue'
 import WarehouseMaterialFilterPanel from '@/components/warehouse/WarehouseMaterialFilterPanel.vue'
 import type { defaultIoQuery } from '@/composables/useMaterialIoList'
 import { ALL_OPTION } from '@/constants/filter'
-import {
-  inboundPurposeOptions,
-  MATERIAL_IO_PURPOSE_OPTIONS,
-  outboundPurposeOptions,
-} from '@/constants/materialIoPurpose'
 
 type IoQueryForm = ReturnType<typeof defaultIoQuery>
 
-const props = defineProps<{
+defineProps<{
   queryForm: IoQueryForm
   filterOptions: {
     category: string[]
@@ -39,30 +33,6 @@ const IO_TYPE_OPTIONS = [
   { label: '入库', value: 'IN' },
   { label: '出库', value: 'OUT' },
 ]
-
-const purposeOptions = computed(() => {
-  const allOption = { label: '全部', value: ALL_OPTION }
-  if (props.queryForm.ioType === 'OUT') {
-    return [allOption, ...outboundPurposeOptions().map((item) => ({ label: item.label, value: item.value }))]
-  }
-  if (props.queryForm.ioType === 'IN') {
-    return [allOption, ...inboundPurposeOptions().map((item) => ({ label: item.label, value: item.value }))]
-  }
-  return [
-    allOption,
-    ...MATERIAL_IO_PURPOSE_OPTIONS.map((item) => ({ label: item.label, value: item.value })),
-  ]
-})
-
-watch(
-  () => props.queryForm.ioType,
-  () => {
-    const valid = purposeOptions.value.some((item) => item.value === props.queryForm.purpose)
-    if (!valid) {
-      props.queryForm.purpose = ALL_OPTION
-    }
-  },
-)
 </script>
 
 <template>
@@ -77,7 +47,7 @@ watch(
   >
     <template #first-row-trailing>
       <div class="filter-grid-cell">
-        <a-form-item label="操作类型" class="filter-item">
+        <a-form-item label="物料类型" class="filter-item">
           <a-select
             v-model:value="queryForm.ioType"
             :options="IO_TYPE_OPTIONS"
@@ -88,15 +58,6 @@ watch(
     </template>
 
     <template #second-row-trailing>
-      <div class="filter-grid-cell">
-        <a-form-item label="用途" class="filter-item">
-          <a-select
-            v-model:value="queryForm.purpose"
-            :options="purposeOptions"
-            class="filter-control"
-          />
-        </a-form-item>
-      </div>
       <div class="filter-grid-cell">
         <a-form-item label="项目编号" class="filter-item">
           <a-input

@@ -31,7 +31,7 @@ describe('useMaterialIoSafetyHint helpers', () => {
     editingRecord: ref(null),
   }
 
-  it('wouldTriggerSafetyWarning returns true when projected stock below safety', () => {
+  it('wouldTriggerSafetyWarning returns true when projected stock at or below safety', () => {
     const hint: MaterialIoSafetyHint = {
       materialLedgerId: 1,
       currentStock: 10,
@@ -39,14 +39,15 @@ describe('useMaterialIoSafetyHint helpers', () => {
       warningEnabled: true,
     }
     expect(wouldTriggerSafetyWarning(hint, 4)).toBe(true)
-    expect(wouldTriggerSafetyWarning(hint, 5)).toBe(false)
+    expect(wouldTriggerSafetyWarning(hint, 5)).toBe(true)
+    expect(wouldTriggerSafetyWarning(hint, 6)).toBe(false)
   })
 
-  it('wouldTriggerSafetyWarning ignores disabled warning', () => {
+  it('wouldTriggerSafetyWarning does not warn when safety quantity is zero', () => {
     const hint: MaterialIoSafetyHint = {
       materialLedgerId: 1,
       currentStock: 10,
-      safetyQuantity: 5,
+      safetyQuantity: 0,
       warningEnabled: false,
     }
     expect(wouldTriggerSafetyWarning(hint, 0)).toBe(false)

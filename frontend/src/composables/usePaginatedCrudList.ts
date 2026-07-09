@@ -3,6 +3,7 @@ import type { TablePaginationConfig } from 'ant-design-vue'
 import type { Key } from 'ant-design-vue/es/table/interface'
 import { message } from 'ant-design-vue'
 import { getErrorMessage } from '@/api/http'
+import { DEFAULT_PAGE_SIZE, defaultTablePagination } from '@/constants/pagination'
 import type { PageResult } from '@/types/common'
 
 export interface PaginatedCrudListOptions<T, Q> {
@@ -20,11 +21,7 @@ export function usePaginatedCrudList<T, Q>(options: PaginatedCrudListOptions<T, 
   const selectedRowKeys = ref<Key[]>([])
 
   const pagination = reactive<TablePaginationConfig>({
-    current: 1,
-    pageSize: 10,
-    total: 0,
-    showSizeChanger: false,
-    showTotal: (total: number) => `共 ${total} 条`,
+    ...defaultTablePagination,
     ...options.paginationDefaults,
   })
 
@@ -45,7 +42,7 @@ export function usePaginatedCrudList<T, Q>(options: PaginatedCrudListOptions<T, 
       const result = await options.fetchPage({
         ...options.buildQueryParams(),
         page: pagination.current ?? 1,
-        pageSize: pagination.pageSize ?? 10,
+        pageSize: pagination.pageSize ?? DEFAULT_PAGE_SIZE,
       })
       dataSource.value = result.records
       pagination.total = result.total
@@ -70,7 +67,7 @@ export function usePaginatedCrudList<T, Q>(options: PaginatedCrudListOptions<T, 
 
   function handleTableChange(pageConfig: TablePaginationConfig) {
     pagination.current = pageConfig.current ?? 1
-    pagination.pageSize = pageConfig.pageSize ?? pagination.pageSize ?? 10
+    pagination.pageSize = pageConfig.pageSize ?? pagination.pageSize ?? DEFAULT_PAGE_SIZE
     loadData()
   }
 

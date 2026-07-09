@@ -27,12 +27,12 @@ public class SafetyStockExportRow {
     @Excel(name = "Bin位", orderNum = "6")
     private String binLocation;
 
-    @Excel(name = "库存数量", orderNum = "7")
+    @Excel(name = "库存总数", orderNum = "7")
     private Integer stockQuantity;
 
     @Excel(name = "安全库存数", orderNum = "8")
     private Integer safetyQuantity;
 
-    @Excel(name = "预警期", orderNum = "9")
+    @Excel(name = "库存预警", orderNum = "9")
     private String warningPeriod;
 }

@@ -105,7 +105,7 @@ class MaterialIoImportServiceIntegrationTest {
     @Test
     void importExcel_validRow_success() throws IOException {
         List<String[]> rows = new ArrayList<>();
-        rows.add(ioRow("耗材", "测试物料", "品牌A", "测试品", "T-001", "1-1-1", "5", "", "", "入库"));
+        rows.add(ioRow("耗材", "测试物料", "品牌A", "测试品", "T-001", "1-1-1", "5", "", "入库"));
         MockMultipartFile file = createImportTemplateExcel(rows);
 
         ImportResultVO result = materialIoImportService.importExcel(file);
@@ -121,7 +121,7 @@ class MaterialIoImportServiceIntegrationTest {
         materialLedgerMapper.delete(null);
 
         List<String[]> rows = new ArrayList<>();
-        rows.add(ioRow("耗材", "测试物料", "品牌A", "测试品", "T-001", "1-1-1", "5", "", "", "入库"));
+        rows.add(ioRow("耗材", "测试物料", "品牌A", "测试品", "T-001", "1-1-1", "5", "", "入库"));
         MockMultipartFile file = createImportTemplateExcel(rows);
 
         ImportResultVO result = materialIoImportService.importExcel(file);
@@ -149,7 +149,6 @@ class MaterialIoImportServiceIntegrationTest {
                 "1-1-1",
                 "5",
                 "",
-                "",
                 "入库",
                 OPERATED_AT_FORMATTER.format(operatedAt)
         ));
@@ -174,7 +173,7 @@ class MaterialIoImportServiceIntegrationTest {
         warehouseBomMapper.delete(null);
 
         List<String[]> rows = new ArrayList<>();
-        rows.add(ioRow("耗材", "测试物料", "品牌A", "测试品", "T-001", "1-1-1", "5", "", "", "入库"));
+        rows.add(ioRow("耗材", "测试物料", "品牌A", "测试品", "T-001", "1-1-1", "5", "", "入库"));
         MockMultipartFile file = createImportTemplateExcel(rows);
 
         ImportResultVO result = materialIoImportService.importExcel(file);
@@ -192,7 +191,7 @@ class MaterialIoImportServiceIntegrationTest {
         String operatedAtText = OPERATED_AT_FORMATTER.format(operatedAt);
 
         List<String[]> rows = new ArrayList<>();
-        rows.add(ioRow("耗材", "测试物料", "品牌A", "测试品", "T-001", "1-1-1", "5", "", "", "入库", operatedAtText));
+        rows.add(ioRow("耗材", "测试物料", "品牌A", "测试品", "T-001", "1-1-1", "5", "", "入库", operatedAtText));
         MockMultipartFile file = createImportTemplateExcel(rows);
 
         ImportResultVO result = materialIoImportService.importExcel(file);
@@ -208,7 +207,7 @@ class MaterialIoImportServiceIntegrationTest {
     @Test
     void importExcel_rowError_noDbWrite() throws IOException {
         List<String[]> rows = new ArrayList<>();
-        rows.add(ioRow("", "测试物料", "品牌A", "测试品", "T-001", "1-1-1", "5", "", "", "入库"));
+        rows.add(ioRow("", "测试物料", "品牌A", "测试品", "T-001", "1-1-1", "5", "", "入库"));
         MockMultipartFile file = createImportTemplateExcel(rows);
 
         ImportResultVO result = materialIoImportService.importExcel(file);
@@ -222,8 +221,8 @@ class MaterialIoImportServiceIntegrationTest {
     @Test
     void importExcel_duplicateMaterialInFile_rejects() throws IOException {
         List<String[]> rows = new ArrayList<>();
-        rows.add(ioRow("耗材", "测试物料", "品牌A", "测试品", "T-001", "1-1-1", "2", "", "", "入库"));
-        rows.add(ioRow("耗材", "测试物料", "品牌A", "测试品", "T-001", "1-1-1", "3", "", "", "入库"));
+        rows.add(ioRow("耗材", "测试物料", "品牌A", "测试品", "T-001", "1-1-1", "2", "", "入库"));
+        rows.add(ioRow("耗材", "测试物料", "品牌A", "测试品", "T-001", "1-1-1", "3", "", "入库"));
         MockMultipartFile file = createImportTemplateExcel(rows);
 
         ImportResultVO result = materialIoImportService.importExcel(file);
@@ -237,7 +236,7 @@ class MaterialIoImportServiceIntegrationTest {
     @Test
     void importExcel_outboundExceedsStock_returnsRowErrorWithoutDbWrite() throws IOException {
         List<String[]> rows = new ArrayList<>();
-        rows.add(ioRow("耗材", "测试物料", "品牌A", "测试品", "T-001", "1-1-1", "11", "员工领用", "", "出库"));
+        rows.add(ioRow("耗材", "测试物料", "品牌A", "测试品", "T-001", "1-1-1", "11", "", "出库"));
         MockMultipartFile file = createImportTemplateExcel(rows);
 
         ImportResultVO result = materialIoImportService.importExcel(file);
@@ -261,11 +260,10 @@ class MaterialIoImportServiceIntegrationTest {
             String model,
             String binLocation,
             String quantity,
-            String purpose,
             String remark,
             String ioType
     ) {
-        return ioRow(category, genericName, brand, name, model, binLocation, quantity, purpose, remark, ioType, "");
+        return ioRow(category, genericName, brand, name, model, binLocation, quantity, remark, ioType, "");
     }
 
     private String[] ioRow(
@@ -276,13 +274,25 @@ class MaterialIoImportServiceIntegrationTest {
             String model,
             String binLocation,
             String quantity,
-            String purpose,
             String remark,
             String ioType,
             String operatedAt
     ) {
         return new String[] {
-                "1", category, genericName, brand, name, model, binLocation, quantity, purpose, remark, ioType, operatedAt
+                "1",
+                category,
+                genericName,
+                brand,
+                name,
+                model,
+                binLocation,
+                quantity,
+                "",
+                remark,
+                "",
+                "",
+                ioType,
+                operatedAt
         };
     }
 

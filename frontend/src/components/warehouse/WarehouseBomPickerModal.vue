@@ -4,6 +4,7 @@ import { ReloadOutlined, SearchOutlined } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
 import type { TablePaginationConfig } from 'ant-design-vue'
 import { fetchWarehouseBomPage } from '@/api/warehouse/warehouseBom'
+import { defaultTablePagination } from '@/constants/pagination'
 import type { WarehouseBom } from '@/types/warehouse/warehouseBom'
 import { displayValue } from '@/utils/format'
 import { getTableRowIndex } from '@/utils/tableIndex'
@@ -28,10 +29,7 @@ const queryForm = reactive({
   model: '',
 })
 const pagination = reactive<TablePaginationConfig>({
-  current: 1,
-  pageSize: 10,
-  total: 0,
-  showSizeChanger: true,
+  ...defaultTablePagination,
 })
 
 const columns = [
@@ -40,7 +38,7 @@ const columns = [
   { title: '统称', dataIndex: 'genericName', key: 'genericName', width: 100, ellipsis: true },
   { title: '品牌', dataIndex: 'brand', key: 'brand', width: 90, ellipsis: true },
   { title: '名称', dataIndex: 'name', key: 'name', width: 140, ellipsis: true },
-  { title: '型号', dataIndex: 'model', key: 'model', width: 120, ellipsis: true },
+  { title: '规格', dataIndex: 'model', key: 'model', width: 120, ellipsis: true },
 ]
 
 const rowSelection = computed(() => ({
@@ -177,7 +175,7 @@ watch(
           </a-form-item>
         </a-col>
         <a-col :xs="24" :sm="12" :md="8">
-          <a-form-item label="型号" class="filter-item">
+          <a-form-item label="规格" class="filter-item">
             <a-input v-model:value="queryForm.model" allow-clear @press-enter="handleSearch" />
           </a-form-item>
         </a-col>

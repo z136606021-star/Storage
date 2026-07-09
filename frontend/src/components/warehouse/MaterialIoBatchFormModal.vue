@@ -3,14 +3,12 @@ import { computed, ref, toRef, watch } from 'vue'
 import { PlusOutlined } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
 import type { TableProps } from 'ant-design-vue'
-import dayjs, { type Dayjs } from 'dayjs'
 import { batchCreateMaterialIo, updateMaterialIo } from '@/api/warehouse/materialIo'
 import { fetchMaterialLedgerDetail } from '@/api/warehouse/materialLedger'
 import { getErrorMessage } from '@/api/http'
 import MaterialLedgerPickerModal from '@/components/warehouse/MaterialLedgerPickerModal.vue'
 import WarehouseBinPickerModal from '@/components/warehouse/WarehouseBinPickerModal.vue'
 import WarehouseBomPickerModal from '@/components/warehouse/WarehouseBomPickerModal.vue'
-import { outboundPurposeOptions } from '@/constants/materialIoPurpose'
 import {
   confirmSafetyStockSubmit,
   shouldSkipSafetyConfirm,
@@ -41,7 +39,6 @@ const emit = defineEmits<{
 
 const submitting = ref(false)
 const ioType = ref<IoType>('IN')
-const operatedAt = ref<Dayjs>(dayjs())
 const rows = ref<MaterialIoFormRow[]>([])
 const selectedRowKeys = ref<string[]>([])
 const ledgerPickerOpen = ref(false)
@@ -52,7 +49,7 @@ const pickingRowKey = ref<string | null>(null)
 const isEdit = computed(() => !!props.record)
 const editingRecord = toRef(props, 'record')
 const showStockColumn = computed(() => ioType.value === 'OUT')
-const showPurposeColumn = computed(() => ioType.value === 'OUT')
+const showProjectRefColumn = computed(() => ioType.value === 'OUT')
 const showWarningColumn = computed(() => !isEdit.value && ioType.value === 'OUT')
 
 const stockContext = {
@@ -75,8 +72,6 @@ const warningRowCount = computed(() => warningRowIndexes.value.size)
 
 const modalTitle = computed(() => (isEdit.value ? '编辑出入库' : '新增'))
 
-const purposeOptions = computed(() => outboundPurposeOptions())
-
 const tableColumns = computed(() => {
   const cols: TableColumn[] = [
     { title: '序号', key: 'index', width: 64, align: 'center' as const },
@@ -86,8 +81,8 @@ const tableColumns = computed(() => {
     cols.push({ title: '可用库存', key: 'stockQuantity', width: 80, align: 'center' as const })
   }
   cols.push({ title: '数量', key: 'quantity', width: 100, align: 'center' as const })
-  if (showPurposeColumn.value) {
-    cols.push({ title: '用途', key: 'purpose', width: 130 })
+  cols.push({ title: '单价', key: 'unitPrice', width: 110, align: 'center' as const })
+  if (showProjectRefColumn.value) {
     cols.push({ title: '项目编号', key: 'projectRef', width: 120 })
   }
   if (showWarningColumn.value) {
@@ -116,7 +111,7 @@ function createEmptyRow(): MaterialIoFormRow {
   return {
     key: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     quantity: 1,
-    purpose: undefined,
+    unitPrice: null,
     projectRef: '',
     remark: '',
   }
@@ -133,8 +128,8 @@ function rowFromLedger(material: MaterialLedger, key: string): MaterialIoFormRow
     model: material.model,
     binLocation: material.binLocation,
     stockQuantity: material.stockQuantity ?? undefined,
+    unitPrice: material.unitPrice ?? null,
     quantity: 1,
-    purpose: undefined,
     projectRef: '',
     remark: '',
   }
@@ -146,7 +141,6 @@ function rowHasMaterial(record: MaterialIoFormRow) {
 
 async function resetForm() {
   selectedRowKeys.value = []
-  operatedAt.value = dayjs()
   if (props.record) {
     ioType.value = props.record.ioType
     rows.value = [
@@ -160,8 +154,8 @@ async function resetForm() {
         model: props.record.model,
         binLocation: props.record.binLocation,
         stockQuantity: props.record.stockQuantity ?? undefined,
+        unitPrice: props.record.unitPrice ?? null,
         quantity: props.record.quantity,
-        purpose: props.record.purpose ?? undefined,
         projectRef: props.record.projectRef ?? '',
         remark: props.record.remark ?? '',
       },
@@ -348,14 +342,6 @@ function validateRows(): boolean {
       message.warning(`第 ${rowNo} 行数量必须大于 0`)
       return false
     }
-    if (ioType.value === 'OUT' && !row.purpose) {
-      message.warning(`第 ${rowNo} 行请选择用途`)
-      return false
-    }
-    if (ioType.value === 'OUT' && row.purpose === 'PROJECT_USE' && !row.projectRef?.trim()) {
-      message.warning(`第 ${rowNo} 行项目领用须填写项目编号`)
-      return false
-    }
     if (ioType.value === 'OUT') {
       const available = availableStockForRow(row, i)
       if (available != null && row.quantity > available) {
@@ -374,18 +360,18 @@ async function submitPayload() {
       const row = rows.value[0]
       await updateMaterialIo(props.record.id, {
         quantity: row.quantity!,
+        unitPrice: row.unitPrice ?? null,
         remark: row.remark?.trim() || null,
-        purpose: row.purpose || null,
-        projectRef: row.purpose === 'PROJECT_USE' ? row.projectRef?.trim() || null : null,
+        projectRef: row.projectRef?.trim() || null,
       })
       message.success('保存成功')
     } else {
       await batchCreateMaterialIo({
         ioType: ioType.value,
-        operatedAt: operatedAt.value.format('YYYY-MM-DDTHH:mm:ss'),
         items: rows.value.map((row) => {
           const base = {
             quantity: row.quantity!,
+            unitPrice: row.unitPrice ?? null,
             remark: row.remark?.trim() || null,
           }
           if (ioType.value === 'IN') {
@@ -398,8 +384,7 @@ async function submitPayload() {
           return {
             ...base,
             materialLedgerId: row.materialLedgerId!,
-            purpose: row.purpose || null,
-            projectRef: row.purpose === 'PROJECT_USE' ? row.projectRef?.trim() || null : null,
+            projectRef: row.projectRef?.trim() || null,
           }
         }),
       })
@@ -466,21 +451,10 @@ watch(ioType, (newType, oldType) => {
     @cancel="handleClose"
   >
     <div v-if="!isEdit" class="form-header">
-      <div class="form-header-left">
-        <a-radio-group v-model:value="ioType" button-style="solid">
-          <a-radio-button value="IN">入库</a-radio-button>
-          <a-radio-button value="OUT">出库</a-radio-button>
-        </a-radio-group>
-        <div class="operated-at-field">
-          <span class="operated-at-label">操作时间</span>
-          <a-date-picker
-            v-model:value="operatedAt"
-            show-time
-            format="YYYY-MM-DD HH:mm:ss"
-            style="width: 220px"
-          />
-        </div>
-      </div>
+      <a-radio-group v-model:value="ioType" button-style="solid">
+        <a-radio-button value="IN">入库</a-radio-button>
+        <a-radio-button value="OUT">出库</a-radio-button>
+      </a-radio-group>
       <a-space>
         <a-button type="primary" class="create-btn" @click="handleAddRow">
           <template #icon><PlusOutlined /></template>
@@ -508,7 +482,7 @@ watch(ioType, (newType, oldType) => {
     />
 
     <a-table
-      :key="`${ioType}-${showPurposeColumn}`"
+      :key="`${ioType}-${showProjectRefColumn}`"
       :columns="tableColumns"
       :data-source="rows"
       :pagination="false"
@@ -557,23 +531,21 @@ watch(ioType, (newType, oldType) => {
             @click="stopCellInputPropagation"
           />
         </template>
-        <template v-else-if="column.key === 'purpose'">
-          <a-select
-            v-model:value="record.purpose"
-            :options="purposeOptions"
-            allow-clear
-            placeholder="请选择"
+        <template v-else-if="column.key === 'unitPrice'">
+          <a-input-number
+            v-model:value="record.unitPrice"
+            :min="0"
+            :precision="2"
+            placeholder="选填"
             style="width: 100%"
             @click="stopCellInputPropagation"
-            @change="() => { if (record.purpose !== 'PROJECT_USE') record.projectRef = '' }"
           />
         </template>
         <template v-else-if="column.key === 'projectRef'">
           <a-input
             v-model:value="record.projectRef"
-            :disabled="record.purpose !== 'PROJECT_USE'"
             allow-clear
-            placeholder="项目领用必填"
+            placeholder="选填"
             @click="stopCellInputPropagation"
           />
         </template>
@@ -665,24 +637,6 @@ watch(ioType, (newType, oldType) => {
 
 .form-header-edit {
   justify-content: flex-start;
-}
-
-.form-header-left {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: @spacing-lg;
-}
-
-.operated-at-field {
-  display: flex;
-  align-items: center;
-  gap: @spacing-sm;
-}
-
-.operated-at-label {
-  color: @color-text;
-  white-space: nowrap;
 }
 
 .create-btn {

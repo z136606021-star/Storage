@@ -55,17 +55,19 @@ public class SafetyStockServiceImpl extends ServiceImpl<SafetyStockMapper, Safet
         MaterialLedger ledger = requireLedger(materialLedgerId);
         SafetyStock existing = findByLedgerId(materialLedgerId);
 
+        boolean autoWarningEnabled = SafetyStockWarningStatus.isAutoWarningEnabled(dto.getSafetyQuantity());
+
         if (existing == null) {
             SafetyStock created = new SafetyStock();
             created.setMaterialLedgerId(materialLedgerId);
             created.setSafetyQuantity(dto.getSafetyQuantity());
-            created.setWarningEnabled(dto.getWarningEnabled());
+            created.setWarningEnabled(autoWarningEnabled);
             save(created);
             return safetyStockConverter.toVo(ledger, created);
         }
 
         existing.setSafetyQuantity(dto.getSafetyQuantity());
-        existing.setWarningEnabled(dto.getWarningEnabled());
+        existing.setWarningEnabled(autoWarningEnabled);
         updateById(existing);
         return safetyStockConverter.toVo(ledger, existing);
     }

@@ -18,7 +18,7 @@ export interface UseMaterialLedgerListOptions {
 export function useMaterialLedgerList(options: UseMaterialLedgerListOptions = {}) {
   const {
     loadErrorMessage = '加载物料台账失败',
-    paginationDefaults = { showSizeChanger: false, position: ['bottomCenter'] },
+    paginationDefaults = { position: ['bottomCenter'] },
     enableRowSelection = false,
   } = options
 

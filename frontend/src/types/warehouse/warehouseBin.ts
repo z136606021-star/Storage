@@ -2,8 +2,8 @@ export interface WarehouseBin {
   id: number
   binCode: string
   rowNo: number
-  colNo: number
-  levelNo: number
+  colNo: number | null
+  levelNo: number | null
   remark: string | null
   createdAt: string
   updatedAt: string
@@ -20,8 +20,8 @@ export interface WarehouseBinQuery {
 
 export interface WarehouseBinSavePayload {
   rowNo: number
-  colNo: number
-  levelNo: number
+  colNo?: number | null
+  levelNo?: number | null
   remark?: string | null
 }
 

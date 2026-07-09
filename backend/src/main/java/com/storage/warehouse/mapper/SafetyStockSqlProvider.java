@@ -1,6 +1,7 @@
 package com.storage.warehouse.mapper;
 
 import com.storage.warehouse.dto.SafetyStockQueryDTO;
+import com.storage.warehouse.service.SafetyStockWarningStatus;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
@@ -42,7 +43,9 @@ public class SafetyStockSqlProvider {
                 """);
 
         appendFilters(sql, query);
-        sql.append(" ORDER BY ml.id ASC");
+        sql.append(" ORDER BY CASE WHEN ")
+                .append(SafetyStockWarningStatus.WARNING_SQL_EXPRESSION.trim())
+                .append(" THEN 0 ELSE 1 END, ml.id ASC");
 
         if (paginated) {
             return sql.toString();
@@ -92,9 +95,7 @@ public class SafetyStockSqlProvider {
         }
 
         if (StringUtils.hasText(query.getWarningPeriod()) && !ALL.equals(query.getWarningPeriod())) {
-            String warningExpr = """
-                    (COALESCE(ss.warning_enabled, 0) = 1 AND ml.stock_quantity < COALESCE(ss.safety_quantity, 0))
-                    """;
+            String warningExpr = SafetyStockWarningStatus.WARNING_SQL_EXPRESSION.trim();
             if ("是".equals(query.getWarningPeriod()) || "YES".equalsIgnoreCase(query.getWarningPeriod())) {
                 sql.append(" AND ").append(warningExpr);
             } else if ("否".equals(query.getWarningPeriod()) || "NO".equalsIgnoreCase(query.getWarningPeriod())) {

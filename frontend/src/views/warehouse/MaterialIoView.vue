@@ -30,11 +30,10 @@ import { useAuth } from '@/composables/useAuth'
 import { useMenuStore } from '@/stores/menu'
 import type { IoType, MaterialIoRecord } from '@/types/warehouse/materialIo'
 import { confirmBatchDelete, confirmDelete } from '@/utils/confirmDelete'
-import { formatDateTime } from '@/utils/format'
+import { formatDateTime, formatUnitPrice } from '@/utils/format'
 import {
   formatIoTypeLabel,
   formatOperator,
-  formatPurposeLabel,
   getIoTypeTagColor,
 } from '@/utils/materialIo'
 import { parseIoRecordIdFromQuery } from '@/utils/materialIoRouteQuery'
@@ -164,12 +163,12 @@ const columns = [
   { title: '序号', key: 'index', width: 64, align: 'center' as const },
   ...materialIdentityColumns('ioList'),
   { title: '数量', dataIndex: 'quantity', key: 'quantity', width: 72, align: 'center' as const },
-  { title: '用途', dataIndex: 'purpose', key: 'purpose', width: 110, align: 'center' as const },
+  { title: '单价', dataIndex: 'unitPrice', key: 'unitPrice', width: 88, align: 'right' as const },
   { title: '项目编号', dataIndex: 'projectRef', key: 'projectRef', width: 100, ellipsis: true },
   { title: '备注', dataIndex: 'remark', key: 'remark', width: 140, ellipsis: true },
-  { title: '操作类型', dataIndex: 'ioType', key: 'ioType', width: 88, align: 'center' as const },
-  { title: '操作人', dataIndex: 'operatorDisplayName', key: 'operator', width: 88, ellipsis: true },
-  { title: '操作时间', dataIndex: 'operatedAt', key: 'operatedAt', width: 168 },
+  { title: '物料类型', dataIndex: 'ioType', key: 'ioType', width: 88, align: 'center' as const },
+  { title: '自动操作人', dataIndex: 'operatorDisplayName', key: 'operator', width: 100, ellipsis: true },
+  { title: '时间', dataIndex: 'operatedAt', key: 'operatedAt', width: 168 },
   { title: '操作', key: 'action', width: 160, align: 'center' as const, fixed: 'right' as const },
 ]
 
@@ -287,7 +286,7 @@ setupIoRouteWatch()
     :row-key="(record: MaterialIoRecord) => record.id"
     :row-selection="canWrite ? rowSelection : undefined"
     :custom-row="customRow"
-    :scroll="{ x: 1580 }"
+    :scroll="{ x: 1470 }"
     :toolbar-show-create="false"
     :toolbar-show-batch-export="false"
     :toolbar-show-template="false"
@@ -365,11 +364,8 @@ setupIoRouteWatch()
       <template v-else-if="column.key === 'remark'">
         {{ record.remark ?? '' }}
       </template>
-      <template v-else-if="column.key === 'purpose'">
-        <a-tag v-if="formatPurposeLabel(record.purpose, record.purposeLabel)">
-          {{ formatPurposeLabel(record.purpose, record.purposeLabel) }}
-        </a-tag>
-        <span v-else>-</span>
+      <template v-else-if="column.key === 'unitPrice'">
+        {{ formatUnitPrice(record.unitPrice) || '—' }}
       </template>
       <template v-else-if="column.key === 'projectRef'">
         {{ record.projectRef ?? '-' }}

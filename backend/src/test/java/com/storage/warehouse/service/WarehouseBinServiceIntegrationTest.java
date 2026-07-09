@@ -3,12 +3,15 @@ package com.storage.warehouse.service;
 import com.storage.common.exception.BusinessException;
 import com.storage.warehouse.dto.WarehouseBinQueryDTO;
 import com.storage.warehouse.dto.WarehouseBinSaveDTO;
+import com.storage.warehouse.entity.WarehouseBin;
 import com.storage.warehouse.mapper.WarehouseBinMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
+
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -29,33 +32,90 @@ class WarehouseBinServiceIntegrationTest {
     }
 
     @Test
-    void createAndPageBin() {
-        WarehouseBinSaveDTO dto = new WarehouseBinSaveDTO();
-        dto.setRowNo(1);
-        dto.setColNo(2);
-        dto.setLevelNo(3);
+    void create_generatesFullBinCode() {
+        WarehouseBin created = warehouseBinService.create(binDto(1, 2, 3));
 
-        var created = warehouseBinService.create(dto);
         assertThat(created.getBinCode()).isEqualTo("1-2-3");
+    }
 
-        WarehouseBinQueryDTO query = new WarehouseBinQueryDTO();
-        query.setPage(1);
-        query.setPageSize(10);
+    @Test
+    void create_generatesRowOnlyBinCode() {
+        WarehouseBin created = warehouseBinService.create(binDto(5, null, null));
 
-        var page = warehouseBinService.page(query);
-        assertThat(page.getRecords()).hasSize(1);
+        assertThat(created.getBinCode()).isEqualTo("5");
+        assertThat(created.getColNo()).isNull();
+        assertThat(created.getLevelNo()).isNull();
+    }
+
+    @Test
+    void create_generatesRowColBinCode() {
+        WarehouseBin created = warehouseBinService.create(binDto(2, 4, null));
+
+        assertThat(created.getBinCode()).isEqualTo("2-4");
+        assertThat(created.getLevelNo()).isNull();
+    }
+
+    @Test
+    void create_rejectsLevelWithoutColumn() {
+        WarehouseBinSaveDTO dto = binDto(1, null, 2);
+
+        assertThatThrownBy(() -> warehouseBinService.create(dto))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("填写层时必须同时填写列");
     }
 
     @Test
     void duplicateBinCode_rejects() {
-        warehouseBinService.create(binDto(1, 1, 1));
+        warehouseBinService.create(binDto(1, null, null));
 
-        assertThatThrownBy(() -> warehouseBinService.create(binDto(1, 1, 1)))
+        assertThatThrownBy(() -> warehouseBinService.create(binDto(1, null, null)))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("Bin位编号已存在");
     }
 
-    private WarehouseBinSaveDTO binDto(int row, int col, int level) {
+    @Test
+    void page_sortsByUpdatedAtDescThenBinCodeAsc() {
+        warehouseBinService.create(binDto(1, null, null));
+        WarehouseBin newer = warehouseBinService.create(binDto(2, null, null));
+
+        newer.setUpdatedAt(java.time.LocalDateTime.now().plusMinutes(5));
+        warehouseBinMapper.updateById(newer);
+
+        var page = warehouseBinService.page(new WarehouseBinQueryDTO());
+        List<WarehouseBin> records = page.getRecords();
+
+        assertThat(records).hasSize(2);
+        assertThat(records.get(0).getBinCode()).isEqualTo("2");
+        assertThat(records.get(1).getBinCode()).isEqualTo("1");
+    }
+
+    @Test
+    void listByIds_returnsOnlySelectedRecords() {
+        WarehouseBin first = warehouseBinService.create(binDto(1, null, null));
+        warehouseBinService.create(binDto(2, null, null));
+
+        WarehouseBinQueryDTO query = new WarehouseBinQueryDTO();
+        query.setIds(List.of(first.getId()));
+
+        assertThat(warehouseBinService.listByQuery(query))
+                .extracting(WarehouseBin::getBinCode)
+                .containsExactly("1");
+    }
+
+    @Test
+    void page_filtersByBinCodeKeyword() {
+        warehouseBinService.create(binDto(1, 2, null));
+        warehouseBinService.create(binDto(9, null, null));
+
+        WarehouseBinQueryDTO query = new WarehouseBinQueryDTO();
+        query.setBinCode("1-2");
+
+        assertThat(warehouseBinService.page(query).getRecords())
+                .extracting(WarehouseBin::getBinCode)
+                .containsExactly("1-2");
+    }
+
+    private WarehouseBinSaveDTO binDto(Integer row, Integer col, Integer level) {
         WarehouseBinSaveDTO dto = new WarehouseBinSaveDTO();
         dto.setRowNo(row);
         dto.setColNo(col);

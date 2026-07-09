@@ -73,10 +73,10 @@ export function wouldTriggerSafetyWarning(
   hint: MaterialIoSafetyHint | undefined,
   projectedStock: number | null,
 ): boolean {
-  if (!hint?.warningEnabled || hint.safetyQuantity == null || projectedStock == null) {
+  if (hint?.safetyQuantity == null || hint.safetyQuantity <= 0 || projectedStock == null) {
     return false
   }
-  return projectedStock < hint.safetyQuantity
+  return projectedStock <= hint.safetyQuantity
 }
 
 export function useMaterialIoSafetyHint(
@@ -154,7 +154,7 @@ export function useMaterialIoSafetyHint(
     if (!wouldTriggerSafetyWarning(hint, projected) || hint?.safetyQuantity == null) {
       return null
     }
-    return `出库后将低于安全库存（${hint.safetyQuantity}）`
+    return `出库后将低于或等于安全库存（${hint.safetyQuantity}）`
   }
 
   return {

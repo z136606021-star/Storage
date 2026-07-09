@@ -84,8 +84,9 @@ public class WarehouseBinServiceImpl extends ServiceImpl<WarehouseBinMapper, War
 
     @Override
     public WarehouseBin create(WarehouseBinSaveDTO dto) {
-        String binCode = buildBinCode(dto.getRowNo(), dto.getColNo(), dto.getLevelNo());
-        assertNotDuplicate(binCode, dto.getRowNo(), dto.getColNo(), dto.getLevelNo(), null);
+        WarehouseBinCodeSupport.validateCoordinateCombination(dto.getRowNo(), dto.getColNo(), dto.getLevelNo());
+        String binCode = WarehouseBinCodeSupport.buildBinCode(dto.getRowNo(), dto.getColNo(), dto.getLevelNo());
+        assertBinCodeNotDuplicate(binCode, null);
         WarehouseBin entity = warehouseBinConverter.toNewEntity(dto, binCode);
         save(entity);
         return entity;
@@ -94,7 +95,8 @@ public class WarehouseBinServiceImpl extends ServiceImpl<WarehouseBinMapper, War
     @Override
     public WarehouseBin update(Long id, WarehouseBinSaveDTO dto) {
         WarehouseBin existing = getById(id);
-        String newBinCode = buildBinCode(dto.getRowNo(), dto.getColNo(), dto.getLevelNo());
+        WarehouseBinCodeSupport.validateCoordinateCombination(dto.getRowNo(), dto.getColNo(), dto.getLevelNo());
+        String newBinCode = WarehouseBinCodeSupport.buildBinCode(dto.getRowNo(), dto.getColNo(), dto.getLevelNo());
 
         if (!newBinCode.equals(existing.getBinCode())) {
             long usageCount = countMaterialUsage(existing.getBinCode());
@@ -103,7 +105,7 @@ public class WarehouseBinServiceImpl extends ServiceImpl<WarehouseBinMapper, War
             }
         }
 
-        assertNotDuplicate(newBinCode, dto.getRowNo(), dto.getColNo(), dto.getLevelNo(), id);
+        assertBinCodeNotDuplicate(newBinCode, id);
         warehouseBinConverter.applySaveDto(existing, dto, newBinCode);
         updateById(existing);
         return existing;
@@ -138,11 +140,7 @@ public class WarehouseBinServiceImpl extends ServiceImpl<WarehouseBinMapper, War
         return warehouseBinExportService.exportTemplate();
     }
 
-    private static String buildBinCode(int rowNo, int colNo, int levelNo) {
-        return rowNo + "-" + colNo + "-" + levelNo;
-    }
-
-    private void assertNotDuplicate(String binCode, int rowNo, int colNo, int levelNo, Long excludeId) {
+    private void assertBinCodeNotDuplicate(String binCode, Long excludeId) {
         LambdaQueryWrapper<WarehouseBin> codeWrapper = Wrappers.<WarehouseBin>lambdaQuery()
                 .eq(WarehouseBin::getBinCode, binCode);
         if (excludeId != null) {
@@ -150,17 +148,6 @@ public class WarehouseBinServiceImpl extends ServiceImpl<WarehouseBinMapper, War
         }
         if (count(codeWrapper) > 0) {
             throw new BusinessException("Bin位编号已存在: " + binCode);
-        }
-
-        LambdaQueryWrapper<WarehouseBin> coordWrapper = Wrappers.<WarehouseBin>lambdaQuery()
-                .eq(WarehouseBin::getRowNo, rowNo)
-                .eq(WarehouseBin::getColNo, colNo)
-                .eq(WarehouseBin::getLevelNo, levelNo);
-        if (excludeId != null) {
-            coordWrapper.ne(WarehouseBin::getId, excludeId);
-        }
-        if (count(coordWrapper) > 0) {
-            throw new BusinessException("相同排/列/层的 Bin 位已存在");
         }
     }
 

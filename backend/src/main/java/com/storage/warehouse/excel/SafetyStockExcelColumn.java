@@ -10,9 +10,9 @@ public enum SafetyStockExcelColumn {
     NAME(4, "名称"),
     MODEL(5, "型号"),
     BIN_LOCATION(6, "Bin位"),
-    STOCK_QUANTITY(7, "库存数量"),
+    STOCK_QUANTITY(7, "库存总数"),
     SAFETY_QUANTITY(8, "安全库存数"),
-    WARNING_PERIOD(9, "预警期");
+    WARNING_PERIOD(9, "库存预警");
 
     private final int index;
     private final String header;

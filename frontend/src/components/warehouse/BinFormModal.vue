@@ -5,6 +5,7 @@ import { message } from 'ant-design-vue'
 import { getErrorMessage } from '@/api/http'
 import { createWarehouseBin, updateWarehouseBin } from '@/api/warehouse/warehouseBin'
 import type { WarehouseBin, WarehouseBinSavePayload } from '@/types/warehouse/warehouseBin'
+import { buildBinCodePreview, normalizeBinCoordinate } from '@/utils/warehouseBin'
 
 const props = defineProps<{
   open: boolean
@@ -21,8 +22,8 @@ const submitting = ref(false)
 
 const defaultForm = (): WarehouseBinSavePayload => ({
   rowNo: 1,
-  colNo: 1,
-  levelNo: 1,
+  colNo: null,
+  levelNo: null,
   remark: null,
 })
 
@@ -31,18 +32,12 @@ const formState = reactive<WarehouseBinSavePayload>(defaultForm())
 const isEdit = computed(() => props.record != null)
 const modalTitle = computed(() => (isEdit.value ? '编辑 Bin 位' : '新增 Bin 位'))
 
-const previewBinCode = computed(() => {
-  const { rowNo, colNo, levelNo } = formState
-  if (!rowNo || !colNo || !levelNo) {
-    return ''
-  }
-  return `${rowNo}-${colNo}-${levelNo}`
-})
+const previewBinCode = computed(() =>
+  buildBinCodePreview(formState.rowNo, formState.colNo, formState.levelNo),
+)
 
 const rules = {
   rowNo: [{ required: true, message: '请输入排', trigger: 'blur' }],
-  colNo: [{ required: true, message: '请输入列', trigger: 'blur' }],
-  levelNo: [{ required: true, message: '请输入层', trigger: 'blur' }],
 }
 
 watch(
@@ -68,7 +63,21 @@ function handleCancel() {
   emit('update:open', false)
 }
 
+function buildPayload(): WarehouseBinSavePayload {
+  return {
+    rowNo: formState.rowNo,
+    colNo: normalizeBinCoordinate(formState.colNo),
+    levelNo: normalizeBinCoordinate(formState.levelNo),
+    remark: formState.remark,
+  }
+}
+
 async function handleSubmit() {
+  if (!previewBinCode.value) {
+    message.error('请填写有效的排/列/层组合')
+    return
+  }
+
   try {
     await formRef.value?.validate()
   } catch {
@@ -77,11 +86,12 @@ async function handleSubmit() {
 
   submitting.value = true
   try {
+    const payload = buildPayload()
     if (isEdit.value && props.record) {
-      await updateWarehouseBin(props.record.id, formState)
+      await updateWarehouseBin(props.record.id, payload)
       message.success('Bin 位已更新')
     } else {
-      await createWarehouseBin(formState)
+      await createWarehouseBin(payload)
       message.success('Bin 位已创建')
     }
     emit('update:open', false)
@@ -109,7 +119,7 @@ async function handleSubmit() {
       <a-form-item label="Bin位编号">
         <a-input :value="previewBinCode || '自动带出'" disabled />
       </a-form-item>
-      <a-form-item label="排" name="rowNo">
+      <a-form-item label="排" name="rowNo" required>
         <a-input-number
           v-model:value="formState.rowNo"
           :min="1"
@@ -123,7 +133,7 @@ async function handleSubmit() {
           v-model:value="formState.colNo"
           :min="1"
           :precision="0"
-          placeholder="例：1"
+          placeholder="选填"
           style="width: 100%"
         />
       </a-form-item>
@@ -132,7 +142,7 @@ async function handleSubmit() {
           v-model:value="formState.levelNo"
           :min="1"
           :precision="0"
-          placeholder="例：1"
+          placeholder="选填"
           style="width: 100%"
         />
       </a-form-item>

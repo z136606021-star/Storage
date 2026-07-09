@@ -23,6 +23,7 @@ export interface ExcelImportExportOptions<Q = unknown, BatchQ = Q> {
   importErrorMessage?: string
   onAfterImport?: () => void | Promise<void>
   onAfterExport?: () => void | Promise<void>
+  onAfterBatchExport?: () => void | Promise<void>
   showFirstImportError?: boolean
 }
 
@@ -59,6 +60,7 @@ export function useExcelImportExport<Q = unknown, BatchQ = Q>(
       const blob = await options.batchExportFn(options.buildBatchExportParams(ids))
       downloadBlob(blob, options.getBatchExportFilename?.() ?? options.getExportFilename())
       message.success(options.batchExportSuccessMessage ?? '批量导出成功')
+      await options.onAfterBatchExport?.()
       await options.onAfterExport?.()
     } catch (error) {
       message.error(

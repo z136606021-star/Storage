@@ -25,6 +25,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.ActiveProfiles;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -95,34 +96,72 @@ class MaterialIoServiceIntegrationTest {
         ledger.setModel("T-001");
         ledger.setBinLocation("1-1-1");
         ledger.setStockQuantity(10);
+        ledger.setUnitPrice(new BigDecimal("9.90"));
         materialLedgerMapper.insert(ledger);
         ledgerId = ledger.getId();
     }
 
     @Test
-    void batchOutbound_withoutPurpose_rejects() {
+    void batchCreate_savesUnitPriceSnapshotFromLedgerWhenMissing() {
+        MaterialIoBatchSaveDTO batch = new MaterialIoBatchSaveDTO();
+        batch.setIoType("OUT");
+        batch.setItems(List.of(batchItem(ledgerId, 2)));
+
+        MaterialIoRecordVO created = materialIoService.batchCreate(batch).get(0);
+
+        assertThat(created.getUnitPrice()).isEqualByComparingTo("9.90");
+    }
+
+    @Test
+    void batchCreate_savesProvidedUnitPriceSnapshot() {
+        MaterialIoBatchItemDTO item = batchItem(ledgerId, 2);
+        item.setUnitPrice(new BigDecimal("15.25"));
+        MaterialIoBatchSaveDTO batch = new MaterialIoBatchSaveDTO();
+        batch.setIoType("OUT");
+        batch.setItems(List.of(item));
+
+        MaterialIoRecordVO created = materialIoService.batchCreate(batch).get(0);
+
+        assertThat(created.getUnitPrice()).isEqualByComparingTo("15.25");
+        assertThat(currentStock()).isEqualTo(8);
+    }
+
+    @Test
+    void update_allowsUnitPriceChangeWithoutAffectingStock() {
+        MaterialIoRecordVO created = materialIoService.batchCreate(outboundBatch(ledgerId, 2)).get(0);
+
+        MaterialIoUpdateDTO update = new MaterialIoUpdateDTO();
+        update.setQuantity(2);
+        update.setUnitPrice(new BigDecimal("18.00"));
+
+        MaterialIoRecordVO updated = materialIoService.update(created.getId(), update);
+
+        assertThat(updated.getUnitPrice()).isEqualByComparingTo("18.00");
+        assertThat(currentStock()).isEqualTo(8);
+    }
+
+    @Test
+    void batchOutbound_withoutPurpose_succeeds() {
         MaterialIoBatchSaveDTO batch = new MaterialIoBatchSaveDTO();
         batch.setIoType("OUT");
         batch.setItems(List.of(batchItem(ledgerId, 3)));
 
-        assertThatThrownBy(() -> materialIoService.batchCreate(batch))
-                .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("用途");
+        var created = materialIoService.batchCreate(batch).get(0);
+
+        assertThat(created.getPurpose()).isNull();
+        assertThat(currentStock()).isEqualTo(7);
     }
 
     @Test
-    void batchCreate_withOperatedAt_persistsTimestamp() {
-        MaterialLedger ledger = materialLedgerMapper.selectById(ledgerId);
-        LocalDateTime operatedAt = ledger.getCreatedAt();
-
+    void batchCreate_ignoresClientOperatedAt_usesServerTime() {
         MaterialIoBatchSaveDTO batch = new MaterialIoBatchSaveDTO();
         batch.setIoType("IN");
-        batch.setOperatedAt(operatedAt);
+        batch.setOperatedAt(LocalDateTime.now().plusDays(1));
         batch.setItems(List.of(inboundItem(bomId, "1-1-1", 2)));
 
         var created = materialIoService.batchCreate(batch).get(0);
 
-        assertThat(created.getOperatedAt()).isEqualTo(operatedAt);
+        assertThat(created.getOperatedAt()).isBeforeOrEqualTo(LocalDateTime.now().plusSeconds(2));
     }
 
     @Test
@@ -142,18 +181,23 @@ class MaterialIoServiceIntegrationTest {
     }
 
     @Test
-    void page_filtersByPurpose() {
-        materialIoService.batchCreate(outboundBatch(ledgerId, 2, "EMPLOYEE_PICKUP"));
+    void page_filtersByProjectRef() {
+        MaterialIoBatchSaveDTO batch = new MaterialIoBatchSaveDTO();
+        batch.setIoType("OUT");
+        MaterialIoBatchItemDTO item = batchItem(ledgerId, 2);
+        item.setProjectRef("PRJ-2026-001");
+        batch.setItems(List.of(item));
+        materialIoService.batchCreate(batch);
 
         MaterialIoQueryDTO query = new MaterialIoQueryDTO();
-        query.setPurpose("EMPLOYEE_PICKUP");
+        query.setProjectRef("PRJ-2026");
         query.setPage(1);
         query.setPageSize(20);
 
         var page = materialIoService.page(query);
 
         assertThat(page.getRecords()).hasSize(1);
-        assertThat(page.getRecords().get(0).getPurpose()).isEqualTo("EMPLOYEE_PICKUP");
+        assertThat(page.getRecords().get(0).getProjectRef()).isEqualTo("PRJ-2026-001");
     }
 
     @Test
@@ -268,12 +312,12 @@ class MaterialIoServiceIntegrationTest {
         MaterialIoUpdateDTO update = new MaterialIoUpdateDTO();
         update.setQuantity(4);
         update.setRemark("调整备注");
-        update.setPurpose("MACHINING");
+        update.setProjectRef("PRJ-EDIT-001");
         MaterialIoRecordVO updated = materialIoService.update(created.getId(), update);
 
         assertThat(updated.getQuantity()).isEqualTo(4);
         assertThat(updated.getRemark()).isEqualTo("调整备注");
-        assertThat(updated.getPurpose()).isEqualTo("MACHINING");
+        assertThat(updated.getProjectRef()).isEqualTo("PRJ-EDIT-001");
         assertThat(updated.getIoType()).isEqualTo("OUT");
         assertThat(updated.getMaterialLedgerId()).isEqualTo(ledgerId);
         assertThat(currentStock()).isEqualTo(6);
@@ -341,17 +385,27 @@ class MaterialIoServiceIntegrationTest {
     }
 
     @Test
-    void batchOutbound_projectUse_persistsProjectRef() {
+    void batchOutbound_projectRefOptional_persistsWhenProvided() {
         MaterialIoBatchSaveDTO batch = new MaterialIoBatchSaveDTO();
         batch.setIoType("OUT");
-        MaterialIoBatchItemDTO item = batchItem(ledgerId, 2, "PROJECT_USE");
+        MaterialIoBatchItemDTO item = batchItem(ledgerId, 2);
         item.setProjectRef("PRJ-2026-001");
         batch.setItems(List.of(item));
 
         var created = materialIoService.batchCreate(batch).get(0);
 
-        assertThat(created.getPurpose()).isEqualTo("PROJECT_USE");
         assertThat(created.getProjectRef()).isEqualTo("PRJ-2026-001");
+    }
+
+    @Test
+    void batchOutbound_withoutProjectRef_succeeds() {
+        MaterialIoBatchSaveDTO batch = new MaterialIoBatchSaveDTO();
+        batch.setIoType("OUT");
+        batch.setItems(List.of(batchItem(ledgerId, 2)));
+
+        var created = materialIoService.batchCreate(batch).get(0);
+
+        assertThat(created.getProjectRef()).isNull();
     }
 
     private int currentStock() {

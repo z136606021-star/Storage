@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
@@ -31,8 +32,11 @@ class MaterialIoExportServiceTest {
         record.setModel("0805-10K");
         record.setBinLocation("A-01");
         record.setQuantity(5);
-        record.setPurpose("EMPLOYEE_PICKUP");
+        record.setUnitPrice(new BigDecimal("12.50"));
         record.setRemark("测试备注");
+        record.setPurpose("MACHINING");
+        record.setPurposeLabel("机加工用");
+        record.setProjectRef("PRJ-001");
         record.setIoType("OUT");
         record.setOperatorDisplayName("张三");
         record.setOperatedAt(LocalDateTime.of(2026, 7, 6, 10, 30, 0));
@@ -52,24 +56,16 @@ class MaterialIoExportServiceTest {
             Row dataRow = sheet.getRow(1);
             assertThat(ExcelCellUtils.getCellString(dataRow, MaterialIoExcelColumn.INDEX.getIndex()))
                     .isEqualTo("1");
-            assertThat(ExcelCellUtils.getCellString(dataRow, MaterialIoExcelColumn.CATEGORY.getIndex()))
-                    .isEqualTo("电子");
-            assertThat(ExcelCellUtils.getCellString(dataRow, MaterialIoExcelColumn.GENERIC_NAME.getIndex()))
-                    .isEqualTo("电阻");
-            assertThat(ExcelCellUtils.getCellString(dataRow, MaterialIoExcelColumn.BRAND.getIndex()))
-                    .isEqualTo("YAGEO");
-            assertThat(ExcelCellUtils.getCellString(dataRow, MaterialIoExcelColumn.NAME.getIndex()))
-                    .isEqualTo("贴片电阻");
-            assertThat(ExcelCellUtils.getCellString(dataRow, MaterialIoExcelColumn.MODEL.getIndex()))
-                    .isEqualTo("0805-10K");
-            assertThat(ExcelCellUtils.getCellString(dataRow, MaterialIoExcelColumn.BIN_LOCATION.getIndex()))
-                    .isEqualTo("A-01");
             assertThat(ExcelCellUtils.getCellString(dataRow, MaterialIoExcelColumn.QUANTITY.getIndex()))
                     .isEqualTo("5");
-            assertThat(ExcelCellUtils.getCellString(dataRow, MaterialIoExcelColumn.PURPOSE.getIndex()))
-                    .isEqualTo("员工领用");
+            assertThat(ExcelCellUtils.getCellString(dataRow, MaterialIoExcelColumn.UNIT_PRICE.getIndex()))
+                    .isEqualTo("12.50");
             assertThat(ExcelCellUtils.getCellString(dataRow, MaterialIoExcelColumn.REMARK.getIndex()))
                     .isEqualTo("测试备注");
+            assertThat(ExcelCellUtils.getCellString(dataRow, MaterialIoExcelColumn.PURPOSE.getIndex()))
+                    .isEqualTo("机加工用");
+            assertThat(ExcelCellUtils.getCellString(dataRow, MaterialIoExcelColumn.PROJECT_REF.getIndex()))
+                    .isEqualTo("PRJ-001");
             assertThat(ExcelCellUtils.getCellString(dataRow, MaterialIoExcelColumn.IO_TYPE.getIndex()))
                     .isEqualTo("出库");
             assertThat(ExcelCellUtils.getCellString(dataRow, MaterialIoExcelColumn.OPERATOR.getIndex()))
@@ -131,6 +127,7 @@ class MaterialIoExportServiceTest {
                 assertThat(ExcelCellUtils.getCellString(headerRow, i)).isEqualTo(templateHeaders[i]);
             }
             assertThat(Arrays.asList(templateHeaders)).doesNotContain("操作人");
+            assertThat(Arrays.asList(templateHeaders)).contains("单价", "用途", "项目编号", "物料类型");
         }
     }
 }

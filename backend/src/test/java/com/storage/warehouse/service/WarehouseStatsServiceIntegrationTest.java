@@ -26,7 +26,6 @@ import org.springframework.test.context.ActiveProfiles;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
 @SpringBootTest
@@ -117,7 +116,7 @@ class WarehouseStatsServiceIntegrationTest {
 
         MaterialIoBatchSaveDTO outbound = new MaterialIoBatchSaveDTO();
         outbound.setIoType("OUT");
-        outbound.setItems(List.of(batchItem(ledgerId, 1, "EMPLOYEE_PICKUP")));
+        outbound.setItems(List.of(batchItem(ledgerId, 1)));
         materialIoService.batchCreate(outbound);
 
         WarehouseStatsOverviewVO overview = warehouseStatsService.overview(7);
@@ -133,14 +132,14 @@ class WarehouseStatsServiceIntegrationTest {
     }
 
     @Test
-    void batchOutbound_projectUseWithoutRef_rejects() {
+    void batchOutbound_withoutProjectRef_succeeds() {
         MaterialIoBatchSaveDTO batch = new MaterialIoBatchSaveDTO();
         batch.setIoType("OUT");
-        MaterialIoBatchItemDTO item = batchItem(ledgerId, 1, "PROJECT_USE");
-        batch.setItems(List.of(item));
+        batch.setItems(List.of(batchItem(ledgerId, 1)));
 
-        assertThatThrownBy(() -> materialIoService.batchCreate(batch))
-                .isInstanceOf(BusinessException.class);
+        var created = materialIoService.batchCreate(batch).get(0);
+
+        assertThat(created.getProjectRef()).isNull();
     }
 
     private MaterialIoBatchItemDTO batchItem(Long materialLedgerId, int quantity) {

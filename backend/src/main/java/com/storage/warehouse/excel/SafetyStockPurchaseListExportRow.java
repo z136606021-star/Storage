@@ -27,7 +27,7 @@ public class SafetyStockPurchaseListExportRow {
     @Excel(name = "Bin位", orderNum = "6")
     private String binLocation;
 
-    @Excel(name = "库存数量", orderNum = "7")
+    @Excel(name = "库存总数", orderNum = "7")
     private Integer stockQuantity;
 
     @Excel(name = "安全库存数", orderNum = "8")

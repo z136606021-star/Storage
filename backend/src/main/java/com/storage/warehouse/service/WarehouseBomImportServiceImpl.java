@@ -47,7 +47,7 @@ public class WarehouseBomImportServiceImpl implements WarehouseBomImportService 
             throw new IllegalArgumentException("名称不能为空");
         }
         if (!StringUtils.hasText(dto.getModel())) {
-            throw new IllegalArgumentException("型号不能为空");
+            throw new IllegalArgumentException("规格不能为空");
         }
     }
 

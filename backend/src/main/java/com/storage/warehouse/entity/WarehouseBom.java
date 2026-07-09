@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @TableName("warehouse_bom")
@@ -31,6 +32,12 @@ public class WarehouseBom {
 
     @TableField(exist = false)
     private String imageUrl;
+
+    @TableField(exist = false)
+    private List<String> imageObjectKeys;
+
+    @TableField(exist = false)
+    private List<String> imageUrls;
 
     private LocalDateTime createdAt;
 

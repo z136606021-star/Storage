@@ -21,7 +21,7 @@ public class WarehouseBomExportRow {
     @Excel(name = "名称", orderNum = "4")
     private String name;
 
-    @Excel(name = "型号", orderNum = "5")
+    @Excel(name = "规格", orderNum = "5")
     private String model;
 
     @Excel(name = "备注", orderNum = "6")

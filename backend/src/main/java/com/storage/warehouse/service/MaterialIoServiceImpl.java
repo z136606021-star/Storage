@@ -34,6 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -127,9 +128,7 @@ public class MaterialIoServiceImpl extends ServiceImpl<MaterialIoRecordMapper, M
 
         List<Long> ledgerIds = itemLedgerIds.stream().distinct().toList();
         Map<Long, MaterialLedger> lockedLedgers = materialStockMutationService.lockLedgersInOrder(ledgerIds);
-        LocalDateTime operatedAt = MaterialIoQueryBuilder.isInbound(ioType)
-                ? resolveOperatedAt(dto.getOperatedAt(), List.of())
-                : resolveOperatedAt(dto.getOperatedAt(), lockedLedgers.values());
+        LocalDateTime operatedAt = LocalDateTime.now();
 
         List<MaterialIoRecordVO> created = new ArrayList<>();
         for (MaterialIoSaveDTO saveDto : saveDtos) {
@@ -161,6 +160,7 @@ public class MaterialIoServiceImpl extends ServiceImpl<MaterialIoRecordMapper, M
         }
         MaterialIoPurpose.validateProjectRef(purpose, projectRef);
         projectRef = MaterialIoPurpose.normalizeProjectRef(purpose, projectRef);
+        BigDecimal unitPrice = dto.getUnitPrice() != null ? dto.getUnitPrice() : existing.getUnitPrice();
 
         Map<Long, MaterialLedger> lockedLedgers = materialStockMutationService.lockLedgersInOrder(List.of(existing.getMaterialLedgerId()));
 
@@ -236,10 +236,12 @@ public class MaterialIoServiceImpl extends ServiceImpl<MaterialIoRecordMapper, M
         materialStockMutationService.applyEffect(ledger, dto.getIoType(), dto.getQuantity(), false);
         materialLedgerMapper.updateById(ledger);
 
+        BigDecimal unitPrice = resolveUnitPrice(dto.getUnitPrice(), ledger);
         MaterialIoRecord entity = materialIoConverter.toNewEntity(
                 dto.getMaterialLedgerId(),
                 dto.getIoType(),
                 dto.getQuantity(),
+                unitPrice,
                 dto.getRemark(),
                 dto.getPurpose(),
                 dto.getProjectRef(),
@@ -284,12 +286,13 @@ public class MaterialIoServiceImpl extends ServiceImpl<MaterialIoRecordMapper, M
             throw new BusinessException("Bin位不存在: " + binLocation);
         }
 
+        String model = resolveBomModel(bom);
         MaterialLedger existing = materialLedgerMapper.selectOne(MaterialLedgerQueryBuilder.byNaturalKey(
                 bom.getCategory(),
                 bom.getGenericName(),
                 bom.getBrand(),
                 bom.getName(),
-                bom.getModel(),
+                model,
                 binLocation
         ));
         if (existing != null) {
@@ -301,7 +304,7 @@ public class MaterialIoServiceImpl extends ServiceImpl<MaterialIoRecordMapper, M
         ledger.setGenericName(bom.getGenericName());
         ledger.setBrand(StringUtils.hasText(bom.getBrand()) ? bom.getBrand().trim() : "");
         ledger.setName(bom.getName());
-        ledger.setModel(bom.getModel());
+        ledger.setModel(model);
         ledger.setBinLocation(binLocation);
         ledger.setStockQuantity(0);
         materialLedgerMapper.insert(ledger);
@@ -330,5 +333,16 @@ public class MaterialIoServiceImpl extends ServiceImpl<MaterialIoRecordMapper, M
         if (ledgerIds.size() != new HashSet<>(ledgerIds).size()) {
             throw new BusinessException("同一批次不能包含重复物料");
         }
+    }
+
+    private String resolveBomModel(WarehouseBom bom) {
+        return StringUtils.hasText(bom.getModel()) ? bom.getModel().trim() : bom.getName().trim();
+    }
+
+    private BigDecimal resolveUnitPrice(BigDecimal requested, MaterialLedger ledger) {
+        if (requested != null) {
+            return requested;
+        }
+        return ledger.getUnitPrice();
     }
 }

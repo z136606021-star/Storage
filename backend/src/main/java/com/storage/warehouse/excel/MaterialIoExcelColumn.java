@@ -11,11 +11,13 @@ public enum MaterialIoExcelColumn {
     MODEL(5, "型号"),
     BIN_LOCATION(6, "Bin位"),
     QUANTITY(7, "数量"),
-    PURPOSE(8, "用途"),
+    UNIT_PRICE(8, "单价"),
     REMARK(9, "备注"),
-    IO_TYPE(10, "操作类型"),
-    OPERATOR(11, "操作人"),
-    OPERATED_AT(12, "操作时间");
+    PURPOSE(10, "用途"),
+    PROJECT_REF(11, "项目编号"),
+    IO_TYPE(12, "物料类型"),
+    OPERATOR(13, "操作人"),
+    OPERATED_AT(14, "操作时间");
 
     private final int index;
     private final String header;

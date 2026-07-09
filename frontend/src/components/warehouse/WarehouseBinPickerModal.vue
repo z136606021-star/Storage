@@ -4,6 +4,7 @@ import { ReloadOutlined, SearchOutlined } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
 import type { TablePaginationConfig } from 'ant-design-vue'
 import { fetchWarehouseBinPage } from '@/api/warehouse/warehouseBin'
+import { defaultTablePagination } from '@/constants/pagination'
 import type { WarehouseBin } from '@/types/warehouse/warehouseBin'
 import { displayValue } from '@/utils/format'
 import { getTableRowIndex } from '@/utils/tableIndex'
@@ -32,10 +33,7 @@ const queryForm = reactive<{
   levelNo: undefined,
 })
 const pagination = reactive<TablePaginationConfig>({
-  current: 1,
-  pageSize: 10,
-  total: 0,
-  showSizeChanger: true,
+  ...defaultTablePagination,
 })
 
 const columns = [

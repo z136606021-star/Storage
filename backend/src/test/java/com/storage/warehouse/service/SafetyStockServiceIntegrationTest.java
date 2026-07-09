@@ -31,14 +31,16 @@ class SafetyStockServiceIntegrationTest {
 
     private Long lowStockLedgerId;
     private Long sufficientStockLedgerId;
+    private Long equalStockLedgerId;
 
     @BeforeEach
     void setUp() {
         safetyStockMapper.delete(null);
         materialLedgerMapper.delete(null);
 
-        lowStockLedgerId = insertLedger("????", 5);
-        sufficientStockLedgerId = insertLedger("???", 50);
+        lowStockLedgerId = insertLedger("低库存物料", 5);
+        sufficientStockLedgerId = insertLedger("充足库存物料", 50);
+        equalStockLedgerId = insertLedger("相等库存物料", 10);
     }
 
     @Test
@@ -55,7 +57,6 @@ class SafetyStockServiceIntegrationTest {
     void upsert_enablesWarningWhenStockBelowSafety() {
         SafetyStockUpdateDTO dto = new SafetyStockUpdateDTO();
         dto.setSafetyQuantity(10);
-        dto.setWarningEnabled(true);
 
         SafetyStockRecordVO updated = safetyStockService.upsert(lowStockLedgerId, dto);
 
@@ -65,20 +66,42 @@ class SafetyStockServiceIntegrationTest {
     }
 
     @Test
-    void upsert_warningDisabledEvenWhenStockBelowSafety() {
+    void upsert_warnsWhenStockEqualsSafety() {
+        SafetyStockUpdateDTO dto = new SafetyStockUpdateDTO();
+        dto.setSafetyQuantity(10);
+
+        SafetyStockRecordVO updated = safetyStockService.upsert(equalStockLedgerId, dto);
+
+        assertThat(updated.getInWarningPeriod()).isTrue();
+    }
+
+    @Test
+    void upsert_ignoresManualWarningDisabledFlag() {
         SafetyStockUpdateDTO dto = new SafetyStockUpdateDTO();
         dto.setSafetyQuantity(10);
         dto.setWarningEnabled(false);
 
         SafetyStockRecordVO updated = safetyStockService.upsert(lowStockLedgerId, dto);
 
+        assertThat(updated.getWarningEnabled()).isTrue();
+        assertThat(updated.getInWarningPeriod()).isTrue();
+    }
+
+    @Test
+    void upsert_zeroSafetyQuantityDoesNotWarn() {
+        SafetyStockUpdateDTO dto = new SafetyStockUpdateDTO();
+        dto.setSafetyQuantity(0);
+
+        SafetyStockRecordVO updated = safetyStockService.upsert(lowStockLedgerId, dto);
+
+        assertThat(updated.getWarningEnabled()).isFalse();
         assertThat(updated.getInWarningPeriod()).isFalse();
     }
 
     @Test
     void page_warningPeriodFilterYes() {
-        upsert(lowStockLedgerId, 10, true);
-        upsert(sufficientStockLedgerId, 10, true);
+        upsert(lowStockLedgerId, 10);
+        upsert(sufficientStockLedgerId, 10);
 
         SafetyStockQueryDTO query = new SafetyStockQueryDTO();
         query.setWarningPeriod("YES");
@@ -91,9 +114,25 @@ class SafetyStockServiceIntegrationTest {
     }
 
     @Test
+    void page_warningItemsSortedFirst() {
+        upsert(lowStockLedgerId, 10);
+        upsert(sufficientStockLedgerId, 10);
+        upsert(equalStockLedgerId, 10);
+
+        var result = safetyStockService.page(new SafetyStockQueryDTO());
+        List<SafetyStockRecordVO> records = result.getRecords();
+
+        assertThat(records).hasSize(3);
+        assertThat(records.subList(0, 2))
+                .allMatch(record -> Boolean.TRUE.equals(record.getInWarningPeriod()));
+        assertThat(records.get(2).getInWarningPeriod()).isFalse();
+        assertThat(records.get(2).getMaterialLedgerId()).isEqualTo(sufficientStockLedgerId);
+    }
+
+    @Test
     void page_safetyQuantityKeywordFilter() {
-        upsert(lowStockLedgerId, 108, true);
-        upsert(sufficientStockLedgerId, 20, true);
+        upsert(lowStockLedgerId, 108);
+        upsert(sufficientStockLedgerId, 20);
 
         SafetyStockQueryDTO query = new SafetyStockQueryDTO();
         query.setSafetyQuantityKeyword("08");
@@ -103,18 +142,17 @@ class SafetyStockServiceIntegrationTest {
                 .containsExactly(lowStockLedgerId);
     }
 
-    private void upsert(Long ledgerId, int safetyQuantity, boolean warningEnabled) {
+    private void upsert(Long ledgerId, int safetyQuantity) {
         SafetyStockUpdateDTO dto = new SafetyStockUpdateDTO();
         dto.setSafetyQuantity(safetyQuantity);
-        dto.setWarningEnabled(warningEnabled);
         safetyStockService.upsert(ledgerId, dto);
     }
 
     private Long insertLedger(String name, int stockQuantity) {
         MaterialLedger ledger = new MaterialLedger();
-        ledger.setCategory("??");
-        ledger.setGenericName("????");
-        ledger.setBrand("??");
+        ledger.setCategory("电子");
+        ledger.setGenericName("测试统称");
+        ledger.setBrand("测试品牌");
         ledger.setName(name);
         ledger.setModel("M-" + name);
         ledger.setBinLocation("1-1-1");

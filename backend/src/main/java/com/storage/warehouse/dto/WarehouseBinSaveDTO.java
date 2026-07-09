@@ -11,11 +11,9 @@ public class WarehouseBinSaveDTO {
     @Min(value = 1, message = "排必须为正整数")
     private Integer rowNo;
 
-    @NotNull(message = "列不能为空")
     @Min(value = 1, message = "列必须为正整数")
     private Integer colNo;
 
-    @NotNull(message = "层不能为空")
     @Min(value = 1, message = "层必须为正整数")
     private Integer levelNo;
 

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
-import type { FormInstance, UploadProps } from 'ant-design-vue'
+import type { FormInstance, UploadFile, UploadProps } from 'ant-design-vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined } from '@ant-design/icons-vue'
 import { getErrorMessage } from '@/api/http'
@@ -23,30 +23,50 @@ const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024
 
 const formRef = ref<FormInstance>()
 const submitting = ref(false)
-const uploading = ref(false)
-const previewUrl = ref<string | null>(null)
+const fileList = ref<UploadFile[]>([])
 
 const defaultForm = (): WarehouseBomSavePayload => ({
   category: '',
   genericName: '',
   brand: null,
   name: '',
-  model: '',
+  model: null,
   remark: null,
-  imageObjectKey: null,
+  imageObjectKeys: [],
 })
 
 const formState = reactive<WarehouseBomSavePayload>(defaultForm())
 
 const isEdit = computed(() => props.record != null)
 const modalTitle = computed(() => (isEdit.value ? '编辑物料清单' : '新增物料清单'))
-const hasImage = computed(() => Boolean(previewUrl.value))
 
 const rules = {
   category: [{ required: true, message: '请输入品类', trigger: 'blur' }],
   genericName: [{ required: true, message: '请输入统称', trigger: 'blur' }],
   name: [{ required: true, message: '请输入名称', trigger: 'blur' }],
-  model: [{ required: true, message: '请输入型号', trigger: 'blur' }],
+}
+
+function buildFileList(record: WarehouseBom | null): UploadFile[] {
+  if (!record) {
+    return []
+  }
+  const keys = record.imageObjectKeys?.length
+    ? record.imageObjectKeys
+    : record.imageObjectKey
+      ? [record.imageObjectKey]
+      : []
+  const urls = record.imageUrls?.length
+    ? record.imageUrls
+    : record.imageUrl
+      ? [record.imageUrl]
+      : []
+  return keys.map((objectKey, index) => ({
+    uid: `${objectKey}-${index}`,
+    name: objectKey.split('/').pop() ?? `image-${index + 1}`,
+    status: 'done' as const,
+    url: urls[index] ?? undefined,
+    objectKey,
+  }))
 }
 
 watch(
@@ -63,12 +83,12 @@ watch(
         name: props.record.name,
         model: props.record.model,
         remark: props.record.remark,
-        imageObjectKey: props.record.imageObjectKey,
+        imageObjectKeys: props.record.imageObjectKeys ?? [],
       })
-      previewUrl.value = props.record.imageUrl
+      fileList.value = buildFileList(props.record)
     } else {
       Object.assign(formState, defaultForm())
-      previewUrl.value = null
+      fileList.value = []
     }
   },
 )
@@ -87,30 +107,40 @@ const beforeUpload: UploadProps['beforeUpload'] = (file) => {
 
 const customUpload: UploadProps['customRequest'] = async (options) => {
   const file = options.file as File
-  uploading.value = true
   try {
     const result = await uploadFile(file)
-    formState.imageObjectKey = result.objectKey
-    previewUrl.value = result.url
+    const sourceFile = options.file as UploadFile
+    const uploadUid = sourceFile.uid ?? result.objectKey
+    const uploadedFile: UploadFile & { objectKey: string } = {
+      uid: uploadUid,
+      name: file.name,
+      status: 'done',
+      url: result.url ?? undefined,
+      objectKey: result.objectKey,
+    }
+    fileList.value = [...fileList.value, uploadedFile]
     options.onSuccess?.(result)
     message.success('图片上传成功')
   } catch (error) {
     options.onError?.(error as Error)
     message.error(getErrorMessage(error, '图片上传失败'))
-  } finally {
-    uploading.value = false
   }
 }
 
-function clearImage() {
-  formState.imageObjectKey = null
-  previewUrl.value = null
+function handleRemove(file: UploadFile) {
+  fileList.value = fileList.value.filter((item) => item.uid !== file.uid)
+}
+
+function resolveImageObjectKeys(): string[] {
+  return fileList.value
+    .map((file) => (file as UploadFile & { objectKey?: string }).objectKey)
+    .filter((key): key is string => Boolean(key))
 }
 
 function handleCancel() {
   emit('update:open', false)
   formRef.value?.resetFields()
-  previewUrl.value = null
+  fileList.value = []
 }
 
 async function handleSubmit() {
@@ -121,14 +151,16 @@ async function handleSubmit() {
   }
 
   submitting.value = true
+  const imageObjectKeys = resolveImageObjectKeys()
   const payload: WarehouseBomSavePayload = {
     category: formState.category.trim(),
     genericName: formState.genericName.trim(),
     brand: formState.brand?.trim() || null,
     name: formState.name.trim(),
-    model: formState.model.trim(),
+    model: formState.model?.trim() || null,
     remark: formState.remark?.trim() || null,
-    imageObjectKey: formState.imageObjectKey ?? null,
+    imageObjectKeys,
+    imageObjectKey: imageObjectKeys[0] ?? null,
   }
 
   try {
@@ -173,8 +205,8 @@ async function handleSubmit() {
       <a-form-item label="名称" name="name" required>
         <a-input v-model:value="formState.name" placeholder="请输入名称" allow-clear />
       </a-form-item>
-      <a-form-item label="型号" name="model" required>
-        <a-input v-model:value="formState.model" placeholder="请输入型号" allow-clear />
+      <a-form-item label="规格" name="model">
+        <a-input v-model:value="formState.model" placeholder="请输入规格（选填）" allow-clear />
       </a-form-item>
       <a-form-item label="备注" name="remark">
         <a-textarea
@@ -185,25 +217,20 @@ async function handleSubmit() {
         />
       </a-form-item>
       <a-form-item label="图片">
-        <div class="image-upload-row">
-          <a-upload
-            list-type="picture-card"
-            accept="image/*"
-            :show-upload-list="false"
-            :before-upload="beforeUpload"
-            :custom-request="customUpload"
-            :disabled="uploading"
-          >
-            <div v-if="hasImage" class="image-preview-wrap">
-              <img :src="previewUrl!" alt="物料图片" class="image-preview" />
-            </div>
-            <div v-else class="upload-placeholder">
-              <PlusOutlined />
-              <div class="upload-text">上传</div>
-            </div>
-          </a-upload>
-          <a-button v-if="hasImage" type="link" danger @click="clearImage">清除图片</a-button>
-        </div>
+        <a-upload
+          v-model:file-list="fileList"
+          list-type="picture-card"
+          accept="image/*"
+          multiple
+          :before-upload="beforeUpload"
+          :custom-request="customUpload"
+          @remove="handleRemove"
+        >
+          <div v-if="fileList.length < 8" class="upload-placeholder">
+            <PlusOutlined />
+            <div class="upload-text">上传</div>
+          </div>
+        </a-upload>
       </a-form-item>
     </a-form>
   </a-modal>
@@ -212,13 +239,6 @@ async function handleSubmit() {
 <style scoped lang="less">
 @import '@/styles/variables.less';
 
-.image-upload-row {
-  display: flex;
-  align-items: flex-start;
-  gap: @spacing-sm;
-}
-
-.image-preview-wrap,
 .upload-placeholder {
   width: 104px;
   height: 104px;
@@ -226,13 +246,6 @@ async function handleSubmit() {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-}
-
-.image-preview {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: @radius-lg;
 }
 
 .upload-text {

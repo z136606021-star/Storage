@@ -61,16 +61,10 @@ public final class MaterialIoPurpose {
     }
 
     public static void validatePurposeForIoType(String ioType, String purpose) {
-        if (MaterialIoQueryBuilder.isOutbound(ioType)) {
-            if (!StringUtils.hasText(purpose)) {
-                throw new BusinessException("出库记录必须选择用途");
-            }
-            assertValidPurpose(purpose);
+        if (!StringUtils.hasText(purpose)) {
             return;
         }
-        if (StringUtils.hasText(purpose)) {
-            assertValidPurpose(purpose);
-        }
+        assertValidPurpose(purpose);
     }
 
     public static String purposeLabel(String purpose) {
@@ -82,19 +76,12 @@ public final class MaterialIoPurpose {
     }
 
     public static void validateProjectRef(String purpose, String projectRef) {
-        String normalizedPurpose = normalizePurpose(purpose);
-        if (PROJECT_USE.equals(normalizedPurpose) && !StringUtils.hasText(projectRef)) {
-            throw new BusinessException("项目领用须填写项目编号");
-        }
         if (StringUtils.hasText(projectRef) && projectRef.trim().length() > 128) {
             throw new BusinessException("项目编号长度不能超过128字符");
         }
     }
 
     public static String normalizeProjectRef(String purpose, String projectRef) {
-        if (!PROJECT_USE.equals(normalizePurpose(purpose))) {
-            return null;
-        }
         if (!StringUtils.hasText(projectRef)) {
             return null;
         }

@@ -14,6 +14,7 @@ import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Mapper(componentModel = "spring", uses = StringMapping.class, imports = MaterialIoPurpose.class)
@@ -29,6 +30,7 @@ public interface MaterialIoConverter {
             Long materialLedgerId,
             String ioType,
             Integer quantity,
+            BigDecimal unitPrice,
             String remark,
             String purpose,
             String projectRef,
@@ -38,6 +40,7 @@ public interface MaterialIoConverter {
 
     @BeanMapping(ignoreByDefault = true)
     @Mapping(target = "quantity", source = "quantity")
+    @Mapping(target = "unitPrice", source = "unitPrice")
     @Mapping(target = "remark", source = "remark", qualifiedByName = "trimToNull")
     @Mapping(target = "purpose", source = "purpose", qualifiedByName = "trimToNull")
     @Mapping(target = "projectRef", source = "projectRef", qualifiedByName = "trimToNull")
@@ -47,6 +50,7 @@ public interface MaterialIoConverter {
     @Mapping(target = "materialLedgerId", source = "materialLedgerId")
     @Mapping(target = "ioType", source = "ioType")
     @Mapping(target = "quantity", source = "quantity")
+    @Mapping(target = "unitPrice", source = "unitPrice")
     @Mapping(target = "remark", source = "remark", qualifiedByName = "trimToNull")
     @Mapping(target = "purpose", source = "purpose", qualifiedByName = "trimToNull")
     @Mapping(target = "projectRef", source = "projectRef", qualifiedByName = "trimToNull")
@@ -56,6 +60,7 @@ public interface MaterialIoConverter {
     @Mapping(target = "materialLedgerId", source = "record.materialLedgerId")
     @Mapping(target = "ioType", source = "record.ioType")
     @Mapping(target = "quantity", source = "record.quantity")
+    @Mapping(target = "unitPrice", source = "record.unitPrice")
     @Mapping(target = "remark", source = "record.remark")
     @Mapping(target = "purpose", source = "record.purpose")
     @Mapping(target = "purposeLabel", expression = "java(MaterialIoPurpose.purposeLabel(record.getPurpose()))")

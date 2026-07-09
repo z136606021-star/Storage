@@ -3,6 +3,7 @@ package com.storage.warehouse.service;
 import com.storage.common.excel.AutoPoiExcelTemplate;
 import com.storage.warehouse.entity.WarehouseBin;
 import com.storage.warehouse.excel.WarehouseBinExportRow;
+import com.storage.warehouse.excel.WarehouseBinImportTemplateRow;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -17,7 +18,7 @@ public class WarehouseBinExportServiceImpl implements WarehouseBinExportService 
     }
 
     public byte[] exportTemplate() throws IOException {
-        return exportWorkbook(List.of());
+        return AutoPoiExcelTemplate.exportBytes("Bin位", WarehouseBinImportTemplateRow.class, List.of());
     }
 
     private byte[] exportWorkbook(List<WarehouseBin> records) throws IOException {

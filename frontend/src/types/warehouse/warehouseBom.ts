@@ -8,6 +8,8 @@ export interface WarehouseBom {
   remark: string | null
   imageObjectKey: string | null
   imageUrl: string | null
+  imageObjectKeys: string[]
+  imageUrls: string[]
   createdAt: string
   updatedAt: string
 }
@@ -27,9 +29,10 @@ export interface WarehouseBomSavePayload {
   genericName: string
   brand?: string | null
   name: string
-  model: string
+  model?: string | null
   remark?: string | null
   imageObjectKey?: string | null
+  imageObjectKeys?: string[]
 }
 
 export interface BomFilterLinkageQuery {

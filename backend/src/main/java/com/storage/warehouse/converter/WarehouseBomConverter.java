@@ -13,6 +13,8 @@ public interface WarehouseBomConverter {
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "imageUrl", ignore = true)
+    @Mapping(target = "imageObjectKeys", ignore = true)
+    @Mapping(target = "imageUrls", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "category", source = "category", qualifiedByName = "trim")

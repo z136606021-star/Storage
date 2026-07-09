@@ -5,33 +5,20 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
-@TableName("material_io_record")
-public class MaterialIoRecord {
+@TableName("warehouse_bom_image")
+public class WarehouseBomImage {
 
     @TableId(type = IdType.AUTO)
     private Long id;
 
-    private Long materialLedgerId;
+    private Long bomId;
 
-    private String ioType;
+    private String objectKey;
 
-    private Integer quantity;
-
-    private BigDecimal unitPrice;
-
-    private String remark;
-
-    private String purpose;
-
-    private String projectRef;
-
-    private Long operatorUserId;
-
-    private LocalDateTime operatedAt;
+    private Integer sortOrder;
 
     private LocalDateTime createdAt;
 

@@ -100,6 +100,7 @@ const {
   getExportFilename: () => `物料台账-${dayjs().format('YYYY-MM-DD')}.xlsx`,
   getBatchExportFilename: () => `物料台账-勾选-${dayjs().format('YYYY-MM-DD')}.xlsx`,
   exportSuccessMessage: '导出成功',
+  onAfterBatchExport: clearSelection,
 })
 
 const columns = [
@@ -163,6 +164,7 @@ setupRouteWatch()
     :scroll="{ x: 1180 }"
     :toolbar-show-create="false"
     :toolbar-show-import="false"
+    :toolbar-show-export="true"
     :toolbar-show-template="false"
     toolbar-show-batch-export
     :toolbar-show-batch-delete="false"
@@ -203,16 +205,16 @@ setupRouteWatch()
         {{ getTableRowIndex(index, pagination) }}
       </template>
       <template v-else-if="column.key === 'brand'">
-        {{ record.brand ?? '' }}
+        {{ displayValue(record.brand) }}
       </template>
       <template v-else-if="column.key === 'unitPrice'">
-        {{ formatUnitPrice(record.unitPrice) }}
+        {{ formatUnitPrice(record.unitPrice) || '-' }}
       </template>
       <template v-else-if="column.key === 'remark'">
-        {{ record.remark ?? '' }}
+        {{ displayValue(record.remark) }}
       </template>
       <template v-else-if="column.key === 'action'">
-        <a-button type="link" size="small" @click="openDetail(record)">详情</a-button>
+        <a-button type="link" size="small" @click="openDetail(record)">查看</a-button>
       </template>
     </template>
   </CrudListPage>

@@ -3,6 +3,8 @@ package com.storage.warehouse.excel;
 import lombok.Data;
 import org.jeecgframework.poi.excel.annotation.Excel;
 
+import java.math.BigDecimal;
+
 @Data
 public class MaterialIoExportRow {
 
@@ -30,18 +32,24 @@ public class MaterialIoExportRow {
     @Excel(name = "数量", orderNum = "7")
     private Integer quantity;
 
-    @Excel(name = "用途", orderNum = "8")
-    private String purpose;
+    @Excel(name = "单价", orderNum = "8")
+    private BigDecimal unitPrice;
 
     @Excel(name = "备注", orderNum = "9")
     private String remark;
 
-    @Excel(name = "操作类型", orderNum = "10")
+    @Excel(name = "用途", orderNum = "10")
+    private String purpose;
+
+    @Excel(name = "项目编号", orderNum = "11")
+    private String projectRef;
+
+    @Excel(name = "物料类型", orderNum = "12")
     private String ioType;
 
-    @Excel(name = "操作人", orderNum = "11")
+    @Excel(name = "操作人", orderNum = "13")
     private String operator;
 
-    @Excel(name = "操作时间", orderNum = "12")
+    @Excel(name = "操作时间", orderNum = "14")
     private String operatedAt;
 }

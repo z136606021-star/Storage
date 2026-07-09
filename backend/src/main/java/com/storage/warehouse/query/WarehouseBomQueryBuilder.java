@@ -38,7 +38,7 @@ public final class WarehouseBomQueryBuilder {
             wrapper.like(WarehouseBom::getModel, query.getModel().trim());
         }
 
-        wrapper.orderByAsc(WarehouseBom::getId);
+        wrapper.orderByDesc(WarehouseBom::getUpdatedAt, WarehouseBom::getId);
         return wrapper;
     }
 

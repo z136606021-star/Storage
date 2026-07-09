@@ -15,7 +15,6 @@ export function defaultIoQuery() {
   return {
     ...defaultMaterialQuery(),
     ioType: ALL_OPTION,
-    purpose: ALL_OPTION,
     projectRef: '',
   }
 }
@@ -31,7 +30,7 @@ export interface UseMaterialIoListOptions {
 export function useMaterialIoList(options: UseMaterialIoListOptions = {}) {
   const {
     loadErrorMessage = '加载物料出入库列表失败',
-    paginationDefaults = { showSizeChanger: false, position: ['bottomCenter'] },
+    paginationDefaults = { position: ['bottomCenter'] },
     enableRowSelection = true,
     getMaterialLedgerId,
     getRouteRecordIds,
@@ -53,7 +52,6 @@ export function useMaterialIoList(options: UseMaterialIoListOptions = {}) {
     return {
       ...buildMaterialQueryParams(queryForm),
       ioType: queryForm.ioType === ALL_OPTION ? undefined : queryForm.ioType,
-      purpose: queryForm.purpose === ALL_OPTION ? undefined : queryForm.purpose,
       projectRef: queryForm.projectRef?.trim() || undefined,
       operatedAtStart: operatedAtRange.value?.[0]?.format('YYYY-MM-DD'),
       operatedAtEnd: operatedAtRange.value?.[1]?.format('YYYY-MM-DD'),
@@ -91,7 +89,6 @@ export function useMaterialIoList(options: UseMaterialIoListOptions = {}) {
   function resetQueryForm() {
     assignDefaultMaterialFields(queryForm)
     queryForm.ioType = ALL_OPTION
-    queryForm.purpose = ALL_OPTION
     queryForm.projectRef = ''
     operatedAtRange.value = null
   }

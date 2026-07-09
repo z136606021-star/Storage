@@ -7,6 +7,7 @@ export interface MaterialIoRecord {
   materialLedgerId: number
   ioType: IoType
   quantity: number
+  unitPrice: number | null
   remark: string | null
   purpose: MaterialIoPurposeCode | string | null
   purposeLabel?: string | null
@@ -49,6 +50,7 @@ export interface MaterialIoBatchItemPayload {
   bomId?: number
   binLocation?: string
   quantity: number
+  unitPrice?: number | null
   remark?: string | null
   purpose?: string | null
   projectRef?: string | null
@@ -62,6 +64,7 @@ export interface MaterialIoBatchSavePayload {
 
 export interface MaterialIoUpdatePayload {
   quantity: number
+  unitPrice?: number | null
   remark?: string | null
   purpose?: string | null
   projectRef?: string | null
@@ -78,6 +81,7 @@ export interface MaterialIoSavePayload {
   materialLedgerId: number
   ioType: IoType
   quantity: number
+  unitPrice?: number | null
   remark?: string | null
   purpose?: string | null
   projectRef?: string | null
@@ -97,6 +101,7 @@ export interface MaterialIoFormRow {
   binLocation?: string
   stockQuantity?: number
   quantity?: number
+  unitPrice?: number | null
   purpose?: string
   projectRef?: string
   remark?: string

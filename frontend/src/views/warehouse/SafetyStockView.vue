@@ -116,7 +116,7 @@ const columns = [
   { title: '序号', key: 'index', width: 64, align: 'center' as const },
   ...materialIdentityColumns('ledgerList'),
   {
-    title: '库存数量',
+    title: '库存总数',
     dataIndex: 'stockQuantity',
     key: 'stockQuantity',
     width: 96,
@@ -130,7 +130,7 @@ const columns = [
     align: 'center' as const,
   },
   {
-    title: '预警期',
+    title: '库存预警',
     dataIndex: 'inWarningPeriod',
     key: 'inWarningPeriod',
     width: 88,
@@ -246,7 +246,7 @@ onMounted(async () => {
             </a-form-item>
           </div>
           <div class="filter-grid-cell">
-            <a-form-item label="预警期" class="filter-item">
+            <a-form-item label="库存预警" class="filter-item">
               <a-select
                 v-model:value="queryForm.warningPeriod"
                 :options="WARNING_PERIOD_OPTIONS"

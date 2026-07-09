@@ -3,6 +3,7 @@ package com.storage.warehouse.service;
 import com.storage.common.excel.ExcelCellUtils;
 import com.storage.warehouse.entity.WarehouseBin;
 import com.storage.warehouse.excel.WarehouseBinExcelColumn;
+import com.storage.warehouse.excel.WarehouseBinImportTemplateColumn;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -57,13 +58,18 @@ class WarehouseBinExportServiceTest {
     }
 
     @Test
-    void exportTemplate_writesHeaderOnly() throws IOException {
+    void exportTemplate_writesImportHeadersOnly() throws IOException {
         byte[] bytes = exportService.exportTemplate();
 
         try (Workbook workbook = WorkbookFactory.create(new ByteArrayInputStream(bytes))) {
             Sheet sheet = workbook.getSheetAt(0);
             assertThat(sheet.getSheetName()).isEqualTo("Bin位");
-            assertThat(sheet.getRow(0)).isNotNull();
+
+            Row headerRow = sheet.getRow(0);
+            String[] headers = WarehouseBinImportTemplateColumn.headers();
+            for (int i = 0; i < headers.length; i++) {
+                assertThat(ExcelCellUtils.getCellString(headerRow, i)).isEqualTo(headers[i]);
+            }
             assertThat(sheet.getRow(1)).isNull();
         }
     }

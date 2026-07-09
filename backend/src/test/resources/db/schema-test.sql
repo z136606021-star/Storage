@@ -1,6 +1,7 @@
 DROP TABLE IF EXISTS safety_stock;
 DROP TABLE IF EXISTS material_io_record;
 DROP TABLE IF EXISTS material_ledger;
+DROP TABLE IF EXISTS warehouse_bom_image;
 DROP TABLE IF EXISTS warehouse_bom;
 DROP TABLE IF EXISTS warehouse_bin;
 DROP TABLE IF EXISTS design_guide;
@@ -167,13 +168,12 @@ CREATE TABLE warehouse_bin (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     bin_code VARCHAR(32) NOT NULL,
     row_no INT NOT NULL,
-    col_no INT NOT NULL,
-    level_no INT NOT NULL,
+    col_no INT NULL,
+    level_no INT NULL,
     remark VARCHAR(255) NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (bin_code),
-    UNIQUE (row_no, col_no, level_no)
+    UNIQUE (bin_code)
 );
 
 CREATE TABLE warehouse_bom (
@@ -183,10 +183,20 @@ CREATE TABLE warehouse_bom (
     brand VARCHAR(64) NULL,
     name VARCHAR(128) NOT NULL,
     model VARCHAR(64) NULL,
-    remark VARCHAR(255) NULL,
+    remark VARCHAR(999) NULL,
     image_object_key VARCHAR(512) NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE warehouse_bom_image (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    bom_id BIGINT NOT NULL,
+    object_key VARCHAR(512) NOT NULL,
+    sort_order INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (bom_id) REFERENCES warehouse_bom(id) ON DELETE CASCADE
 );
 
 CREATE TABLE material_ledger (
@@ -210,6 +220,7 @@ CREATE TABLE material_io_record (
     material_ledger_id BIGINT NOT NULL,
     io_type VARCHAR(8) NOT NULL,
     quantity INT NOT NULL,
+    unit_price DECIMAL(10, 2) NULL,
     remark VARCHAR(255) NULL,
     purpose VARCHAR(32) NULL,
     project_ref VARCHAR(128) NULL,

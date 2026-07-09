@@ -4,6 +4,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
+import java.util.List;
+
 @Data
 public class WarehouseBomSaveDTO {
 
@@ -22,13 +24,14 @@ public class WarehouseBomSaveDTO {
     @Size(max = 128, message = "名称长度不能超过128")
     private String name;
 
-    @NotBlank(message = "型号不能为空")
-    @Size(max = 64, message = "型号长度不能超过64")
+    @Size(max = 64, message = "规格长度不能超过64")
     private String model;
 
-    @Size(max = 255, message = "备注长度不能超过255")
+    @Size(max = 999, message = "备注长度不能超过999")
     private String remark;
 
     @Size(max = 512, message = "图片对象键长度不能超过512")
     private String imageObjectKey;
+
+    private List<@Size(max = 512, message = "图片对象键长度不能超过512") String> imageObjectKeys;
 }

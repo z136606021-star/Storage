@@ -18,7 +18,7 @@ public interface WarehouseStatsMapper {
             SELECT COUNT(*)
             FROM material_ledger ml
             INNER JOIN safety_stock ss ON ss.material_ledger_id = ml.id
-            WHERE ss.warning_enabled = 1 AND ml.stock_quantity < ss.safety_quantity
+            WHERE COALESCE(ss.safety_quantity, 0) > 0 AND ml.stock_quantity <= ss.safety_quantity
             """)
     Long countWarningMaterials();
 
