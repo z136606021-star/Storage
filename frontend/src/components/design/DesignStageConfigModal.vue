@@ -67,7 +67,6 @@ const {
   fetchPage: fetchDesignStagePage,
   buildQueryParams,
   loadErrorMessage: '加载阶段配置失败',
-  paginationDefaults: { showSizeChanger: true },
 })
 
 const { exporting, handleExport } = useExcelImportExport({

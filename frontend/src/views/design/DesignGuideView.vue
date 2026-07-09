@@ -75,7 +75,6 @@ const {
   fetchPage: fetchDesignGuidePage,
   buildQueryParams,
   loadErrorMessage: '加载设计指引失败',
-  paginationDefaults: { showSizeChanger: true },
   enableRowSelection: true,
 })
 

@@ -73,7 +73,6 @@ const {
   fetchPage: fetchDesignProductTypePage,
   buildQueryParams,
   loadErrorMessage: '加载产品类型配置失败',
-  paginationDefaults: { showSizeChanger: true },
 })
 
 const { exporting, handleExport } = useExcelImportExport({

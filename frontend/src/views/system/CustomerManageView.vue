@@ -60,7 +60,6 @@ const {
   fetchPage: fetchCustomerPage,
   buildQueryParams,
   loadErrorMessage: '加载客户列表失败',
-  paginationDefaults: { showSizeChanger: true },
   enableRowSelection: true,
 })
 

@@ -93,7 +93,6 @@ const {
   fetchPage: fetchExperiencePage,
   buildQueryParams,
   loadErrorMessage: '加载经验库列表失败',
-  paginationDefaults: { showSizeChanger: true },
   enableRowSelection: true,
 })
 

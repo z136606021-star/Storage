@@ -65,7 +65,6 @@ const {
   },
   buildQueryParams,
   loadErrorMessage: '加载用户列表失败',
-  paginationDefaults: { showSizeChanger: true },
   onAfterLoad: (records) => {
     if (selectedUserId.value && !records.some((item) => item.id === selectedUserId.value)) {
       selectedUserId.value = records[0]?.id ?? null
