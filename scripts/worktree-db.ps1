@@ -62,6 +62,18 @@ $script:WorktreeDbProfiles = @(
         MysqlVolume         = 'storage-config-mgmt_mysql_data'
         MinioVolume         = 'storage-config-mgmt_minio_data'
     }
+    @{
+        Branch              = 'feat/design-guidelines'
+        Slug                = 'design-guidelines'
+        WorktreePath        = 'E:/Storage-worktrees/design-guidelines'
+        ComposeProjectName  = 'storage-design-guidelines'
+        MysqlPort           = 3312
+        MinioPort           = 9050
+        MysqlContainer      = 'storage-design-guidelines-mysql'
+        MinioContainer      = 'storage-design-guidelines-minio'
+        MysqlVolume         = 'storage-design-guidelines_mysql_data'
+        MinioVolume         = 'storage-design-guidelines_minio_data'
+    }
 )
 
 function Get-WorktreeDbProfile {

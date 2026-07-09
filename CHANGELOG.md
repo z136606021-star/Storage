@@ -2,6 +2,8 @@
 
 | 日期 | 变更 |
 |------|------|
+| 2026-07-08 | 补充 `feat/design-guidelines` worktree 数据库隔离注册表：PowerShell/Bash 同步新增 3312/9050 端口与 `storage-design-guidelines` Compose/容器/卷名，README worktree 表同步 |
+| 2026-07-08 | 新增独立设计指引模块：`com.storage.design.*` 后端域、`views/design` 前端页、产品类型/阶段配置、设计指引 CRUD/Excel、`V008` Flyway 表结构与菜单权限迁移；README/AGENTS 同步新域边界 |
 | 2026-07-08 | 后端 DTO/Entity/VO 映射接入 MapStruct：替换客户与仓库 converter 中手写 `new + setter` 字段搬运，抽取 `StringMapping` 处理 trim/空值规则，并在 AGENTS 写入禁止手写 DTO2Entity 搬运的门禁 |
 | 2026-07-08 | 仓库后端包结构瘦身：移除 `warehouse` 下 bin/bom/io/ledger/safety/stats 二次业务分包，收敛为 controller/service/mapper/dto/entity/excel 等按层目录；台账导出与引用计数并回 `MaterialLedgerService`，简单计数改用 MyBatis-Plus Wrapper |
 | 2026-07-08 | README/AGENTS 补充发布 tag 规则：正式发布 tag 使用 `vMAJOR.MINOR.PATCH`（如 `v1.0.0`），打 tag 前需本地跑通 `docker-compose.yml` 服务与健康检查 |

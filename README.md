@@ -105,6 +105,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\sync-worktree-env.ps1
 | `feat/material-io` | `E:/Storage-worktrees/material-io`（示例） | **3309** | 9020 |
 | `feat/safety-stock` | `E:/Storage-worktrees/safety-stock`（示例） | **3310** | 9030 |
 | `feat/config-mgmt` | `E:/Storage-worktrees/config-mgmt`（示例） | **3311** | 9040 |
+| `feat/design-guidelines` | `E:/Storage-worktrees/design-guidelines`（示例） | **3312** | 9050 |
 
 切换 worktree 或分支后务必先执行 `sync-worktree-env.ps1`（Windows）或 `sync-worktree-env.sh`（Linux/macOS/Git Bash），再 `docker compose --env-file .env up -d`。详见 [AGENTS.md](AGENTS.md)「Worktree 数据库隔离」。
 
@@ -336,6 +337,16 @@ flowchart TD
 - [x] **第三十七期样式预处理器统一**：引入 Less、`frontend/src/styles/` 公共 token/mixins、布局与 CRUD 公共层迁移、代表业务页验证
 - [x] **P8 Flyway 数据库版本管理**：Flyway 接管 schema 迁移、`V001__baseline_schema.sql` baseline、关闭 `spring.sql.init` 主路径、CI MySQL Flyway 校验
 - [x] **P1–P10 架构收敛**：Compose backend healthcheck、JWT 登出黑名单、动态路由系统管理嵌套契约、Pinia store 测试基线（详见 [ROADMAP.md](ROADMAP.md)）
+
+## 设计指引
+
+- 入口：侧栏「设计指引」，菜单组件路径为 `views/design/DesignGuideView.vue`。
+- 定位：独立于仓库管理的平台模块，不参与库存、出入库、采购审批或财务结算。
+- 功能：设计指引主表支持产品类型、项目阶段、适用范围、检查项筛选，支持新增、编辑、查看、删除、批量删除、导入、导出和模板下载。
+- 配置：新增/编辑弹窗内通过齿轮进入「产品类型配置」和「阶段配置」，配置支持启用/停用、编辑、删除、导出；已被设计指引引用的配置禁止删除。
+- 数据：产品类型和阶段在设计指引中保存编号/名称快照，配置后续重命名不影响历史记录展示与导出。
+- 权限：读权限 `platform:design:read`，写权限 `platform:design:write`；默认仅 ADMIN 授权。
+- 数据库：`V008__add_design_guidelines.sql` 追加 `design_product_type`、`design_stage`、`design_guide` 三张表并迁移菜单占位页；已有卷通过 Flyway 增量升级，无需清库，升级前仍建议备份 MySQL。
 
 ## 协作约定（多模型）
 

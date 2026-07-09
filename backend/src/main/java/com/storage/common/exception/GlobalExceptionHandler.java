@@ -5,6 +5,9 @@ import com.storage.warehouse.exception.MaterialLedgerNotFoundException;
 import com.storage.warehouse.exception.SafetyStockNotFoundException;
 import com.storage.warehouse.exception.WarehouseBinNotFoundException;
 import com.storage.warehouse.exception.WarehouseBomNotFoundException;
+import com.storage.design.exception.DesignGuideNotFoundException;
+import com.storage.design.exception.DesignProductTypeNotFoundException;
+import com.storage.design.exception.DesignStageNotFoundException;
 import com.storage.system.customer.exception.SysCustomerNotFoundException;
 import org.apache.shiro.authz.UnauthenticatedException;
 import org.apache.shiro.authz.UnauthorizedException;
@@ -65,6 +68,24 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(SysCustomerNotFoundException.class)
     public ResponseEntity<Map<String, String>> handleSysCustomerNotFound(SysCustomerNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(DesignProductTypeNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleDesignProductTypeNotFound(DesignProductTypeNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(DesignStageNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleDesignStageNotFound(DesignStageNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(DesignGuideNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleDesignGuideNotFound(DesignGuideNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(Map.of("message", ex.getMessage()));
     }

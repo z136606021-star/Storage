@@ -84,8 +84,23 @@ worktree_profile_field() {
         *) return 1 ;;
       esac
       ;;
+    feat/design-guidelines)
+      case "$field" in
+        branch) echo "feat/design-guidelines" ;;
+        slug) echo "design-guidelines" ;;
+        worktree_path) echo "E:/Storage-worktrees/design-guidelines" ;;
+        compose_project_name) echo "storage-design-guidelines" ;;
+        mysql_port) echo "3312" ;;
+        minio_port) echo "9050" ;;
+        mysql_container) echo "storage-design-guidelines-mysql" ;;
+        minio_container) echo "storage-design-guidelines-minio" ;;
+        mysql_volume) echo "storage-design-guidelines_mysql_data" ;;
+        minio_volume) echo "storage-design-guidelines_minio_data" ;;
+        *) return 1 ;;
+      esac
+      ;;
     *)
-      echo "Unknown branch '$branch'. Known branches: main, feat/material-ledger, feat/material-io, feat/safety-stock, feat/config-mgmt" >&2
+      echo "Unknown branch '$branch'. Known branches: main, feat/material-ledger, feat/material-io, feat/safety-stock, feat/config-mgmt, feat/design-guidelines" >&2
       return 1
       ;;
   esac

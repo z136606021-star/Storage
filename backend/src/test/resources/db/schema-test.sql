@@ -3,6 +3,9 @@ DROP TABLE IF EXISTS material_io_record;
 DROP TABLE IF EXISTS material_ledger;
 DROP TABLE IF EXISTS warehouse_bom;
 DROP TABLE IF EXISTS warehouse_bin;
+DROP TABLE IF EXISTS design_guide;
+DROP TABLE IF EXISTS design_stage;
+DROP TABLE IF EXISTS design_product_type;
 DROP TABLE IF EXISTS sys_customer;
 DROP TABLE IF EXISTS password_reset_token;
 DROP TABLE IF EXISTS jwt_revoked_token;
@@ -165,6 +168,55 @@ CREATE TABLE safety_stock (
     CONSTRAINT fk_safety_stock_ledger FOREIGN KEY (material_ledger_id) REFERENCES material_ledger (id) ON DELETE CASCADE
 );
 
+CREATE TABLE design_product_type (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    type_code VARCHAR(32) NOT NULL,
+    type_name VARCHAR(64) NOT NULL,
+    enabled TINYINT NOT NULL DEFAULT 1,
+    operator_user_id BIGINT NULL,
+    operator_name VARCHAR(64) NULL,
+    operated_at TIMESTAMP NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (type_code),
+    CONSTRAINT fk_test_design_product_type_operator FOREIGN KEY (operator_user_id) REFERENCES sys_user (id) ON DELETE SET NULL
+);
+
+CREATE TABLE design_stage (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    sort_order INT NOT NULL,
+    stage_name VARCHAR(64) NOT NULL,
+    enabled TINYINT NOT NULL DEFAULT 1,
+    operator_user_id BIGINT NULL,
+    operator_name VARCHAR(64) NULL,
+    operated_at TIMESTAMP NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (sort_order),
+    CONSTRAINT fk_test_design_stage_operator FOREIGN KEY (operator_user_id) REFERENCES sys_user (id) ON DELETE SET NULL
+);
+
+CREATE TABLE design_guide (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    product_type_id BIGINT NOT NULL,
+    product_type_code VARCHAR(32) NOT NULL,
+    product_type_name VARCHAR(64) NOT NULL,
+    stage_id BIGINT NOT NULL,
+    stage_name VARCHAR(64) NOT NULL,
+    scope VARCHAR(64) NOT NULL,
+    check_item VARCHAR(500) NOT NULL,
+    remark VARCHAR(500) NULL,
+    recorder_user_id BIGINT NULL,
+    recorder_name VARCHAR(64) NULL,
+    recorded_at TIMESTAMP NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (product_type_id, stage_id, scope, check_item),
+    CONSTRAINT fk_test_design_guide_product_type FOREIGN KEY (product_type_id) REFERENCES design_product_type (id),
+    CONSTRAINT fk_test_design_guide_stage FOREIGN KEY (stage_id) REFERENCES design_stage (id),
+    CONSTRAINT fk_test_design_guide_recorder FOREIGN KEY (recorder_user_id) REFERENCES sys_user (id) ON DELETE SET NULL
+);
+
 INSERT INTO sys_user (id, username, password_hash, display_name, status) VALUES
 (1, 'tester', 'hash', '测试员', 1);
 
@@ -178,7 +230,9 @@ INSERT INTO sys_menu (id, parent_id, name, permission, path, component_key, sort
 (3, NULL, '菜单管理', 'system:menu:read', '/system/menus', 'components/system/MenuManagePanel.vue', 30, 1),
 (4, NULL, '菜单写', 'system:menu:write', NULL, NULL, 31, 0),
 (5, NULL, '项目中心读', 'platform:project:read', '/platform/project', 'views/platform/ShellPlaceholderView.vue', 40, 0),
-(6, 3, '菜单隐藏子页', 'system:menu:child', 'child', 'views/platform/ShellPlaceholderView.vue', 32, 0);
+(6, 3, '菜单隐藏子页', 'system:menu:child', 'child', 'views/platform/ShellPlaceholderView.vue', 32, 0),
+(7, NULL, '设计指引', 'platform:design:read', '/platform/design', 'views/design/DesignGuideView.vue', 50, 1),
+(8, NULL, '设计指引写', 'platform:design:write', NULL, NULL, 51, 0);
 
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 (1, 1),
@@ -187,4 +241,6 @@ INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 (1, 4),
 (1, 5),
 (1, 6),
+(1, 7),
+(1, 8),
 (2, 1);
