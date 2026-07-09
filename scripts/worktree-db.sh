@@ -84,8 +84,23 @@ worktree_profile_field() {
         *) return 1 ;;
       esac
       ;;
+    feat/knowledge-base)
+      case "$field" in
+        branch) echo "feat/knowledge-base" ;;
+        slug) echo "knowledge-base" ;;
+        worktree_path) echo "E:/Storage-worktrees/knowledge-base" ;;
+        compose_project_name) echo "storage-knowledge-base" ;;
+        mysql_port) echo "3312" ;;
+        minio_port) echo "9050" ;;
+        mysql_container) echo "storage-knowledge-base-mysql" ;;
+        minio_container) echo "storage-knowledge-base-minio" ;;
+        mysql_volume) echo "storage-knowledge-base_mysql_data" ;;
+        minio_volume) echo "storage-knowledge-base_minio_data" ;;
+        *) return 1 ;;
+      esac
+      ;;
     *)
-      echo "Unknown branch '$branch'. Known branches: main, feat/material-ledger, feat/material-io, feat/safety-stock, feat/config-mgmt" >&2
+      echo "Unknown branch '$branch'. Known branches: main, feat/material-ledger, feat/material-io, feat/safety-stock, feat/config-mgmt, feat/knowledge-base" >&2
       return 1
       ;;
   esac
@@ -201,7 +216,7 @@ write_worktree_env_file() {
   jwt_secret="$(env_or_existing JWT_SECRET "dev-only-change-this-jwt-secret-at-least-32-bytes" "$env_path")"
   jwt_ttl_minutes="$(env_or_existing JWT_TTL_MINUTES 120 "$env_path")"
   upload_max_size_bytes="$(env_or_existing UPLOAD_MAX_SIZE_BYTES 5242880 "$env_path")"
-  upload_allowed_content_types="$(env_or_existing UPLOAD_ALLOWED_CONTENT_TYPES "image/jpeg,image/png,image/webp,image/gif" "$env_path")"
+  upload_allowed_content_types="$(env_or_existing UPLOAD_ALLOWED_CONTENT_TYPES "image/jpeg,image/png,image/webp,image/gif,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain" "$env_path")"
   app_public_base_url="$(env_or_existing APP_PUBLIC_BASE_URL "http://localhost" "$env_path")"
   if [[ "$app_public_base_url" == "http://localhost:$frontend_port" ]]; then
     app_public_base_url="http://localhost"

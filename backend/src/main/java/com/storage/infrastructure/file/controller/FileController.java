@@ -31,7 +31,7 @@ public class FileController {
     private final AuthService authService;
 
     @PostMapping("/upload")
-    @RequiresPermissions(value = {"platform:file:upload", "warehouse:bom:write"}, logical = Logical.OR)
+    @RequiresPermissions(value = {"platform:file:upload", "warehouse:bom:write", "platform:experience:write"}, logical = Logical.OR)
     public FileUploadVO upload(@RequestParam("file") MultipartFile file) {
         var user = authService.currentUser();
         Long uploaderId = user == null ? null : user.getId();
@@ -53,6 +53,27 @@ public class FileController {
                 .contentType(MediaType.parseMediaType(file.contentType()))
                 .cacheControl(CacheControl.maxAge(10, TimeUnit.MINUTES).cachePrivate())
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename*=UTF-8''" + encodedFilename);
+        if (file.sizeBytes() != null && file.sizeBytes() >= 0) {
+            response.contentLength(file.sizeBytes());
+        }
+        return response.body(body);
+    }
+
+    @GetMapping("/download")
+    public ResponseEntity<StreamingResponseBody> download(@RequestParam("objectKey") String objectKey) {
+        var file = fileStorageService.loadFile(objectKey);
+        StreamingResponseBody body = outputStream -> {
+            try (var inputStream = file.inputStream()) {
+                inputStream.transferTo(outputStream);
+            }
+        };
+
+        String filename = file.originalName() == null ? "file" : file.originalName();
+        String encodedFilename = URLEncoder.encode(filename, StandardCharsets.UTF_8).replace("+", "%20");
+        var response = ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(file.contentType()))
+                .cacheControl(CacheControl.noCache())
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + encodedFilename);
         if (file.sizeBytes() != null && file.sizeBytes() >= 0) {
             response.contentLength(file.sizeBytes());
         }

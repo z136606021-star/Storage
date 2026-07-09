@@ -5,6 +5,8 @@ import com.storage.warehouse.exception.MaterialLedgerNotFoundException;
 import com.storage.warehouse.exception.SafetyStockNotFoundException;
 import com.storage.warehouse.exception.WarehouseBinNotFoundException;
 import com.storage.warehouse.exception.WarehouseBomNotFoundException;
+import com.storage.experience.exception.ExperienceRecordNotFoundException;
+import com.storage.experience.exception.ExperienceTypeNotFoundException;
 import com.storage.system.customer.exception.SysCustomerNotFoundException;
 import org.apache.shiro.authz.UnauthenticatedException;
 import org.apache.shiro.authz.UnauthorizedException;
@@ -65,6 +67,18 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(SysCustomerNotFoundException.class)
     public ResponseEntity<Map<String, String>> handleSysCustomerNotFound(SysCustomerNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(ExperienceRecordNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleExperienceRecordNotFound(ExperienceRecordNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(ExperienceTypeNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleExperienceTypeNotFound(ExperienceTypeNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(Map.of("message", ex.getMessage()));
     }

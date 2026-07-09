@@ -15,8 +15,8 @@
 
 **业务域目录（P9 已完成）**：
 
-- 后端：`com.storage.common.*`（含 `common.config`）、`com.storage.system.*`（含 `system.auth.config`）、`com.storage.warehouse.*`（仓库单模块按 controller/service/mapper/dto/entity/excel 分层）、`com.storage.infrastructure.file.*`（含 `file.config`）；详见 [ROADMAP.md](ROADMAP.md) P9。
-- 前端：`views/warehouse`、`views/system`；canonical 路径 `api/warehouse`、`types/warehouse`、`api/system`、`types/system`（根目录 shim 兼容旧 import）。
+- 后端：`com.storage.common.*`（含 `common.config`）、`com.storage.system.*`（含 `system.auth.config`）、`com.storage.warehouse.*`（仓库单模块按 controller/service/mapper/dto/entity/excel 分层）、`com.storage.experience.*`（经验库独立域）、`com.storage.infrastructure.file.*`（含 `file.config`）；详见 [ROADMAP.md](ROADMAP.md) P9。
+- 前端：`views/warehouse`、`views/system`、`views/experience`；canonical 路径 `api/warehouse`、`types/warehouse`、`api/system`、`types/system`、`api/experience`、`types/experience`（根目录 shim 兼容旧 import）。
 
 ## 快速启动
 
@@ -105,6 +105,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\sync-worktree-env.ps1
 | `feat/material-io` | `E:/Storage-worktrees/material-io`（示例） | **3309** | 9020 |
 | `feat/safety-stock` | `E:/Storage-worktrees/safety-stock`（示例） | **3310** | 9030 |
 | `feat/config-mgmt` | `E:/Storage-worktrees/config-mgmt`（示例） | **3311** | 9040 |
+| `feat/knowledge-base` | `E:/Storage-worktrees/knowledge-base`（示例） | **3312** | 9050 |
 
 切换 worktree 或分支后务必先执行 `sync-worktree-env.ps1`（Windows）或 `sync-worktree-env.sh`（Linux/macOS/Git Bash），再 `docker compose --env-file .env up -d`。详见 [AGENTS.md](AGENTS.md)「Worktree 数据库隔离」。
 
@@ -248,7 +249,18 @@ curl -X POST http://localhost:8080/api/files/upload \
 
 先调用 `POST /api/auth/login` 获取 `accessToken`，再用 Bearer token 携带凭证上传。MinIO API 默认映射到 `http://localhost:9000`；MinIO Console 不作为固定交付入口，若部署侧需要控制台可单独配置新版兼容的 console 监听参数。
 
-物料清单图片可在 **配置管理 → 物料清单** 新增/编辑弹窗中上传（JPG/PNG/WebP/GIF，≤5MB）；后端会校验大小、MIME 白名单与图片魔数，保存后列表与详情展示缩略图。Excel 导入导出不含图片列。
+物料清单图片可在 **配置管理 → 物料清单** 新增/编辑弹窗中上传（JPG/PNG/WebP/GIF，≤5MB）；经验库附件可上传图片、PDF、Word、Excel、文本文件。后端会校验大小、MIME 白名单，并对图片/PDF/Office 文件做内容签名校验；图片支持预览，普通附件通过下载接口获取。Excel 导入导出不含附件列。
+
+## 经验库
+
+经验库是独立平台能力，入口为 **经验库**（`/platform/experience`），不属于仓库管理模块。当前支持：
+
+- 类型可维护：类型管理弹窗支持新增、编辑、停用、删除；已被经验记录引用的类型禁止删除。
+- 经验记录 CRUD：字段包含类型、描述、影响、建议、行动方案、记录人、记录时间。
+- 查询与批量操作：按类型、记录人、关键字、记录时间筛选，支持分页、批量导出、批量删除。
+- 关联项目：先按自由标签保存项目名称/编号，不依赖尚未落地的项目中心主数据。
+- 文件/图片：记录可挂多个附件；图片走 `/api/files/preview`，普通附件走 `/api/files/download`。
+- Excel：导出当前筛选结果；导入不含附件列，类型必须已存在，项目可用逗号/分号/换行分隔。
 
 ## 仓库业务流程
 
@@ -336,6 +348,7 @@ flowchart TD
 - [x] **第三十七期样式预处理器统一**：引入 Less、`frontend/src/styles/` 公共 token/mixins、布局与 CRUD 公共层迁移、代表业务页验证
 - [x] **P8 Flyway 数据库版本管理**：Flyway 接管 schema 迁移、`V001__baseline_schema.sql` baseline、关闭 `spring.sql.init` 主路径、CI MySQL Flyway 校验
 - [x] **P1–P10 架构收敛**：Compose backend healthcheck、JWT 登出黑名单、动态路由系统管理嵌套契约、Pinia store 测试基线（详见 [ROADMAP.md](ROADMAP.md)）
+- [x] **经验库独立域**：`com.storage.experience.*`、`views/experience`、经验类型/记录 CRUD、关联项目标签、附件上传/下载、Excel 导入导出、`V008__experience_library.sql`
 
 ## 协作约定（多模型）
 
@@ -359,7 +372,7 @@ flowchart TD
 - Google SMTP 默认按 Gmail 直连预留：`smtp.gmail.com:587` + STARTTLS；`MAIL_PASSWORD` 使用 Google 应用专用密码，不提交真实邮箱密码。公司 Workspace relay 可通过环境变量切换到 `smtp-relay.gmail.com`
 - 当前鉴权主路径为 Shiro + JWT；access token 存储在前端 localStorage。`POST /api/auth/logout` 会将当前 Bearer token 的 `jti` 写入服务端黑名单，登出后同 token 无法继续访问受保护 API。生产环境需启用 HTTPS，`JWT_SECRET` 必须使用部署侧强密钥，并持续防护 XSS 风险；如需第三方前端跨域直连后端，应优先在 Nginx/网关层显式配置跨域策略
 - 默认管理员密码自动重置能力仅建议本地排障开启，生产应关闭该初始化开关，避免启动时回退弱密码
-- 文件上传以后端校验为准：当前限制 JPG/PNG/WebP/GIF、默认 ≤5MB，并校验图片魔数，前端限制仅用于体验优化
+- 文件上传以后端校验为准：当前默认允许 JPG/PNG/WebP/GIF、PDF、Word、Excel、文本文件，默认 ≤5MB；图片/PDF/Office 文件校验内容签名，前端限制仅用于体验优化
 - GitHub Actions CI：[`CI workflow`](https://github.com/z136606021-star/Storage/blob/main/.github/workflows/ci.yml)（后端测试 + 前端测试/构建）
 
 后端测试：`cd backend && mvn test "-Dspring.profiles.active=test"`

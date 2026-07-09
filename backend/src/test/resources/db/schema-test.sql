@@ -3,9 +3,14 @@ DROP TABLE IF EXISTS material_io_record;
 DROP TABLE IF EXISTS material_ledger;
 DROP TABLE IF EXISTS warehouse_bom;
 DROP TABLE IF EXISTS warehouse_bin;
+DROP TABLE IF EXISTS experience_attachment;
+DROP TABLE IF EXISTS experience_project_link;
+DROP TABLE IF EXISTS experience_record;
+DROP TABLE IF EXISTS experience_type;
 DROP TABLE IF EXISTS sys_customer;
 DROP TABLE IF EXISTS password_reset_token;
 DROP TABLE IF EXISTS jwt_revoked_token;
+DROP TABLE IF EXISTS sys_file;
 DROP TABLE IF EXISTS sys_role_menu;
 DROP TABLE IF EXISTS sys_user_role;
 DROP TABLE IF EXISTS sys_menu;
@@ -76,6 +81,17 @@ CREATE TABLE sys_role_menu (
     CONSTRAINT fk_test_role_menu_menu FOREIGN KEY (menu_id) REFERENCES sys_menu (id) ON DELETE CASCADE
 );
 
+CREATE TABLE sys_file (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    object_key VARCHAR(255) NOT NULL,
+    original_name VARCHAR(255) NOT NULL,
+    content_type VARCHAR(128) NULL,
+    size_bytes BIGINT NOT NULL DEFAULT 0,
+    uploader_id BIGINT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_test_file_uploader FOREIGN KEY (uploader_id) REFERENCES sys_user (id) ON DELETE SET NULL
+);
+
 CREATE TABLE jwt_revoked_token (
     jti VARCHAR(64) NOT NULL PRIMARY KEY,
     expires_at TIMESTAMP NOT NULL,
@@ -95,6 +111,53 @@ CREATE TABLE sys_customer (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (customer_code)
+);
+
+CREATE TABLE experience_type (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(64) NOT NULL,
+    status TINYINT NOT NULL DEFAULT 1,
+    sort_order INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (name)
+);
+
+CREATE TABLE experience_record (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    type_id BIGINT NOT NULL,
+    description CLOB NOT NULL,
+    impact CLOB NULL,
+    suggestion CLOB NULL,
+    action_plan CLOB NULL,
+    recorder_user_id BIGINT NULL,
+    recorder_name VARCHAR(64) NOT NULL,
+    recorded_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_test_experience_record_type FOREIGN KEY (type_id) REFERENCES experience_type (id),
+    CONSTRAINT fk_test_experience_record_user FOREIGN KEY (recorder_user_id) REFERENCES sys_user (id) ON DELETE SET NULL
+);
+
+CREATE TABLE experience_project_link (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    record_id BIGINT NOT NULL,
+    project_name VARCHAR(128) NOT NULL,
+    sort_order INT NOT NULL DEFAULT 0,
+    CONSTRAINT fk_test_experience_project_record FOREIGN KEY (record_id) REFERENCES experience_record (id) ON DELETE CASCADE
+);
+
+CREATE TABLE experience_attachment (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    record_id BIGINT NOT NULL,
+    file_id BIGINT NOT NULL,
+    object_key VARCHAR(255) NOT NULL,
+    original_name VARCHAR(255) NOT NULL,
+    content_type VARCHAR(128) NULL,
+    size_bytes BIGINT NOT NULL DEFAULT 0,
+    sort_order INT NOT NULL DEFAULT 0,
+    CONSTRAINT fk_test_experience_attachment_record FOREIGN KEY (record_id) REFERENCES experience_record (id) ON DELETE CASCADE,
+    CONSTRAINT fk_test_experience_attachment_file FOREIGN KEY (file_id) REFERENCES sys_file (id)
 );
 
 CREATE TABLE warehouse_bin (
@@ -178,7 +241,10 @@ INSERT INTO sys_menu (id, parent_id, name, permission, path, component_key, sort
 (3, NULL, '菜单管理', 'system:menu:read', '/system/menus', 'components/system/MenuManagePanel.vue', 30, 1),
 (4, NULL, '菜单写', 'system:menu:write', NULL, NULL, 31, 0),
 (5, NULL, '项目中心读', 'platform:project:read', '/platform/project', 'views/platform/ShellPlaceholderView.vue', 40, 0),
-(6, 3, '菜单隐藏子页', 'system:menu:child', 'child', 'views/platform/ShellPlaceholderView.vue', 32, 0);
+(6, 3, '菜单隐藏子页', 'system:menu:child', 'child', 'views/platform/ShellPlaceholderView.vue', 32, 0),
+(7, NULL, '经验库', 'platform:experience:read', '/platform/experience', 'views/experience/ExperienceLibraryView.vue', 50, 1),
+(8, NULL, '经验库写', 'platform:experience:write', NULL, NULL, 51, 0),
+(9, NULL, '文件上传', 'platform:file:upload', NULL, NULL, 52, 0);
 
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 (1, 1),
@@ -187,4 +253,12 @@ INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 (1, 4),
 (1, 5),
 (1, 6),
+(1, 7),
+(1, 8),
+(1, 9),
 (2, 1);
+
+INSERT INTO experience_type (id, name, status, sort_order) VALUES
+(1, '设计经验', 1, 10),
+(2, '制造问题', 1, 20),
+(3, '客户需求变更', 1, 30);

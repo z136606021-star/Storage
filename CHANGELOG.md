@@ -2,6 +2,8 @@
 
 | 日期 | 变更 |
 |------|------|
+| 2026-07-08 | 新增经验库独立域：后端 `com.storage.experience.*`、前端 `views/experience`/`api/experience`/`types/experience`，落地经验类型与记录 CRUD、项目标签、附件上传/下载、Excel 导入导出；新增 Flyway `V008__experience_library.sql` 与 `platform:experience:write` 权限 |
+| 2026-07-08 | 补齐 `feat/knowledge-base` worktree 数据库隔离注册表：Windows/Bash 脚本新增 MySQL 3312、MinIO 9050、独立 compose project/卷，并同步扩展默认上传 MIME 白名单 |
 | 2026-07-08 | 后端 DTO/Entity/VO 映射接入 MapStruct：替换客户与仓库 converter 中手写 `new + setter` 字段搬运，抽取 `StringMapping` 处理 trim/空值规则，并在 AGENTS 写入禁止手写 DTO2Entity 搬运的门禁 |
 | 2026-07-08 | 仓库后端包结构瘦身：移除 `warehouse` 下 bin/bom/io/ledger/safety/stats 二次业务分包，收敛为 controller/service/mapper/dto/entity/excel 等按层目录；台账导出与引用计数并回 `MaterialLedgerService`，简单计数改用 MyBatis-Plus Wrapper |
 | 2026-07-08 | README/AGENTS 补充发布 tag 规则：正式发布 tag 使用 `vMAJOR.MINOR.PATCH`（如 `v1.0.0`），打 tag 前需本地跑通 `docker-compose.yml` 服务与健康检查 |
