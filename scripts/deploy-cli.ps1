@@ -16,15 +16,61 @@ function Open-DeployUrl {
         [string]$RepoRoot
     )
 
+    $url = Get-DeployUrl -ProfileName $ProfileName -RepoRoot $RepoRoot
+    Write-Host "Opening $url ..."
+    Start-Process $url
+}
+
+function Get-DeployUrl {
+    param(
+        [string]$ProfileName,
+        [string]$RepoRoot
+    )
+
     $envValues = Read-DotEnvValues -EnvPath (Join-Path $RepoRoot '.env')
     $port = if ($ProfileName -eq 'dev') {
         Get-EnvOrExistingValue -Existing $envValues -Name 'FRONTEND_PORT' -DefaultValue '5173'
     } else {
         Get-EnvOrExistingValue -Existing $envValues -Name 'APP_PORT' -DefaultValue '80'
     }
-    $url = "http://localhost:$port"
-    Write-Host "Opening $url ..."
-    Start-Process $url
+    return "http://localhost:$port"
+}
+
+function Wait-HttpEndpoint {
+    param(
+        [string]$Url,
+        [string]$Name,
+        [int]$TimeoutSeconds = 90
+    )
+
+    Write-Host "Waiting for $Name at $Url ..."
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    do {
+        try {
+            Invoke-WebRequest -UseBasicParsing -Uri $Url -TimeoutSec 3 -ErrorAction Stop | Out-Null
+            Write-Host "$Name is ready."
+            return
+        } catch {
+            Start-Sleep -Seconds 2
+        }
+    } while ((Get-Date) -lt $deadline)
+
+    throw "$Name did not become ready within $TimeoutSeconds seconds: $Url"
+}
+
+function Wait-DeployReady {
+    param(
+        [string]$ProfileName,
+        [string]$RepoRoot
+    )
+
+    $envValues = Read-DotEnvValues -EnvPath (Join-Path $RepoRoot '.env')
+    if ($ProfileName -eq 'dev') {
+        $backendPort = Get-EnvOrExistingValue -Existing $envValues -Name 'BACKEND_PORT' -DefaultValue '8080'
+        Wait-HttpEndpoint -Url "http://localhost:$backendPort/health" -Name 'backend'
+    }
+
+    Wait-HttpEndpoint -Url (Get-DeployUrl -ProfileName $ProfileName -RepoRoot $RepoRoot) -Name 'frontend'
 }
 
 function Assert-DevPortsAvailable {
@@ -93,6 +139,7 @@ if ($Build) {
 
 Write-Host "Deploy profile: $Profile"
 docker compose @composeArgs @composeFiles @upArgs
+Wait-DeployReady -ProfileName $Profile -RepoRoot $Root
 if (-not $NoOpenBrowser) {
     Open-DeployUrl -ProfileName $Profile -RepoRoot $Root
 }

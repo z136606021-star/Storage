@@ -41,6 +41,7 @@ docker compose --env-file .env -f docker-compose.yml up -d
 - Windows 双击：`start-dev.cmd` / `dev-up.cmd`（会询问是否重建 Docker 镜像以应用最新前端代码；可加 `-NoOpenBrowser` 跳过打开浏览器）
 - Windows：`.\scripts\deploy-cli.ps1 -Profile dev [-Build]` / `-Profile prod`（dev 部署成功后会自动打开浏览器；可用 `-NoOpenBrowser` 跳过）
 - Linux/macOS/Git Bash：`./scripts/deploy-cli.sh --profile dev [--build]` / `--profile prod`（同上，可用 `--no-open-browser` 跳过；若执行权限丢失可用 `bash scripts/deploy-cli.sh ...`）
+- 启动脚本会等待后端健康检查与前端入口可访问后再打开浏览器，避免服务尚未监听时出现 `localhost` 拒绝连接。
 
 环境自检：
 

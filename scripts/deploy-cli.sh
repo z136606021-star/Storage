@@ -80,6 +80,43 @@ assert_dev_ports_available() {
   fi
 }
 
+read_deploy_port() {
+  if [[ "$PROFILE" == "dev" ]]; then
+    read_env_value FRONTEND_PORT 5173
+  else
+    read_env_value APP_PORT 80
+  fi
+}
+
+wait_http_endpoint() {
+  local url="${1:?url is required}"
+  local name="${2:?name is required}"
+  local timeout_seconds="${3:-90}"
+  local deadline=$((SECONDS + timeout_seconds))
+
+  echo "Waiting for ${name} at ${url} ..."
+  while (( SECONDS < deadline )); do
+    if curl -fsS --max-time 3 "$url" >/dev/null 2>&1; then
+      echo "${name} is ready."
+      return 0
+    fi
+    sleep 2
+  done
+
+  echo "${name} did not become ready within ${timeout_seconds} seconds: ${url}" >&2
+  return 1
+}
+
+wait_deploy_ready() {
+  if [[ "$PROFILE" == "dev" ]]; then
+    backend_port="$(read_env_value BACKEND_PORT 8080)"
+    wait_http_endpoint "http://localhost:${backend_port}/health" backend
+  fi
+
+  port="$(read_deploy_port)"
+  wait_http_endpoint "http://localhost:${port}" frontend
+}
+
 cd "$ROOT"
 write_worktree_env_file "$ROOT" >/dev/null
 
@@ -91,13 +128,10 @@ fi
 
 echo "Deploy profile: $PROFILE"
 docker compose --env-file "$ROOT/.env" "${compose_files[@]}" up -d ${BUILD_FLAG}
+wait_deploy_ready
 
 if [[ "$OPEN_BROWSER" -eq 1 ]]; then
-  if [[ "$PROFILE" == "dev" ]]; then
-    port="$(read_env_value FRONTEND_PORT 5173)"
-  else
-    port="$(read_env_value APP_PORT 80)"
-  fi
+  port="$(read_deploy_port)"
   url="http://localhost:${port}"
   echo "Opening ${url} ..."
   if command -v xdg-open >/dev/null 2>&1; then
