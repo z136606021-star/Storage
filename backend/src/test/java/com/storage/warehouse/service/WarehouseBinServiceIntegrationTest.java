@@ -5,16 +5,20 @@ import com.storage.warehouse.dto.WarehouseBinQueryDTO;
 import com.storage.warehouse.dto.WarehouseBinSaveDTO;
 import com.storage.warehouse.entity.WarehouseBin;
 import com.storage.warehouse.mapper.WarehouseBinMapper;
+import com.storage.system.user.contract.OperatorInfo;
+import com.storage.system.user.contract.OperatorResolver;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.when;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -26,9 +30,17 @@ class WarehouseBinServiceIntegrationTest {
     @Autowired
     private WarehouseBinMapper warehouseBinMapper;
 
+    @MockBean
+    private OperatorResolver operatorResolver;
+
     @BeforeEach
     void setUp() {
         warehouseBinMapper.delete(null);
+
+        OperatorInfo operator = new OperatorInfo();
+        operator.setId(1L);
+        operator.setUsername("tester");
+        when(operatorResolver.requireCurrentOperator()).thenReturn(operator);
     }
 
     @Test
@@ -74,7 +86,35 @@ class WarehouseBinServiceIntegrationTest {
     }
 
     @Test
-    void page_sortsByUpdatedAtDescThenBinCodeAsc() {
+    void create_recordsOperator() {
+        WarehouseBin created = warehouseBinService.create(binDto(1, null, null));
+
+        assertThat(created.getOperatorUserId()).isEqualTo(1L);
+        assertThat(created.getOperatorName()).isEqualTo("tester");
+        assertThat(created.getUpdatedAt()).isNotNull();
+    }
+
+    @Test
+    void update_recordsOperator() {
+        WarehouseBin created = warehouseBinService.create(binDto(1, null, null));
+
+        OperatorInfo updater = new OperatorInfo();
+        updater.setId(1L);
+        updater.setUsername("editor");
+        when(operatorResolver.requireCurrentOperator()).thenReturn(updater);
+
+        WarehouseBinSaveDTO dto = binDto(1, null, null);
+        dto.setRemark("updated");
+
+        WarehouseBin updated = warehouseBinService.update(created.getId(), dto);
+
+        assertThat(updated.getOperatorUserId()).isEqualTo(1L);
+        assertThat(updated.getOperatorName()).isEqualTo("editor");
+        assertThat(updated.getRemark()).isEqualTo("updated");
+    }
+
+    @Test
+    void page_sortsByUpdatedAtDescThenIdDesc() {
         warehouseBinService.create(binDto(1, null, null));
         WarehouseBin newer = warehouseBinService.create(binDto(2, null, null));
 
@@ -87,6 +127,42 @@ class WarehouseBinServiceIntegrationTest {
         assertThat(records).hasSize(2);
         assertThat(records.get(0).getBinCode()).isEqualTo("2");
         assertThat(records.get(1).getBinCode()).isEqualTo("1");
+    }
+
+    @Test
+    void page_tieBreaksEqualUpdatedAtByIdDesc() {
+        WarehouseBin first = warehouseBinService.create(binDto(1, null, null));
+        WarehouseBin second = warehouseBinService.create(binDto(2, null, null));
+
+        java.time.LocalDateTime sameTime = java.time.LocalDateTime.now();
+        first.setUpdatedAt(sameTime);
+        second.setUpdatedAt(sameTime);
+        warehouseBinMapper.updateById(first);
+        warehouseBinMapper.updateById(second);
+
+        var page = warehouseBinService.page(new WarehouseBinQueryDTO());
+
+        assertThat(page.getRecords())
+                .extracting(WarehouseBin::getId)
+                .containsExactly(second.getId(), first.getId());
+    }
+
+    @Test
+    void page_returnsPaginationMetadata() {
+        for (int i = 1; i <= 12; i++) {
+            warehouseBinService.create(binDto(i, null, null));
+        }
+
+        WarehouseBinQueryDTO query = new WarehouseBinQueryDTO();
+        query.setPage(2);
+        query.setPageSize(10);
+
+        var page = warehouseBinService.page(query);
+
+        assertThat(page.getTotal()).isEqualTo(12);
+        assertThat(page.getCurrent()).isEqualTo(2);
+        assertThat(page.getSize()).isEqualTo(10);
+        assertThat(page.getRecords()).hasSize(2);
     }
 
     @Test

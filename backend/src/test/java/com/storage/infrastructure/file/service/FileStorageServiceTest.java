@@ -38,7 +38,9 @@ class FileStorageServiceTest {
         minioProperties.setBucket("storage");
 
         FileUploadProperties fileUploadProperties = new FileUploadProperties();
-        fileUploadProperties.setMaxSizeBytes(5 * 1024 * 1024L);
+        fileUploadProperties.setMaxSizeBytes(50L * 1024 * 1024L);
+        fileUploadProperties.setMaxFilesPerRecord(20);
+        fileUploadProperties.setUploadConcurrency(3);
         fileUploadProperties.setAllowedContentTypes(List.of(
                 "image/jpeg",
                 "image/png",
@@ -58,6 +60,28 @@ class FileStorageServiceTest {
                 fileUploadProperties,
                 sysFileMapper
         );
+    }
+
+    @Test
+    void uploadPolicy_returnsConfiguredLimits() {
+        var policy = fileStorageService.uploadPolicy();
+
+        assertThat(policy.getMaxSizeBytes()).isEqualTo(50L * 1024 * 1024);
+        assertThat(policy.getMaxFilesPerRecord()).isEqualTo(20);
+        assertThat(policy.getUploadConcurrency()).isEqualTo(3);
+        assertThat(policy.getImageContentTypes()).contains("image/png");
+    }
+
+    @Test
+    void assertImageFile_rejectsNonImageRecord() {
+        SysFile record = new SysFile();
+        record.setObjectKey("2026-07-08/demo.txt");
+        record.setContentType("text/plain");
+        when(sysFileMapper.selectOne(any())).thenReturn(record);
+
+        assertThatThrownBy(() -> fileStorageService.assertImageFile("2026-07-08/demo.txt"))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("图片文件不存在或类型不支持");
     }
 
     @Test
@@ -82,7 +106,19 @@ class FileStorageServiceTest {
 
     @Test
     void upload_withOversizedFile_rejectsBeforeMinioCall() {
-        byte[] content = new byte[5 * 1024 * 1024 + 1];
+        FileUploadProperties smallLimitProperties = new FileUploadProperties();
+        smallLimitProperties.setMaxSizeBytes(1024);
+        smallLimitProperties.setAllowedContentTypes(List.of("image/png"));
+        MinioProperties minioProperties = new MinioProperties();
+        minioProperties.setBucket("storage");
+        FileStorageService smallLimitService = new FileStorageServiceImpl(
+                minioClient,
+                minioProperties,
+                smallLimitProperties,
+                sysFileMapper
+        );
+
+        byte[] content = new byte[1025];
         MockMultipartFile file = new MockMultipartFile(
                 "file",
                 "large.png",
@@ -90,7 +126,7 @@ class FileStorageServiceTest {
                 content
         );
 
-        assertThatThrownBy(() -> fileStorageService.upload(file, null))
+        assertThatThrownBy(() -> smallLimitService.upload(file, null))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage("文件大小超过限制");
         verifyNoInteractions(minioClient, sysFileMapper);

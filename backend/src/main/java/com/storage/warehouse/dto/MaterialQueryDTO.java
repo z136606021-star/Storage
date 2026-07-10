@@ -21,6 +21,11 @@ public class MaterialQueryDTO {
 
     private List<Long> ids;
 
+    /**
+     * Optional stock filter: ALL, IN_STOCK, ZERO_STOCK.
+     */
+    private String stockStatus;
+
     private Integer page = 1;
 
     private Integer pageSize = 10;

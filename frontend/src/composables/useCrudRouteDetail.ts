@@ -1,4 +1,4 @@
-import { ref, watch, type Ref } from 'vue'
+import { onActivated, onDeactivated, ref, watch, type Ref } from 'vue'
 import type { RouteLocationNormalizedLoaded, Router } from 'vue-router'
 
 export type CrudRouteDetailClearQueryMode = 'omitKey' | 'clearAll'
@@ -17,6 +17,29 @@ export interface UseCrudRouteDetailConfig {
 export function useCrudRouteDetail(config: UseCrudRouteDetailConfig) {
   const highlightRecordId = ref<number | null>(null)
   const clearQueryMode = config.clearQueryMode ?? 'omitKey'
+  const ownerPath = config.route.path
+  let isActive = true
+
+  onActivated(() => {
+    isActive = true
+    const id = config.parseId(config.route.query[config.queryKey])
+    if (id != null && highlightRecordId.value !== id) {
+      void applyRouteDetail(id)
+      return
+    }
+    if (id == null && highlightRecordId.value != null) {
+      highlightRecordId.value = null
+      void config.onRouteIdChange?.(null)
+    }
+  })
+
+  onDeactivated(() => {
+    isActive = false
+  })
+
+  function ownsCurrentRoute() {
+    return isActive && config.route.path === ownerPath
+  }
 
   async function applyRouteDetail(id: number) {
     highlightRecordId.value = id
@@ -51,6 +74,9 @@ export function useCrudRouteDetail(config: UseCrudRouteDetailConfig) {
     watch(
       () => config.route.query[config.queryKey],
       async (raw) => {
+        if (!ownsCurrentRoute()) {
+          return
+        }
         const id = config.parseId(raw)
         if (id != null) {
           if (highlightRecordId.value !== id) {

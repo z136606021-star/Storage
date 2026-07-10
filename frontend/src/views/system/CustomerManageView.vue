@@ -185,6 +185,7 @@ onMounted(loadData)
 
 <template>
   <CrudListPage
+    table-key="system.customer"
     :columns="columns"
     :loading="loading"
     :data-source="dataSource"
@@ -211,45 +212,55 @@ onMounted(loadData)
   >
     <template #filters>
       <a-form layout="inline" class="filter-form">
-        <a-form-item label="客户编号">
-          <a-input
-            v-model:value="queryForm.customerCode"
-            allow-clear
-            placeholder="关键字查找"
-            style="width: 160px"
-            @press-enter="handleSearch"
-          />
-        </a-form-item>
-        <a-form-item label="客户名称">
-          <a-input
-            v-model:value="queryForm.name"
-            allow-clear
-            placeholder="关键字查找"
-            style="width: 160px"
-            @press-enter="handleSearch"
-          />
-        </a-form-item>
-        <a-form-item label="联系人">
-          <a-input
-            v-model:value="queryForm.contactName"
-            allow-clear
-            placeholder="关键字查找"
-            style="width: 160px"
-            @press-enter="handleSearch"
-          />
-        </a-form-item>
-        <a-form-item>
-          <a-space>
-            <a-button type="primary" @click="handleSearch">
-              <template #icon><SearchOutlined /></template>
-              查询
-            </a-button>
-            <a-button @click="handleReset">
-              <template #icon><ReloadOutlined /></template>
-              重置
-            </a-button>
-          </a-space>
-        </a-form-item>
+        <a-row :gutter="[12, 8]" class="filter-row">
+          <a-col :xs="24" :sm="12" :md="8" :lg="6">
+            <a-form-item label="客户编号" class="filter-item">
+              <a-input
+                v-model:value="queryForm.customerCode"
+                allow-clear
+                placeholder="关键字查找"
+                class="filter-control"
+                @press-enter="handleSearch"
+              />
+            </a-form-item>
+          </a-col>
+          <a-col :xs="24" :sm="12" :md="8" :lg="6">
+            <a-form-item label="客户名称" class="filter-item">
+              <a-input
+                v-model:value="queryForm.name"
+                allow-clear
+                placeholder="关键字查找"
+                class="filter-control"
+                @press-enter="handleSearch"
+              />
+            </a-form-item>
+          </a-col>
+          <a-col :xs="24" :sm="12" :md="8" :lg="6">
+            <a-form-item label="联系人" class="filter-item">
+              <a-input
+                v-model:value="queryForm.contactName"
+                allow-clear
+                placeholder="关键字查找"
+                class="filter-control"
+                @press-enter="handleSearch"
+              />
+            </a-form-item>
+          </a-col>
+          <a-col :xs="24" :sm="24" :md="24" :lg="6" class="filter-actions-col">
+            <a-form-item class="filter-item filter-actions">
+              <a-space>
+                <a-button type="primary" @click="handleSearch">
+                  <template #icon><SearchOutlined /></template>
+                  查询
+                </a-button>
+                <a-button @click="handleReset">
+                  <template #icon><ReloadOutlined /></template>
+                  重置
+                </a-button>
+              </a-space>
+            </a-form-item>
+          </a-col>
+        </a-row>
       </a-form>
     </template>
 
@@ -337,8 +348,4 @@ onMounted(loadData)
 
 <style scoped lang="less">
 @import '@/styles/variables.less';
-
-.filter-form {
-  row-gap: @spacing-sm;
-}
 </style>

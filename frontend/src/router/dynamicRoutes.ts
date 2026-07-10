@@ -7,7 +7,7 @@ const DYNAMIC_ROUTE_PARENT = 'AppRoot'
 const dynamicRouteNames = new Set<string>()
 
 const STABLE_ROUTE_NAMES_BY_PERMISSION: Record<string, string> = {
-  'system:user:read': 'SystemManage',
+  'system:user:read': 'UserManage',
   'system:role:read': 'RoleManage',
   'system:menu:read': 'MenuManage',
 }

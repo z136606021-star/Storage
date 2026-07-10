@@ -16,11 +16,14 @@ import com.storage.warehouse.exception.WarehouseBinNotFoundException;
 import com.storage.warehouse.mapper.MaterialLedgerMapper;
 import com.storage.warehouse.mapper.WarehouseBinMapper;
 import com.storage.warehouse.query.WarehouseBinQueryBuilder;
+import com.storage.system.user.contract.OperatorInfo;
+import com.storage.system.user.contract.OperatorResolver;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -33,6 +36,7 @@ public class WarehouseBinServiceImpl extends ServiceImpl<WarehouseBinMapper, War
     private final MaterialLedgerMapper materialLedgerMapper;
     private final WarehouseBinConverter warehouseBinConverter;
     private final WarehouseBinExportService warehouseBinExportService;
+    private final OperatorResolver operatorResolver;
 
     @Override
     public PageResult<WarehouseBin> page(WarehouseBinQueryDTO query) {
@@ -88,6 +92,7 @@ public class WarehouseBinServiceImpl extends ServiceImpl<WarehouseBinMapper, War
         String binCode = WarehouseBinCodeSupport.buildBinCode(dto.getRowNo(), dto.getColNo(), dto.getLevelNo());
         assertBinCodeNotDuplicate(binCode, null);
         WarehouseBin entity = warehouseBinConverter.toNewEntity(dto, binCode);
+        fillOperator(entity);
         save(entity);
         return entity;
     }
@@ -107,6 +112,7 @@ public class WarehouseBinServiceImpl extends ServiceImpl<WarehouseBinMapper, War
 
         assertBinCodeNotDuplicate(newBinCode, id);
         warehouseBinConverter.applySaveDto(existing, dto, newBinCode);
+        fillOperator(existing);
         updateById(existing);
         return existing;
     }
@@ -162,5 +168,12 @@ public class WarehouseBinServiceImpl extends ServiceImpl<WarehouseBinMapper, War
         return materialLedgerMapper.selectCount(
                 Wrappers.<MaterialLedger>lambdaQuery().eq(MaterialLedger::getBinLocation, binCode)
         );
+    }
+
+    private void fillOperator(WarehouseBin entity) {
+        OperatorInfo operator = operatorResolver.requireCurrentOperator();
+        entity.setOperatorUserId(operator.getId());
+        entity.setOperatorName(operator.getUsername());
+        entity.setUpdatedAt(LocalDateTime.now());
     }
 }

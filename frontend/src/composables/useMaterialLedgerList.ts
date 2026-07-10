@@ -6,13 +6,35 @@ import {
   useWarehouseMaterialFilters,
 } from '@/composables/useWarehouseMaterialFilters'
 import { usePaginatedCrudList } from '@/composables/usePaginatedCrudList'
-import type { MaterialLedger } from '@/types/warehouse/materialLedger'
+import { DEFAULT_LEDGER_STOCK_STATUS } from '@/constants/materialStockStatus'
+import type { MaterialLedger, MaterialStockStatus } from '@/types/warehouse/materialLedger'
 import { buildMaterialQueryParams } from '@/utils/warehouseMaterialTable'
+
+export type MaterialLedgerQueryForm = ReturnType<typeof defaultMaterialQuery> & {
+  stockStatus?: MaterialStockStatus
+}
 
 export interface UseMaterialLedgerListOptions {
   loadErrorMessage?: string
   paginationDefaults?: Record<string, unknown>
   enableRowSelection?: boolean
+  initialStockStatus?: MaterialStockStatus
+}
+
+export function defaultMaterialLedgerQuery(
+  initialStockStatus: MaterialStockStatus = DEFAULT_LEDGER_STOCK_STATUS,
+): MaterialLedgerQueryForm {
+  return {
+    ...defaultMaterialQuery(),
+    stockStatus: initialStockStatus,
+  }
+}
+
+export function buildMaterialLedgerQueryParams(queryForm: MaterialLedgerQueryForm) {
+  return {
+    ...buildMaterialQueryParams(queryForm),
+    stockStatus: queryForm.stockStatus,
+  }
 }
 
 export function useMaterialLedgerList(options: UseMaterialLedgerListOptions = {}) {
@@ -20,9 +42,10 @@ export function useMaterialLedgerList(options: UseMaterialLedgerListOptions = {}
     loadErrorMessage = '加载物料台账失败',
     paginationDefaults = { position: ['bottomCenter'] },
     enableRowSelection = false,
+    initialStockStatus = DEFAULT_LEDGER_STOCK_STATUS,
   } = options
 
-  const queryForm = reactive({ ...defaultMaterialQuery() })
+  const queryForm = reactive(defaultMaterialLedgerQuery(initialStockStatus))
 
   const {
     filterOptions,
@@ -33,7 +56,7 @@ export function useMaterialLedgerList(options: UseMaterialLedgerListOptions = {}
   } = useWarehouseMaterialFilters(queryForm, fetchFilterOptions)
 
   function buildQueryParams() {
-    return buildMaterialQueryParams(queryForm)
+    return buildMaterialLedgerQueryParams(queryForm)
   }
 
   const {
@@ -64,6 +87,7 @@ export function useMaterialLedgerList(options: UseMaterialLedgerListOptions = {}
 
   function resetQueryForm() {
     assignDefaultMaterialFields(queryForm)
+    queryForm.stockStatus = initialStockStatus
   }
 
   function handleReset() {
@@ -84,6 +108,7 @@ export function useMaterialLedgerList(options: UseMaterialLedgerListOptions = {}
     refreshAll,
     resetQueryForm,
     handleReset,
+    initialStockStatus,
     loading,
     dataSource,
     pagination,

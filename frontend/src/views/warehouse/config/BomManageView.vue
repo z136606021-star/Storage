@@ -22,19 +22,18 @@ import { useExcelImportExport } from '@/composables/useExcelImportExport'
 import { useLinkedFilterOptions } from '@/composables/useLinkedFilterOptions'
 import { usePaginatedCrudList } from '@/composables/usePaginatedCrudList'
 import { useWritePermission } from '@/composables/useWritePermission'
-import { ALL_OPTION } from '@/constants/filter'
 import type { WarehouseBom } from '@/types/warehouse/warehouseBom'
 import { confirmBatchDelete, confirmDelete } from '@/utils/confirmDelete'
 import { displayValue, formatDateTime } from '@/utils/format'
 import { getTableRowIndex } from '@/utils/tableIndex'
-import { toSelectOptions, withAllOption } from '@/utils/selectOptions'
+import { toSelectOptions } from '@/utils/selectOptions'
 
 const { canWrite } = useWritePermission('warehouse:bom:write')
 
 const defaultQuery = {
-  category: ALL_OPTION,
-  genericName: ALL_OPTION,
-  brand: ALL_OPTION,
+  category: undefined as string | undefined,
+  genericName: undefined as string | undefined,
+  brand: undefined as string | undefined,
   name: '',
   model: '',
 }
@@ -47,13 +46,16 @@ const { filterOptionsRaw, loadFilterOptions, createCascadeResetHandler, buildLin
   useLinkedFilterOptions({ queryForm })
 
 const filterOptions = computed(() => ({
-  category: withAllOption(filterOptionsRaw.value.categories ?? []),
-  genericName: withAllOption(filterOptionsRaw.value.genericNames ?? []),
-  brand: withAllOption(filterOptionsRaw.value.brands ?? []),
+  category: filterOptionsRaw.value.categories ?? [],
+  genericName: filterOptionsRaw.value.genericNames ?? [],
+  brand: filterOptionsRaw.value.brands ?? [],
 }))
 
 function buildQueryParams() {
-  const optionValue = (value: string) => (value === ALL_OPTION ? undefined : value)
+  const optionValue = (value?: string) => {
+    const trimmed = value?.trim()
+    return trimmed || undefined
+  }
 
   return {
     category: optionValue(queryForm.category),
@@ -80,7 +82,6 @@ async function reloadFilterOptions() {
     fetchBomFilterOptions,
     buildLinkageParams(linkageFields),
     ensureFields,
-    withAllOption,
     (raw, key) => raw[key] ?? [],
   )
 }
@@ -225,6 +226,7 @@ onMounted(async () => {
 
 <template>
   <CrudListPage
+    table-key="warehouse.bom"
     :columns="columns"
     :loading="loading"
     :data-source="dataSource"
@@ -254,6 +256,8 @@ onMounted(async () => {
               <a-select
                 v-model:value="queryForm.category"
                 :options="toSelectOptions(filterOptions.category)"
+                allow-clear
+                placeholder="全部"
                 class="filter-control"
                 @change="handleCategoryChange"
               />
@@ -264,6 +268,8 @@ onMounted(async () => {
               <a-select
                 v-model:value="queryForm.genericName"
                 :options="toSelectOptions(filterOptions.genericName)"
+                allow-clear
+                placeholder="全部"
                 class="filter-control"
                 @change="handleGenericNameChange"
               />
@@ -274,6 +280,8 @@ onMounted(async () => {
               <a-select
                 v-model:value="queryForm.brand"
                 :options="toSelectOptions(filterOptions.brand)"
+                allow-clear
+                placeholder="全部"
                 class="filter-control"
               />
             </a-form-item>

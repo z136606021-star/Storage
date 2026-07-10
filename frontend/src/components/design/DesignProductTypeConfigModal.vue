@@ -196,6 +196,7 @@ onMounted(() => {
     @cancel="emit('update:open', false)"
   >
     <CrudListPage
+      table-key="design.product-type"
       :columns="columns"
       :loading="loading"
       :data-source="dataSource"
@@ -214,36 +215,44 @@ onMounted(() => {
     >
       <template #filters>
         <a-form layout="inline" class="filter-form">
-          <a-form-item label="产品类型编号">
-            <a-input
-              v-model:value="queryForm.typeCode"
-              allow-clear
-              placeholder="关键字查找"
-              style="width: 180px"
-              @press-enter="handleSearch"
-            />
-          </a-form-item>
-          <a-form-item label="产品类型">
-            <a-input
-              v-model:value="queryForm.typeName"
-              allow-clear
-              placeholder="关键字查找"
-              style="width: 180px"
-              @press-enter="handleSearch"
-            />
-          </a-form-item>
-          <a-form-item>
-            <a-space>
-              <a-button type="primary" @click="handleSearch">
-                <template #icon><SearchOutlined /></template>
-                搜索
-              </a-button>
-              <a-button @click="handleReset">
-                <template #icon><ReloadOutlined /></template>
-                重置
-              </a-button>
-            </a-space>
-          </a-form-item>
+          <a-row :gutter="[12, 8]" class="filter-row">
+            <a-col :xs="24" :sm="12" :md="8" :lg="6">
+              <a-form-item label="产品类型编号" class="filter-item">
+                <a-input
+                  v-model:value="queryForm.typeCode"
+                  allow-clear
+                  placeholder="关键字查找"
+                  class="filter-control"
+                  @press-enter="handleSearch"
+                />
+              </a-form-item>
+            </a-col>
+            <a-col :xs="24" :sm="12" :md="8" :lg="6">
+              <a-form-item label="产品类型" class="filter-item">
+                <a-input
+                  v-model:value="queryForm.typeName"
+                  allow-clear
+                  placeholder="关键字查找"
+                  class="filter-control"
+                  @press-enter="handleSearch"
+                />
+              </a-form-item>
+            </a-col>
+            <a-col :xs="24" :sm="24" :md="24" :lg="6" class="filter-actions-col">
+              <a-form-item class="filter-item filter-actions">
+                <a-space>
+                  <a-button type="primary" @click="handleSearch">
+                    <template #icon><SearchOutlined /></template>
+                    搜索
+                  </a-button>
+                  <a-button @click="handleReset">
+                    <template #icon><ReloadOutlined /></template>
+                    重置
+                  </a-button>
+                </a-space>
+              </a-form-item>
+            </a-col>
+          </a-row>
         </a-form>
       </template>
 
@@ -302,8 +311,4 @@ onMounted(() => {
 
 <style scoped lang="less">
 @import '@/styles/variables.less';
-
-.filter-form {
-  row-gap: @spacing-sm;
-}
 </style>

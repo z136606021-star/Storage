@@ -3,6 +3,7 @@ package com.storage.infrastructure.file.service;
 import com.storage.infrastructure.file.config.FileUploadProperties;
 import com.storage.infrastructure.file.config.MinioProperties;
 import com.storage.infrastructure.file.dto.FileContentVO;
+import com.storage.infrastructure.file.dto.FileUploadPolicyVO;
 import com.storage.infrastructure.file.dto.FileUploadVO;
 import com.storage.infrastructure.file.entity.SysFile;
 import com.storage.common.exception.BusinessException;
@@ -21,6 +22,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -73,6 +75,25 @@ public class FileStorageServiceImpl implements FileStorageService {
     }
 
     @Override
+    public FileUploadPolicyVO uploadPolicy() {
+        List<String> allowedContentTypes = fileUploadProperties.getAllowedContentTypes().stream()
+                .filter(StringUtils::hasText)
+                .map(type -> type.trim().toLowerCase(Locale.ROOT))
+                .distinct()
+                .toList();
+        List<String> imageContentTypes = allowedContentTypes.stream()
+                .filter(type -> type.startsWith("image/"))
+                .toList();
+        return FileUploadPolicyVO.builder()
+                .maxSizeBytes(fileUploadProperties.getMaxSizeBytes())
+                .maxFilesPerRecord(fileUploadProperties.getMaxFilesPerRecord())
+                .uploadConcurrency(fileUploadProperties.getUploadConcurrency())
+                .allowedContentTypes(allowedContentTypes)
+                .imageContentTypes(imageContentTypes)
+                .build();
+    }
+
+    @Override
     public String resolveAccessUrl(String objectKey) {
         if (!StringUtils.hasText(objectKey)) {
             return null;
@@ -93,7 +114,30 @@ public class FileStorageServiceImpl implements FileStorageService {
 
     @Override
     public FileContentVO loadFile(String objectKey) {
-        return loadObject(findFileRecord(objectKey));
+        return loadObject(requireFileRecord(objectKey));
+    }
+
+    @Override
+    public SysFile requireFileRecord(String objectKey) {
+        return findFileRecord(objectKey);
+    }
+
+    @Override
+    public void assertImageFile(String objectKey) {
+        SysFile record = sysFileMapper.selectOne(Wrappers.<SysFile>lambdaQuery()
+                .eq(SysFile::getObjectKey, objectKey == null ? "" : objectKey.trim())
+                .last("LIMIT 1"));
+        if (record == null) {
+            throw new BusinessException("图片文件不存在或类型不支持: " + objectKey);
+        }
+        if (!isImageContentType(record.getContentType())) {
+            throw new BusinessException("图片文件不存在或类型不支持: " + objectKey);
+        }
+    }
+
+    @Override
+    public void assertAllowedFile(String objectKey) {
+        requireFileRecord(objectKey);
     }
 
     private SysFile findFileRecord(String objectKey) {
@@ -125,6 +169,11 @@ public class FileStorageServiceImpl implements FileStorageService {
         } catch (Exception ex) {
             throw new BusinessException("文件读取失败，请确认 MinIO 服务已启动");
         }
+    }
+
+    private boolean isImageContentType(String contentType) {
+        return StringUtils.hasText(contentType)
+                && contentType.trim().toLowerCase(Locale.ROOT).startsWith("image/");
     }
 
     private String buildObjectKey(String originalName) {

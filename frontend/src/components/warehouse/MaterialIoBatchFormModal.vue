@@ -14,6 +14,10 @@ import {
   shouldSkipSafetyConfirm,
   useMaterialIoSafetyHint,
 } from '@/composables/useMaterialIoSafetyHint'
+import {
+  materialIoFormValidationMessage,
+  validateMaterialIoFormRows,
+} from '@/composables/useMaterialIoFormValidation'
 import { useMaterialIoStock } from '@/composables/useMaterialIoStock'
 import type { MaterialLedger } from '@/types/warehouse/materialLedger'
 import type { IoType, MaterialIoFormRow, MaterialIoRecord } from '@/types/warehouse/materialIo'
@@ -316,39 +320,15 @@ function handleBinSelect(bin: WarehouseBin) {
 }
 
 function validateRows(): boolean {
-  if (rows.value.length === 0) {
-    message.warning('请至少添加一行物料')
+  const error = validateMaterialIoFormRows({
+    ioType: ioType.value,
+    isEdit: isEdit.value,
+    rows: rows.value,
+    availableStockForRow: (row, index) => availableStockForRow(row, index),
+  })
+  if (error) {
+    message.warning(materialIoFormValidationMessage(error))
     return false
-  }
-  for (let i = 0; i < rows.value.length; i += 1) {
-    const row = rows.value[i]
-    const rowNo = i + 1
-    if (ioType.value === 'IN') {
-      if (!row.bomId) {
-        message.warning(`第 ${rowNo} 行请选择物料清单`)
-        return false
-      }
-      if (!row.binLocation) {
-        message.warning(`第 ${rowNo} 行请选择Bin位`)
-        return false
-      }
-    } else {
-      if (!row.materialLedgerId) {
-        message.warning(`第 ${rowNo} 行请选择物料台账`)
-        return false
-      }
-    }
-    if (!row.quantity || row.quantity < 1) {
-      message.warning(`第 ${rowNo} 行数量必须大于 0`)
-      return false
-    }
-    if (ioType.value === 'OUT') {
-      const available = availableStockForRow(row, i)
-      if (available != null && row.quantity > available) {
-        message.warning(`第 ${rowNo} 行出库数量不能超过可用库存 ${available}`)
-        return false
-      }
-    }
   }
   return true
 }

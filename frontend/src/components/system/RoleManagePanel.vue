@@ -170,29 +170,6 @@ onMounted(async () => {
 
 <template>
   <div class="page">
-    <div class="toolbar">
-      <a-form layout="inline" :model="queryForm">
-        <a-form-item label="角色">
-          <a-select
-            v-model:value="queryForm.roleId"
-            allow-clear
-            placeholder="全部"
-            style="width: 160px"
-          >
-            <a-select-option v-for="role in dataSource" :key="role.id" :value="role.id">
-              {{ role.name }}
-            </a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item>
-          <a-space>
-            <a-button type="primary" @click="loadData"><SearchOutlined />查询</a-button>
-            <a-button @click="resetQuery"><ReloadOutlined />重置</a-button>
-          </a-space>
-        </a-form-item>
-      </a-form>
-    </div>
-
     <CrudToolbar
       create-green
       export-icon="download"
@@ -203,7 +180,31 @@ onMounted(async () => {
       @export="handleExport"
       @import="handleImport"
       @download-template="handleDownloadTemplate"
-    />
+    >
+      <template #prepend>
+        <div class="role-toolbar-filters">
+          <span class="role-toolbar-label">角色</span>
+          <a-select
+            v-model:value="queryForm.roleId"
+            allow-clear
+            placeholder="全部"
+            class="role-toolbar-control"
+          >
+            <a-select-option v-for="role in dataSource" :key="role.id" :value="role.id">
+              {{ role.name }}
+            </a-select-option>
+          </a-select>
+          <a-button type="primary" @click="loadData">
+            <template #icon><SearchOutlined /></template>
+            查询
+          </a-button>
+          <a-button @click="resetQuery">
+            <template #icon><ReloadOutlined /></template>
+            重置
+          </a-button>
+        </div>
+      </template>
+    </CrudToolbar>
 
     <a-table row-key="id" :columns="columns" :data-source="filteredData" :loading="loading" :pagination="false">
       <template #bodyCell="{ column, record }">
@@ -297,8 +298,22 @@ onMounted(async () => {
   min-height: 100%;
 }
 
-.toolbar {
-  margin-bottom: @spacing-md;
+.role-toolbar-filters {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: @spacing-sm;
+  margin-right: @spacing-md;
+}
+
+.role-toolbar-label {
+  flex-shrink: 0;
+  color: @color-text-secondary;
+  font-size: @font-size-sm;
+}
+
+.role-toolbar-control {
+  width: 160px;
 }
 
 .drawer-tree {

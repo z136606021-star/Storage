@@ -1,6 +1,8 @@
 package com.storage.warehouse.service;
 
 import com.storage.common.exception.BusinessException;
+import com.storage.infrastructure.file.entity.SysFile;
+import com.storage.infrastructure.file.mapper.SysFileMapper;
 import com.storage.warehouse.dto.WarehouseBomQueryDTO;
 import com.storage.warehouse.dto.WarehouseBomSaveDTO;
 import com.storage.warehouse.mapper.WarehouseBomImageMapper;
@@ -11,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -29,6 +32,9 @@ class WarehouseBomServiceIntegrationTest {
     @Autowired
     private WarehouseBomImageMapper warehouseBomImageMapper;
 
+    @Autowired
+    private SysFileMapper sysFileMapper;
+
     @BeforeEach
     void setUp() {
         warehouseBomImageMapper.delete(null);
@@ -37,6 +43,8 @@ class WarehouseBomServiceIntegrationTest {
 
     @Test
     void page_enrichesMultipleImagePreviewUrls() {
+        insertImageFile("2026-07-08/demo image.png");
+        insertImageFile("2026-07-08/demo image-2.png");
         WarehouseBomSaveDTO dto = new WarehouseBomSaveDTO();
         dto.setCategory("耗材");
         dto.setGenericName("密封圈");
@@ -99,6 +107,42 @@ class WarehouseBomServiceIntegrationTest {
 
         assertThat(page.getRecords()).extracting("name")
                 .containsExactly("O型密封圈-2", "O型密封圈");
+    }
+
+    @Test
+    void create_rejectsUnknownImageObjectKey() {
+        WarehouseBomSaveDTO dto = baseDto("OR-10");
+        dto.setImageObjectKeys(List.of("2026-07-08/missing.png"));
+
+        assertThatThrownBy(() -> warehouseBomService.create(dto))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("图片文件不存在或类型不支持");
+    }
+
+    @Test
+    void create_rejectsMoreThanTwentyImages() {
+        List<String> keys = new ArrayList<>();
+        for (int i = 0; i < 21; i++) {
+            String key = "2026-07-10/image-" + i + ".png";
+            insertImageFile(key);
+            keys.add(key);
+        }
+
+        WarehouseBomSaveDTO dto = baseDto("OR-10");
+        dto.setImageObjectKeys(keys);
+
+        assertThatThrownBy(() -> warehouseBomService.create(dto))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("图片数量不能超过20张");
+    }
+
+    private void insertImageFile(String objectKey) {
+        SysFile file = new SysFile();
+        file.setObjectKey(objectKey);
+        file.setOriginalName(objectKey.substring(objectKey.lastIndexOf('/') + 1));
+        file.setContentType("image/png");
+        file.setSizeBytes(128L);
+        sysFileMapper.insert(file);
     }
 
     private WarehouseBomSaveDTO baseDto(String model) {

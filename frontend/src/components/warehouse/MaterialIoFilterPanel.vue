@@ -3,7 +3,6 @@ import type { Dayjs } from 'dayjs'
 import { ReloadOutlined, SearchOutlined } from '@ant-design/icons-vue'
 import WarehouseMaterialFilterPanel from '@/components/warehouse/WarehouseMaterialFilterPanel.vue'
 import type { defaultIoQuery } from '@/composables/useMaterialIoList'
-import { ALL_OPTION } from '@/constants/filter'
 
 type IoQueryForm = ReturnType<typeof defaultIoQuery>
 
@@ -29,7 +28,6 @@ const emit = defineEmits<{
 }>()
 
 const IO_TYPE_OPTIONS = [
-  { label: '全部', value: ALL_OPTION },
   { label: '入库', value: 'IN' },
   { label: '出库', value: 'OUT' },
 ]
@@ -51,6 +49,8 @@ const IO_TYPE_OPTIONS = [
           <a-select
             v-model:value="queryForm.ioType"
             :options="IO_TYPE_OPTIONS"
+            allow-clear
+            placeholder="全部"
             class="filter-control"
           />
         </a-form-item>

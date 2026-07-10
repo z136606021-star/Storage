@@ -9,8 +9,6 @@ import java.util.Map;
 
 public class SafetyStockSqlProvider {
 
-    private static final String ALL = "全部";
-
     public String selectJoinedPage(Map<String, Object> params) {
         return buildSelectSql(params, true);
     }
@@ -94,17 +92,20 @@ public class SafetyStockSqlProvider {
                     """);
         }
 
-        if (StringUtils.hasText(query.getWarningPeriod()) && !ALL.equals(query.getWarningPeriod())) {
+        if (StringUtils.hasText(query.getWarningPeriod())) {
             String warningExpr = SafetyStockWarningStatus.WARNING_SQL_EXPRESSION.trim();
-            if ("是".equals(query.getWarningPeriod()) || "YES".equalsIgnoreCase(query.getWarningPeriod())) {
+            String period = query.getWarningPeriod().trim();
+            if ("是".equals(period) || "YES".equalsIgnoreCase(period)) {
                 sql.append(" AND ").append(warningExpr);
-            } else if ("否".equals(query.getWarningPeriod()) || "NO".equalsIgnoreCase(query.getWarningPeriod())) {
+            } else if ("否".equals(period) || "NO".equalsIgnoreCase(period)) {
                 sql.append(" AND NOT ").append(warningExpr);
+            } else {
+                throw new IllegalArgumentException("预警状态无效，仅支持 是、否");
             }
         }
     }
 
     private boolean isFilterValue(String value) {
-        return StringUtils.hasText(value) && !ALL.equals(value);
+        return StringUtils.hasText(value);
     }
 }

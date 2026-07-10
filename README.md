@@ -220,6 +220,8 @@ npm run dev
 **动态菜单与路由**：
 
 - 业务路由由后端菜单树驱动：`sys_menu.path` 决定路由路径，`permission` 决定访问权限，`component_key` 存前端模块路径并决定懒加载组件。
+- 登录后默认页优先进入库存统计（`warehouse:stats:read`）；无该权限时回退到用户第一个可访问页面。
+- 系统管理下用户、角色、菜单、客户为独立侧栏菜单；旧地址 `/system/users/roles`、`/system/users/menus` 会重定向到新路径。
 - 前端固定路由仅保留登录、根布局和必要重定向；登录或刷新恢复后由 Pinia menu store 拉取 `/api/menus/nav-tree` 并动态注册业务路由。
 - 菜单管理维护“组件路径”；可见且有路由路径的 `MENU` 必须填写组件路径，隐藏动作权限可不填写。
 - 组件路径以 `views/` 或 `components/` 开头，例如 `views/warehouse/MaterialLedgerView.vue`、`components/system/MenuManagePanel.vue`；前端通过 `import.meta.glob` 解析可路由模块，不再维护人工组件映射表。
@@ -252,7 +254,7 @@ curl -X POST http://localhost:8080/api/files/upload \
 
 先调用 `POST /api/auth/login` 获取 `accessToken`，再用 Bearer token 携带凭证上传。MinIO API 默认映射到 `http://localhost:9000`；MinIO Console 不作为固定交付入口，若部署侧需要控制台可单独配置新版兼容的 console 监听参数。
 
-物料清单图片可在 **配置管理 → 物料清单** 新增/编辑弹窗中上传多张图片（JPG/PNG/WebP/GIF，单张 ≤5MB）；经验库附件可上传图片、PDF、Word、Excel、文本文件。后端会校验大小、MIME 白名单，并对图片/PDF/Office 文件做内容签名校验；图片支持预览，普通附件通过下载接口获取。物料清单 Excel 导入/导出不含图片列。
+物料清单图片可在 **配置管理 → 物料清单** 新增/编辑弹窗中上传多张图片（JPG/PNG/WebP/GIF，单张 ≤50MB，每条记录最多 20 张，浏览器并发 3）；经验库附件可上传图片、PDF、Word、Excel、文本文件（单文件 ≤50MB，每条记录最多 20 个）。前端通过 `GET /api/files/upload-policy` 读取运行时上传策略。后端会校验大小、MIME 白名单，并对图片/PDF/Office 文件做内容签名校验；图片支持预览，普通附件通过下载接口获取。物料清单 Excel 导入/导出不含图片列。
 
 ## 经验库
 
@@ -287,7 +289,7 @@ flowchart TD
 
 1. **基础配置信息**：系统管理员先维护配置管理中的 **Bin 位管理** 与 **物料清单管理**。Bin 位是库存位置唯一来源，物料清单是入库物料基础信息来源。
 2. **基于配置入库**：采购来的物料登记入库时，选择物料清单中的物料明细，并选择需要存放的 Bin 位；提交后同步增加到物料台账。
-3. **台账增减库存**：物料台账只记录库存结果。入库会增加台账库存，出库会扣减台账库存。
+3. **台账增减库存**：物料台账只记录库存结果。入库会增加台账库存，出库会扣减台账库存；全部出库后库存为 0 的台账仍保留以承接历史流水，列表默认隐藏无库存记录，可按需切换查看。
 4. **从台账领出**：出库用于仓库中取出物料投入使用，必须从台账选择现有库存物料，确保库存不足、安全库存预警等校验准确。
 5. **安全库存联动采购**：安全库存读取台账信息；当库存总数 ≤ 安全库存数（且安全库存数 > 0）时自动展示「库存预警=是」并置顶高亮，采购员可在安全库存页按当前筛选或勾选预警行生成采购清单。
 6. **采购后回收入库**：采购清单只承载补货建议，不处理采购审批/财务结算；物料到货后仍回到物料入库，按物料清单 + Bin 位写入台账。
@@ -299,7 +301,7 @@ flowchart TD
 - 筛选：品类、统称、品牌联动下拉；名称、规格支持关键字查询；支持查询、重置、分页。
 - 列表：默认按 **更新时间倒序**；展示品类、统称、品牌、名称、规格、备注、图片（首图 + 数量提示）、更新日期；操作含查看/编辑/删除。
 - 重复校验：新增/编辑/导入时，若 **品类 + 统称 + 品牌 + 名称** 与已有记录完全相同，后端返回明确错误提示。
-- 图片：支持多张上传、预览与清除；持久化在 `warehouse_bom_image`；Excel 不含图片列。
+- 图片：支持多选上传、预览与清除（单张 ≤50MB，最多 20 张）；持久化在 `warehouse_bom_image`；Excel 不含图片列。
 - 批量：支持批量导出、批量删除、导入与模板下载。
 - 删除保护：已被物料台账引用的清单项禁止删除。
 - 入库联动：物料入库可从清单选择基础信息；Excel 入库导入校验四字段存在，并在提供规格时核对与清单一致。
@@ -323,18 +325,18 @@ flowchart TD
 
 - [x] 登录页 + Shiro JWT 登录/登出/当前用户 + Pinia 全局 auth store + **开放注册** + **第五期优化**（左栏插画、记住账号、URL Tab、注册校验、交互打磨）
 - [x] 路由守卫与 API 401 拦截（Bearer token）+ **路由 permission 校验**
-- [x] **系统管理**：用户管理（含角色/菜单子 Tab、多角色分配、授权只读面板、Excel 导入导出）+ **菜单管理 Tab（CRUD）** + **客户管理 CRUD**（Excel 导入导出）+ SideMenu 动态导航（侧栏：用户管理、客户管理）
+- [x] **系统管理**：用户管理、角色管理、菜单管理、客户管理（独立侧栏菜单；多角色分配、授权只读面板、Excel 导入导出）+ SideMenu 动态导航
 - [x] MinIO 对象存储基础设施 + `POST /api/files/upload`
 - [x] **第六期平台壳层**：DB 导航种子（个人中心/项目/采购/设计/技能/经验/财务 + 仓库 5 项含库存统计与配置管理）、占位路由、`ComingSoonPage` 复用组件
 - [x] **第七期壳层 UI 补全**：动态 TabBar（ADMIN 预置个人中心/项目中心）、壳层 `/platform/*` 路由、侧栏点击无 toast
 - [x] **第八期 DevX**：`dev-up` 一键环境、`health-check` 自检、`cleanup-legacy-docker`、MySQL 就绪等待、`material_ledger` 中文修复迁移
-- [x] 完整平台壳层（侧栏动态导航 + 顶部可关闭页签 + 退出登录）
-- [x] 物料台账列表页（筛选、分页、行选择，定位为实时库存查询视图）
+- [x] 完整平台壳层（侧栏动态导航 + 顶部可关闭页签 + 退出登录）；页签支持右键菜单（刷新、关闭左侧/右侧/其它、清空全部）与拖拽排序；**逐页 KeepAlive** 切换保留页面状态，刷新/关闭/清空才销毁对应缓存
+- [x] 物料台账列表页（筛选、分页、行选择，定位为实时库存查询视图；默认仅显示有库存，清空库存状态后查询全部）
 - [x] 后端分页查询 API 与筛选选项 API
 - [x] 物料台账查看（右侧抽屉，操作列「查看」）
-- [x] 物料台账导出 Excel（按当前筛选条件导出全部结果；批量导出勾选行后自动清空选择）
+- [x] 物料台账导出 Excel（按当前筛选条件导出全部结果，含库存状态筛选；批量导出勾选行后自动清空选择）
 - [x] 物料台账只读化：保留详情、导出、批量导出和出入库历史，隐藏新增/导入/模板/编辑/删除入口
-- [x] 物料台账筛选联动（品类 → 统称 → 品牌 → 型号；Bin 位来自 Bin 主数据）
+- [x] 物料台账筛选联动（品类 → 统称 → 品牌 → 型号；Bin 位来自 Bin 主数据；库存状态默认有库存）
 - [x] 公共复用基础层（前端 http/types/utils、后端 converter/query/excel/web）
 - [x] **第十一期 11.1 Bin位管理**：CRUD + Excel + 台账 Bin 下拉/保存校验；排必填、列/层选填，编号按 `排` / `排-列` / `排-列-层` 自动生成；列表按更新时间倒序、Bin位编号升序；支持批量导出
 - [x] **第十一期 11.2 物料清单管理**：CRUD + 品类联动筛选 + Excel（`warehouse_bom` 主数据）+ 四字段重复校验 + 更新时间倒序 + 规格字段
@@ -407,7 +409,7 @@ flowchart TD
 - Google SMTP 默认按 Gmail 直连预留：`smtp.gmail.com:587` + STARTTLS；`MAIL_PASSWORD` 使用 Google 应用专用密码，不提交真实邮箱密码。公司 Workspace relay 可通过环境变量切换到 `smtp-relay.gmail.com`
 - 当前鉴权主路径为 Shiro + JWT；access token 存储在前端 localStorage。`POST /api/auth/logout` 会将当前 Bearer token 的 `jti` 写入服务端黑名单，登出后同 token 无法继续访问受保护 API。生产环境需启用 HTTPS，`JWT_SECRET` 必须使用部署侧强密钥，并持续防护 XSS 风险；如需第三方前端跨域直连后端，应优先在 Nginx/网关层显式配置跨域策略
 - 默认管理员密码自动重置能力仅建议本地排障开启，生产应关闭该初始化开关，避免启动时回退弱密码
-- 文件上传以后端校验为准：当前默认允许 JPG/PNG/WebP/GIF、PDF、Word、Excel、文本文件，默认 ≤5MB；图片/PDF/Office 文件校验内容签名，前端限制仅用于体验优化
+- 文件上传以后端校验为准：当前默认允许 JPG/PNG/WebP/GIF、PDF、Word、Excel、文本文件，单文件默认 ≤50MB、每条记录最多 20 个附件、浏览器并发 3；图片/PDF/Office 文件校验内容签名，前端限制仅用于体验优化。Compose/Nginx 部署需保证 `frontend/nginx.conf` 的 `client_max_body_size` 不小于后端 `UPLOAD_MAX_SIZE_BYTES`（当前默认 60MB 请求体上限）。
 - GitHub Actions CI：[`CI workflow`](https://github.com/z136606021-star/Storage/blob/main/.github/workflows/ci.yml)（后端测试 + 前端测试/构建）
 
 后端测试：`cd backend && mvn test "-Dspring.profiles.active=test"`

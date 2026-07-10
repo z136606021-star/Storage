@@ -1,7 +1,8 @@
 # CHANGELOG
 
-| 日期 | 变更 |
-|------|------|
+| 2026-07-10 | CRUD 筛选布局、页签缓存与空值筛选：各业务列表页统一响应式筛选栅格（桌面四列/平板两列/移动单列）；工作台为每个已打开页签维持独立 `KeepAlive`，切换保留查询/分页/表格状态，右键刷新或关闭页签才销毁对应缓存；仓库域“不限”筛选统一为空值语义（`placeholder="全部"` + `allow-clear`，不再把“全部”写入请求参数）；后端 QueryBuilder 移除“全部”/ALL 特判 |
+| 2026-07-10 | 导航页签交互增强：顶部 TabBar 移除独立“清空全部”按钮，改为页签右键菜单（刷新、关闭左侧/右侧/其它、清空全部）；支持桌面端拖拽调整页签顺序；页签记录 `fullPath` 并在切换时恢复查询参数 |
+| 2026-07-10 | 菜单层级与默认页优化：Flyway `V013__optimize_navigation_hierarchy.sql` 将库存统计置顶、系统管理用户/角色/菜单改为独立侧栏菜单；前端默认页优先库存统计，旧 `/system/users/roles`、`/system/users/menus` 重定向到新路径 |
 | 2026-07-08 | 新增经验库独立域：后端 `com.storage.experience.*`、前端 `views/experience`/`api/experience`/`types/experience`，落地经验类型与记录 CRUD、项目标签、附件上传/下载、Excel 导入导出；新增 Flyway `V008__experience_library.sql` 与 `platform:experience:write` 权限 |
 | 2026-07-08 | 补齐 `feat/knowledge-base` worktree 数据库隔离注册表：Windows/Bash 脚本新增 MySQL 3312、MinIO 9050、独立 compose project/卷，并同步扩展默认上传 MIME 白名单 |
 | 2026-07-08 | 补充 `feat/design-guidelines` worktree 数据库隔离注册表：PowerShell/Bash 同步新增 3313/9060 端口与 `storage-design-guidelines` Compose/容器/卷名，README worktree 表同步 |

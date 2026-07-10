@@ -12,6 +12,8 @@ import org.mapstruct.MappingTarget;
 public interface WarehouseBinConverter {
 
     @Mapping(target = "id", ignore = true)
+    @Mapping(target = "operatorUserId", ignore = true)
+    @Mapping(target = "operatorName", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "binCode", source = "binCode")

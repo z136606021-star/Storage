@@ -1,26 +1,24 @@
 import { computed, type UnwrapNestedRefs } from 'vue'
 import { useLinkedFilterOptions } from '@/composables/useLinkedFilterOptions'
-import { ALL_OPTION } from '@/constants/filter'
 import type { FilterOptions } from '@/types/warehouse/materialLedger'
-import { withAllOption } from '@/utils/selectOptions'
 
 export interface WarehouseMaterialQuery {
-  category: string
-  genericName: string
-  brand: string
+  category?: string
+  genericName?: string
+  brand?: string
   name: string
-  model: string
-  binLocation: string
+  model?: string
+  binLocation?: string
 }
 
 export function defaultMaterialQuery(): WarehouseMaterialQuery {
   return {
-    category: ALL_OPTION,
-    genericName: ALL_OPTION,
-    brand: ALL_OPTION,
+    category: undefined,
+    genericName: undefined,
+    brand: undefined,
     name: '',
-    model: ALL_OPTION,
-    binLocation: ALL_OPTION,
+    model: undefined,
+    binLocation: undefined,
   }
 }
 
@@ -46,14 +44,14 @@ export function useWarehouseMaterialFilters<T extends WarehouseMaterialQuery>(
   fetchOptionsFn: (linkageParams: Record<string, string | undefined>) => Promise<FilterOptions>,
 ) {
   const { filterOptionsRaw, loadFilterOptions, createCascadeResetHandler, buildLinkageParams } =
-    useLinkedFilterOptions({ queryForm: queryForm as T & Record<string, string> })
+    useLinkedFilterOptions({ queryForm: queryForm as WarehouseMaterialQuery & Record<string, string | undefined> })
 
   const filterOptions = computed(() => ({
-    category: withAllOption(filterOptionsRaw.value.categories ?? []),
-    genericName: withAllOption(filterOptionsRaw.value.genericNames ?? []),
-    brand: withAllOption(filterOptionsRaw.value.brands ?? []),
-    model: withAllOption(filterOptionsRaw.value.models ?? []),
-    binLocation: withAllOption(filterOptionsRaw.value.binLocations ?? []),
+    category: filterOptionsRaw.value.categories ?? [],
+    genericName: filterOptionsRaw.value.genericNames ?? [],
+    brand: filterOptionsRaw.value.brands ?? [],
+    model: filterOptionsRaw.value.models ?? [],
+    binLocation: filterOptionsRaw.value.binLocations ?? [],
   }))
 
   async function reloadFilterOptions() {
@@ -61,7 +59,6 @@ export function useWarehouseMaterialFilters<T extends WarehouseMaterialQuery>(
       fetchOptionsFn,
       buildLinkageParams(linkageFields),
       ensureFields,
-      withAllOption,
       (raw, key) => raw[key] ?? [],
     )
   }

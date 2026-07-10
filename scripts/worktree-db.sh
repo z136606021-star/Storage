@@ -211,7 +211,7 @@ write_worktree_env_file() {
   local backend_port frontend_port vite_api_proxy
   local session_cookie_http_only session_cookie_secure reset_admin_password_on_startup
   local jwt_secret jwt_ttl_minutes
-  local upload_max_size_bytes upload_allowed_content_types
+  local upload_max_size_bytes upload_max_request_size_bytes upload_max_files_per_record upload_concurrency upload_allowed_content_types
   local app_public_base_url password_reset_token_ttl_minutes
   local mail_host mail_port mail_username mail_password mail_from mail_smtp_auth mail_smtp_starttls_enable
 
@@ -230,7 +230,10 @@ write_worktree_env_file() {
   reset_admin_password_on_startup="$(env_or_existing RESET_ADMIN_PASSWORD_ON_STARTUP true "$env_path")"
   jwt_secret="$(env_or_existing JWT_SECRET "dev-only-change-this-jwt-secret-at-least-32-bytes" "$env_path")"
   jwt_ttl_minutes="$(env_or_existing JWT_TTL_MINUTES 120 "$env_path")"
-  upload_max_size_bytes="$(env_or_existing UPLOAD_MAX_SIZE_BYTES 5242880 "$env_path")"
+  upload_max_size_bytes="$(env_or_existing UPLOAD_MAX_SIZE_BYTES 52428800 "$env_path")"
+  upload_max_request_size_bytes="$(env_or_existing UPLOAD_MAX_REQUEST_SIZE_BYTES 57671680 "$env_path")"
+  upload_max_files_per_record="$(env_or_existing UPLOAD_MAX_FILES_PER_RECORD 20 "$env_path")"
+  upload_concurrency="$(env_or_existing UPLOAD_CONCURRENCY 3 "$env_path")"
   upload_allowed_content_types="$(env_or_existing UPLOAD_ALLOWED_CONTENT_TYPES "image/jpeg,image/png,image/webp,image/gif,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain" "$env_path")"
   app_public_base_url="$(env_or_existing APP_PUBLIC_BASE_URL "http://localhost" "$env_path")"
   if [[ "$app_public_base_url" == "http://localhost:$frontend_port" ]]; then
@@ -272,6 +275,9 @@ RESET_ADMIN_PASSWORD_ON_STARTUP=$reset_admin_password_on_startup
 JWT_SECRET=$jwt_secret
 JWT_TTL_MINUTES=$jwt_ttl_minutes
 UPLOAD_MAX_SIZE_BYTES=$upload_max_size_bytes
+UPLOAD_MAX_REQUEST_SIZE_BYTES=$upload_max_request_size_bytes
+UPLOAD_MAX_FILES_PER_RECORD=$upload_max_files_per_record
+UPLOAD_CONCURRENCY=$upload_concurrency
 UPLOAD_ALLOWED_CONTENT_TYPES=$upload_allowed_content_types
 
 APP_PUBLIC_BASE_URL=$app_public_base_url

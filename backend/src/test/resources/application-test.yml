@@ -39,6 +39,11 @@ storage:
     access-key: minioadmin
     secret-key: minioadmin123
     bucket: storage-test
+  file-upload:
+    max-size-bytes: 52428800
+    max-files-per-record: 20
+    upload-concurrency: 3
+    allowed-content-types: image/jpeg,image/png,image/webp,image/gif,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain
 
 logging:
   level:

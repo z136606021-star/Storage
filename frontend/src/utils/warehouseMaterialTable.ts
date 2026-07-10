@@ -1,5 +1,4 @@
 import type { WarehouseMaterialQuery } from '@/composables/useWarehouseMaterialFilters'
-import { ALL_OPTION } from '@/constants/filter'
 
 export interface MaterialQueryParams {
   category?: string
@@ -65,7 +64,10 @@ const IDENTITY_WIDTHS: Record<IdentityPreset, Record<string, number>> = {
 }
 
 export function buildMaterialQueryParams(queryForm: WarehouseMaterialQuery): MaterialQueryParams {
-  const optionValue = (value: string) => (value === ALL_OPTION ? undefined : value)
+  const optionValue = (value?: string) => {
+    const trimmed = value?.trim()
+    return trimmed || undefined
+  }
 
   return {
     category: optionValue(queryForm.category),

@@ -10,7 +10,9 @@ import org.springframework.util.StringUtils;
 
 public final class MaterialLedgerQueryBuilder {
 
-  private static final String ALL = "全部";
+  public static final String STOCK_STATUS_IN_STOCK = "IN_STOCK";
+
+  public static final String STOCK_STATUS_ZERO_STOCK = "ZERO_STOCK";
 
   private MaterialLedgerQueryBuilder() {
   }
@@ -41,8 +43,28 @@ public final class MaterialLedgerQueryBuilder {
       wrapper.eq(MaterialLedger::getBinLocation, query.getBinLocation());
     }
 
+    applyStockStatus(wrapper, query.getStockStatus());
+
     wrapper.orderByAsc(MaterialLedger::getId);
     return wrapper;
+  }
+
+  public static void applyStockStatus(LambdaQueryWrapper<MaterialLedger> wrapper, String stockStatus) {
+    if (!StringUtils.hasText(stockStatus)) {
+      return;
+    }
+    String normalized = stockStatus.trim().toUpperCase();
+    if (STOCK_STATUS_IN_STOCK.equals(normalized)) {
+      wrapper.gt(MaterialLedger::getStockQuantity, 0);
+      return;
+    }
+    if (STOCK_STATUS_ZERO_STOCK.equals(normalized)) {
+      wrapper.le(MaterialLedger::getStockQuantity, 0);
+      return;
+    }
+    throw new IllegalArgumentException(
+        "库存状态无效，仅支持 IN_STOCK、ZERO_STOCK"
+    );
   }
 
   public static LambdaQueryWrapper<MaterialLedger> withCategory(FilterLinkageQueryDTO query) {
@@ -70,7 +92,7 @@ public final class MaterialLedgerQueryBuilder {
   }
 
   public static boolean isFilterValue(String value) {
-    return StringUtils.hasText(value) && !ALL.equals(value);
+    return StringUtils.hasText(value);
   }
 
   public static LambdaQueryWrapper<MaterialLedger> byNaturalKey(

@@ -24,6 +24,10 @@ public class WarehouseBin {
 
     private String remark;
 
+    private Long operatorUserId;
+
+    private String operatorName;
+
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;

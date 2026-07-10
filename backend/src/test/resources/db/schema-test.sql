@@ -171,9 +171,12 @@ CREATE TABLE warehouse_bin (
     col_no INT NULL,
     level_no INT NULL,
     remark VARCHAR(255) NULL,
+    operator_user_id BIGINT NULL,
+    operator_name VARCHAR(64) NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (bin_code)
+    UNIQUE (bin_code),
+    CONSTRAINT fk_test_warehouse_bin_operator FOREIGN KEY (operator_user_id) REFERENCES sys_user (id) ON DELETE SET NULL
 );
 
 CREATE TABLE warehouse_bom (

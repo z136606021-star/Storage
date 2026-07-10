@@ -117,34 +117,6 @@ export const useMenuStore = defineStore('menu', () => {
     return null
   }
 
-  function collectChildRoutesByPermission(parentPermission: string): MenuRouteInfo[] {
-    let children: MenuRouteInfo[] = []
-    visitMenuRoutes((node, fullPath) => {
-      if (node.permission !== parentPermission) {
-        return false
-      }
-      children = (node.children ?? [])
-        .map((child) => {
-          const childPath = joinMenuPath(child.path, fullPath)
-          if (!childPath || !child.componentKey) {
-            return null
-          }
-          const route: MenuRouteInfo = {
-            key: child.key,
-            label: child.label,
-            path: childPath,
-            permission: child.permission,
-            componentKey: child.componentKey,
-            visible: child.visible,
-          }
-          return route
-        })
-        .filter((route): route is MenuRouteInfo => route !== null)
-      return true
-    })
-    return children
-  }
-
   function findRouteByPermission(permission: string): MenuRouteInfo | null {
     return visitMenuRoutes((node) => node.permission === permission)
   }
@@ -153,7 +125,17 @@ export const useMenuStore = defineStore('menu', () => {
     return visitMenuRoutes((_node, fullPath) => fullPath === path)
   }
 
+  const DEFAULT_ROUTE_PERMISSIONS = [
+    'warehouse:stats:read',
+  ]
+
   function getDefaultRoute(): MenuRouteInfo | null {
+    for (const permission of DEFAULT_ROUTE_PERMISSIONS) {
+      const route = findRouteByPermission(permission)
+      if (route && (route.visible === undefined || route.visible === 1)) {
+        return route
+      }
+    }
     return visitMenuRoutes((node) => Boolean(node.componentKey && (node.visible === undefined || node.visible === 1)))
   }
 
@@ -168,7 +150,6 @@ export const useMenuStore = defineStore('menu', () => {
     loadNavTree,
     ensureDynamicRoutes,
     clearMenusAndRoutes,
-    collectChildRoutesByPermission,
     findRouteByPermission,
     findRouteByPath,
     getDefaultRoute,

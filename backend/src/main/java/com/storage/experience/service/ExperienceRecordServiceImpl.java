@@ -201,6 +201,13 @@ public class ExperienceRecordServiceImpl implements ExperienceRecordService {
         dto.setActionPlan(trimToNull(dto.getActionPlan()));
         dto.setProjectNames(normalizeTextList(dto.getProjectNames()));
         dto.setAttachmentObjectKeys(normalizeTextList(dto.getAttachmentObjectKeys()));
+        assertAttachmentCount(dto.getAttachmentObjectKeys());
+    }
+
+    private void assertAttachmentCount(List<String> attachmentObjectKeys) {
+        if (attachmentObjectKeys.size() > fileStorageService.uploadPolicy().getMaxFilesPerRecord()) {
+            throw new BusinessException("附件数量不能超过" + fileStorageService.uploadPolicy().getMaxFilesPerRecord() + "个");
+        }
     }
 
     private String trimToNull(String value) {
@@ -241,6 +248,7 @@ public class ExperienceRecordServiceImpl implements ExperienceRecordService {
                 .eq(ExperienceAttachment::getRecordId, recordId));
         int index = 0;
         for (String objectKey : objectKeys) {
+            fileStorageService.assertAllowedFile(objectKey);
             SysFile file = sysFileMapper.selectOne(Wrappers.<SysFile>lambdaQuery()
                     .eq(SysFile::getObjectKey, objectKey)
                     .last("LIMIT 1"));

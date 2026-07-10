@@ -1,18 +1,21 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
-import type { FormInstance, UploadProps } from 'ant-design-vue'
+import type { FormInstance } from 'ant-design-vue'
 import { message } from 'ant-design-vue'
-import { DeleteOutlined, FileOutlined, SettingOutlined, UploadOutlined } from '@ant-design/icons-vue'
+import { DeleteOutlined, FileOutlined, ReloadOutlined, SettingOutlined, UploadOutlined } from '@ant-design/icons-vue'
 import { createExperienceRecord, updateExperienceRecord } from '@/api/experience'
-import { downloadFile, uploadFile } from '@/api/file'
+import { downloadFile, fetchUploadPolicy } from '@/api/file'
 import { getErrorMessage } from '@/api/http'
+import {
+  useControlledFileUpload,
+  type ControlledUploadItem,
+} from '@/composables/useControlledFileUpload'
 import type {
   ExperienceAttachment,
   ExperienceRecordDetail,
   ExperienceRecordSavePayload,
   ExperienceType,
 } from '@/types/experience'
-import type { FileUploadResult } from '@/types/file'
 import { downloadBlob } from '@/utils/download'
 
 const props = defineProps<{
@@ -27,25 +30,23 @@ const emit = defineEmits<{
   'manage-types': []
 }>()
 
-const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024
-const ALLOWED_TYPES = [
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-  'image/gif',
-  'application/pdf',
-  'application/msword',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/vnd.ms-excel',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  'text/plain',
-]
-
 const formRef = ref<FormInstance>()
 const submitting = ref(false)
-const uploading = ref(false)
 const downloadingObjectKey = ref<string | null>(null)
-const attachments = ref<ExperienceAttachment[]>([])
+
+const {
+  items,
+  isUploading,
+  canAddMore,
+  maxCount,
+  setPolicy,
+  setItems,
+  clearItems,
+  beforeUpload,
+  retryUpload,
+  removeItem,
+  resolveObjectKeys,
+} = useControlledFileUpload()
 
 const defaultForm = (): ExperienceRecordSavePayload => ({
   typeId: null,
@@ -73,12 +74,38 @@ const rules = {
   description: [{ required: true, message: '请输入描述', trigger: 'blur' }],
 }
 
+function toControlledItems(attachments: ExperienceAttachment[]): ControlledUploadItem[] {
+  return attachments.map((item, index) => ({
+    uid: `${item.objectKey}-${index}`,
+    name: item.originalName,
+    status: 'done',
+    url: item.url,
+    objectKey: item.objectKey,
+    contentType: item.contentType,
+    sizeBytes: item.sizeBytes,
+  }))
+}
+
+function syncAttachmentKeys() {
+  formState.attachmentObjectKeys = resolveObjectKeys()
+}
+
+async function loadUploadPolicy() {
+  try {
+    const policy = await fetchUploadPolicy()
+    setPolicy(policy)
+  } catch {
+    // keep composable defaults
+  }
+}
+
 watch(
   () => props.open,
-  (open) => {
+  async (open) => {
     if (!open) {
       return
     }
+    await loadUploadPolicy()
     if (props.record) {
       Object.assign(formState, {
         typeId: props.record.typeId,
@@ -90,70 +117,35 @@ watch(
         projectNames: [...props.record.projectNames],
         attachmentObjectKeys: props.record.attachments.map((item) => item.objectKey),
       })
-      attachments.value = [...props.record.attachments]
+      setItems(toControlledItems(props.record.attachments))
     } else {
       Object.assign(formState, defaultForm())
-      attachments.value = []
+      clearItems()
     }
+    syncAttachmentKeys()
   },
 )
 
-const beforeUpload: UploadProps['beforeUpload'] = (file) => {
-  if (!ALLOWED_TYPES.includes(file.type)) {
-    message.error('仅支持图片、PDF、Word、Excel、文本文件')
-    return false
-  }
-  if (file.size > MAX_FILE_SIZE_BYTES) {
-    message.error('文件大小不能超过 5MB')
-    return false
-  }
-  return true
-}
-
-const customUpload: UploadProps['customRequest'] = async (options) => {
-  const file = options.file as File
-  uploading.value = true
-  try {
-    const result = await uploadFile(file)
-    attachments.value.push(toAttachment(result))
+watch(
+  items,
+  () => {
     syncAttachmentKeys()
-    options.onSuccess?.(result)
-    message.success('上传成功')
-  } catch (error) {
-    options.onError?.(error as Error)
-    message.error(getErrorMessage(error, '上传失败'))
-  } finally {
-    uploading.value = false
+  },
+  { deep: true },
+)
+
+function isPreviewable(item: ControlledUploadItem) {
+  return Boolean(item.contentType?.startsWith('image/') && item.url)
+}
+
+async function handleDownloadAttachment(item: ControlledUploadItem) {
+  if (!item.objectKey) {
+    return
   }
-}
-
-function toAttachment(file: FileUploadResult): ExperienceAttachment {
-  const previewable = Boolean(file.contentType?.startsWith('image/'))
-  return {
-    id: file.id,
-    objectKey: file.objectKey,
-    originalName: file.originalName,
-    contentType: file.contentType,
-    sizeBytes: file.sizeBytes,
-    url: previewable ? file.url : null,
-    previewable,
-  }
-}
-
-function syncAttachmentKeys() {
-  formState.attachmentObjectKeys = attachments.value.map((item) => item.objectKey)
-}
-
-function removeAttachment(objectKey: string) {
-  attachments.value = attachments.value.filter((item) => item.objectKey !== objectKey)
-  syncAttachmentKeys()
-}
-
-async function handleDownloadAttachment(file: ExperienceAttachment) {
-  downloadingObjectKey.value = file.objectKey
+  downloadingObjectKey.value = item.objectKey
   try {
-    const blob = await downloadFile(file.objectKey)
-    downloadBlob(blob, file.originalName)
+    const blob = await downloadFile(item.objectKey)
+    downloadBlob(blob, item.name)
   } catch (error) {
     message.error(getErrorMessage(error, '下载失败'))
   } finally {
@@ -161,7 +153,10 @@ async function handleDownloadAttachment(file: ExperienceAttachment) {
   }
 }
 
-function formatFileSize(size: number) {
+function formatFileSize(size?: number) {
+  if (!size) {
+    return '—'
+  }
   if (size < 1024) {
     return `${size} B`
   }
@@ -179,9 +174,15 @@ function trimToNull(value?: string | null) {
 function handleCancel() {
   emit('update:open', false)
   formRef.value?.resetFields()
+  clearItems()
 }
 
 async function handleSubmit() {
+  if (isUploading.value) {
+    message.warning('附件仍在上传中，请稍候')
+    return
+  }
+
   try {
     await formRef.value?.validate()
   } catch {
@@ -200,7 +201,7 @@ async function handleSubmit() {
     actionPlan: trimToNull(formState.actionPlan),
     recordedAt: formState.recordedAt ?? null,
     projectNames: formState.projectNames.map((item) => item.trim()).filter(Boolean),
-    attachmentObjectKeys: formState.attachmentObjectKeys,
+    attachmentObjectKeys: resolveObjectKeys(),
   }
 
   try {
@@ -283,38 +284,59 @@ async function handleSubmit() {
           <a-upload
             :show-upload-list="false"
             :before-upload="beforeUpload"
-            :custom-request="customUpload"
-            :disabled="uploading"
+            :disabled="!canAddMore || isUploading"
             accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+            multiple
           >
-            <a-button :loading="uploading">
+            <a-button :loading="isUploading" :disabled="!canAddMore">
               <template #icon><UploadOutlined /></template>
               上传
             </a-button>
           </a-upload>
+          <div class="upload-hint">最多 {{ maxCount }} 个，单文件不超过 50MB，支持多选上传</div>
 
-          <div v-if="attachments.length" class="attachment-list">
-            <div v-for="file in attachments" :key="file.objectKey" class="attachment-item">
+          <div v-if="items.length" class="attachment-list">
+            <div v-for="file in items" :key="file.uid" class="attachment-item">
               <FileOutlined />
-              <a v-if="file.previewable && file.url" :href="file.url" target="_blank" rel="noreferrer">
-                {{ file.originalName }}
-              </a>
-              <a-button
-                v-else
-                type="link"
-                class="attachment-link"
-                :loading="downloadingObjectKey === file.objectKey"
-                @click="handleDownloadAttachment(file)"
-              >
-                {{ file.originalName }}
-              </a-button>
+              <template v-if="file.status === 'uploading'">
+                <span class="attachment-name">{{ file.name }}</span>
+                <span class="attachment-status">上传中...</span>
+              </template>
+              <template v-else-if="file.status === 'error'">
+                <span class="attachment-name attachment-error">{{ file.name }}</span>
+                <span class="attachment-status attachment-error">{{ file.errorMessage }}</span>
+                <a-button type="link" size="small" @click="retryUpload(file.uid)">
+                  <template #icon><ReloadOutlined /></template>
+                  重试
+                </a-button>
+              </template>
+              <template v-else>
+                <a
+                  v-if="isPreviewable(file)"
+                  :href="file.url ?? undefined"
+                  target="_blank"
+                  rel="noreferrer"
+                  class="attachment-name"
+                >
+                  {{ file.name }}
+                </a>
+                <a-button
+                  v-else
+                  type="link"
+                  class="attachment-link"
+                  :loading="downloadingObjectKey === file.objectKey"
+                  @click="handleDownloadAttachment(file)"
+                >
+                  {{ file.name }}
+                </a-button>
+              </template>
               <span class="attachment-size">{{ formatFileSize(file.sizeBytes) }}</span>
               <a-button
                 type="link"
                 size="small"
                 danger
                 class="remove-button"
-                @click="removeAttachment(file.objectKey)"
+                @click="removeItem(file.uid)"
               >
                 <template #icon><DeleteOutlined /></template>
               </a-button>
@@ -357,6 +379,11 @@ async function handleSubmit() {
   gap: @spacing-sm;
 }
 
+.upload-hint {
+  font-size: 12px;
+  color: @color-text-tertiary;
+}
+
 .attachment-list {
   display: flex;
   flex-direction: column;
@@ -374,11 +401,24 @@ async function handleSubmit() {
   border-radius: @radius-sm;
 }
 
+.attachment-name {
+  color: @color-text;
+}
+
 .attachment-link {
   height: auto;
   padding: 0;
   line-height: 1.4;
   text-align: left;
+}
+
+.attachment-status {
+  color: @color-text-tertiary;
+  font-size: @font-size-sm;
+}
+
+.attachment-error {
+  color: #ff4d4f;
 }
 
 .attachment-size {

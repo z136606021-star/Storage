@@ -7,14 +7,13 @@ import {
   useWarehouseMaterialFilters,
 } from '@/composables/useWarehouseMaterialFilters'
 import { usePaginatedCrudList } from '@/composables/usePaginatedCrudList'
-import { ALL_OPTION } from '@/constants/filter'
-import type { MaterialIoRecord } from '@/types/warehouse/materialIo'
+import type { IoType, MaterialIoRecord } from '@/types/warehouse/materialIo'
 import { buildMaterialQueryParams } from '@/utils/warehouseMaterialTable'
 
 export function defaultIoQuery() {
   return {
     ...defaultMaterialQuery(),
-    ioType: ALL_OPTION,
+    ioType: undefined as IoType | undefined,
     projectRef: '',
   }
 }
@@ -51,7 +50,7 @@ export function useMaterialIoList(options: UseMaterialIoListOptions = {}) {
     const routeIds = getRouteRecordIds?.()
     return {
       ...buildMaterialQueryParams(queryForm),
-      ioType: queryForm.ioType === ALL_OPTION ? undefined : queryForm.ioType,
+      ioType: queryForm.ioType,
       projectRef: queryForm.projectRef?.trim() || undefined,
       operatedAtStart: operatedAtRange.value?.[0]?.format('YYYY-MM-DD'),
       operatedAtEnd: operatedAtRange.value?.[1]?.format('YYYY-MM-DD'),
@@ -88,7 +87,7 @@ export function useMaterialIoList(options: UseMaterialIoListOptions = {}) {
 
   function resetQueryForm() {
     assignDefaultMaterialFields(queryForm)
-    queryForm.ioType = ALL_OPTION
+    queryForm.ioType = undefined
     queryForm.projectRef = ''
     operatedAtRange.value = null
   }

@@ -10,8 +10,6 @@ import org.springframework.util.StringUtils;
 
 public final class WarehouseBomQueryBuilder {
 
-    private static final String ALL = "全部";
-
     private WarehouseBomQueryBuilder() {
     }
 
@@ -67,6 +65,6 @@ public final class WarehouseBomQueryBuilder {
     }
 
     public static boolean isFilterValue(String value) {
-        return StringUtils.hasText(value) && !ALL.equals(value);
+        return StringUtils.hasText(value);
     }
 }

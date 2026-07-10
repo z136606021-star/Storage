@@ -264,8 +264,7 @@ onMounted(async () => {
     <div class="page-body">
       <div class="main-panel">
         <CrudListPage
-          filter-layout="none"
-          :table-in-card="false"
+          table-key="system.user"
           :columns="columns"
           :loading="loading"
           :data-source="dataSource"
@@ -286,34 +285,75 @@ onMounted(async () => {
           @toolbar-download-template="handleDownloadTemplate"
         >
           <template #filters>
-            <a-form layout="inline" :model="queryForm">
-              <a-form-item label="NTID">
-                <a-input v-model:value="queryForm.username" allow-clear placeholder="NTID" />
-              </a-form-item>
-              <a-form-item label="用户名称">
-                <a-input v-model:value="queryForm.displayName" allow-clear placeholder="用户名称" />
-              </a-form-item>
-              <a-form-item label="邮箱">
-                <a-input v-model:value="queryForm.email" allow-clear placeholder="邮箱" />
-              </a-form-item>
-              <a-form-item label="角色">
-                <a-select
-                  v-model:value="queryForm.roleId"
-                  allow-clear
-                  placeholder="全部"
-                  style="width: 140px"
-                >
-                  <a-select-option v-for="role in roleOptions" :key="role.id" :value="role.id">
-                    {{ role.name }}
-                  </a-select-option>
-                </a-select>
-              </a-form-item>
-              <a-form-item>
-                <a-space>
-                  <a-button type="primary" @click="loadData"><SearchOutlined />查询</a-button>
-                  <a-button @click="resetQuery"><ReloadOutlined />重置</a-button>
-                </a-space>
-              </a-form-item>
+            <a-form
+              layout="horizontal"
+              class="filter-form"
+              :label-col="{ flex: '72px' }"
+              :wrapper-col="{ flex: '1' }"
+            >
+              <a-row :gutter="[12, 8]" class="filter-row">
+                <a-col :xs="24" :sm="12" :md="8" :lg="5">
+                  <a-form-item label="NTID" class="filter-item">
+                    <a-input
+                      v-model:value="queryForm.username"
+                      allow-clear
+                      placeholder="关键字查找"
+                      class="filter-control"
+                      @press-enter="loadData"
+                    />
+                  </a-form-item>
+                </a-col>
+                <a-col :xs="24" :sm="12" :md="8" :lg="5">
+                  <a-form-item label="用户名称" class="filter-item">
+                    <a-input
+                      v-model:value="queryForm.displayName"
+                      allow-clear
+                      placeholder="关键字查找"
+                      class="filter-control"
+                      @press-enter="loadData"
+                    />
+                  </a-form-item>
+                </a-col>
+                <a-col :xs="24" :sm="12" :md="8" :lg="5">
+                  <a-form-item label="邮箱" class="filter-item">
+                    <a-input
+                      v-model:value="queryForm.email"
+                      allow-clear
+                      placeholder="关键字查找"
+                      class="filter-control"
+                      @press-enter="loadData"
+                    />
+                  </a-form-item>
+                </a-col>
+                <a-col :xs="24" :sm="12" :md="8" :lg="5">
+                  <a-form-item label="角色" class="filter-item">
+                    <a-select
+                      v-model:value="queryForm.roleId"
+                      allow-clear
+                      placeholder="全部"
+                      class="filter-control"
+                    >
+                      <a-select-option v-for="role in roleOptions" :key="role.id" :value="role.id">
+                        {{ role.name }}
+                      </a-select-option>
+                    </a-select>
+                  </a-form-item>
+                </a-col>
+                <a-col :xs="24" :sm="24" :md="24" :lg="4" class="filter-actions-col">
+                  <a-form-item class="filter-item filter-actions">
+                    <a-space>
+                      <a-button type="primary" @click="loadData">
+                        <template #icon><SearchOutlined /></template>
+                        查询
+                      </a-button>
+                      <a-button @click="resetQuery">
+                        <template #icon><ReloadOutlined /></template>
+                        重置
+                      </a-button>
+                    </a-space>
+                  </a-form-item>
+                </a-col>
+              </a-row>
             </a-form>
           </template>
 
@@ -437,24 +477,33 @@ onMounted(async () => {
 
 .page-body {
   display: flex;
+  flex-wrap: wrap;
   gap: @spacing-lg;
   align-items: flex-start;
 }
 
 .main-panel {
-  flex: 1;
+  flex: 1 1 640px;
   min-width: 0;
 }
 
 .auth-panel {
-  width: 280px;
-  flex-shrink: 0;
+  flex: 1 1 280px;
+  width: 100%;
+  max-width: 100%;
   border: 1px solid @color-border;
   border-radius: @radius-md;
   padding: @spacing-md;
   background: @color-bg-elevated;
   max-height: calc(100vh - 200px);
   overflow: auto;
+}
+
+@media (min-width: 1200px) {
+  .auth-panel {
+    flex: 0 0 280px;
+    width: 280px;
+  }
 }
 
 .auth-panel-title {

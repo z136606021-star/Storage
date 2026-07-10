@@ -9,8 +9,8 @@ describe('route component resolver', () => {
     expect(normalizeRouteComponentKey('@/components/system/RoleManagePanel')).toBe(
       '../components/system/RoleManagePanel.vue',
     )
-    expect(normalizeRouteComponentKey('src/views/system/SystemManageLayout.vue')).toBe(
-      '../views/system/SystemManageLayout.vue',
+    expect(normalizeRouteComponentKey('src/views/system/UserManageView.vue')).toBe(
+      '../views/system/UserManageView.vue',
     )
   })
 

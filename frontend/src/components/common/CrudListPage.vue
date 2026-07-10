@@ -1,10 +1,14 @@
 <script setup lang="ts">
+import { computed, toRef } from 'vue'
 import type { TablePaginationConfig } from 'ant-design-vue'
 import type { ColumnType } from 'ant-design-vue/es/table'
 import CrudToolbar from '@/components/common/CrudToolbar.vue'
+import ResizableTableHeaderCell from '@/components/common/ResizableTableHeaderCell.vue'
+import { useResizableTableColumns } from '@/composables/useResizableTableColumns'
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
+    tableKey: string
     columns: ColumnType[]
     loading?: boolean
     dataSource: unknown[]
@@ -60,6 +64,20 @@ withDefaults(
     toolbarBatchExportRequiresWrite: false,
   },
 )
+
+const {
+  resizableColumns,
+  freezeColumnWidths,
+  updateColumnWidth,
+  isResizableTableColumn,
+  resolveScroll,
+} = useResizableTableColumns(toRef(props, 'columns'), toRef(props, 'tableKey'))
+
+const tableScroll = computed(() => resolveScroll(props.scroll))
+
+function handleColumnResizeStart(_columnKey: string, renderedWidths: Record<string, number>) {
+  freezeColumnWidths(renderedWidths)
+}
 
 const emit = defineEmits<{
   change: [pagination: TablePaginationConfig]
@@ -123,18 +141,28 @@ function handleTableChange(page: TablePaginationConfig) {
       <slot v-else name="toolbar" />
 
       <a-table
-        :columns="columns"
+        class="crud-resizable-table"
+        :columns="resizableColumns"
         :data-source="dataSource"
         :loading="loading"
         :pagination="pagination"
         :row-key="rowKey"
         :row-selection="rowSelection"
         :custom-row="customRow"
-        :scroll="scroll"
+        :scroll="tableScroll"
         :size="size"
         :bordered="bordered"
         @change="handleTableChange"
       >
+        <template #headerCell="{ column }">
+          <ResizableTableHeaderCell
+            :title="column.title"
+            :column-key="String(column.key ?? column.dataIndex ?? '')"
+            :resizable="isResizableTableColumn(column)"
+            @resize-start="handleColumnResizeStart"
+            @resize="updateColumnWidth"
+          />
+        </template>
         <template #bodyCell="scope">
           <slot name="bodyCell" v-bind="scope" />
         </template>
@@ -169,54 +197,87 @@ function handleTableChange(page: TablePaginationConfig) {
   margin-bottom: @spacing-md;
 }
 
-.filter-form {
+.filter-card :deep(.filter-form),
+.filters-inline :deep(.filter-form) {
   width: 100%;
 }
 
-.filter-row {
+.filter-card :deep(.filter-row),
+.filters-inline :deep(.filter-row) {
   width: 100%;
 }
 
-.filter-item {
+.filter-card :deep(.filter-item),
+.filters-inline :deep(.filter-item) {
   width: 100%;
   margin-inline-end: 0;
   margin-bottom: 0;
 
-  :deep(.ant-form-item-row) {
+  .ant-form-item-row {
     flex-wrap: nowrap;
+    align-items: center;
   }
 
-  :deep(.ant-form-item-label) {
+  .ant-form-item-label {
     .filter-form-label();
   }
 
-  :deep(.ant-form-item-control) {
+  .ant-form-item-control {
     flex: 1;
     min-width: 0;
   }
 }
 
-.filter-control {
+.filter-card :deep(.filter-control),
+.filters-inline :deep(.filter-control) {
   width: 100%;
 }
 
-.filter-actions-col {
+.filter-card :deep(.filter-actions-col),
+.filters-inline :deep(.filter-actions-col) {
   display: flex;
   justify-content: flex-end;
   align-items: flex-end;
 }
 
-.filter-actions {
+.filter-card :deep(.filter-actions),
+.filters-inline :deep(.filter-actions) {
   display: flex;
   justify-content: flex-end;
 }
 
+@media (max-width: 992px) {
+  .filter-card :deep(.filter-actions-col),
+  .filters-inline :deep(.filter-actions-col) {
+    justify-content: flex-start;
+    align-items: flex-start;
+  }
+
+  .filter-card :deep(.filter-actions),
+  .filters-inline :deep(.filter-actions) {
+    justify-content: flex-start;
+    width: 100%;
+  }
+}
+
+@media (max-width: 576px) {
+  .filter-card :deep(.ant-card-body),
+  .table-card :deep(.ant-card-body) {
+    padding: @spacing-md;
+  }
+}
+
 .table-card {
+  :deep(.crud-resizable-table table) {
+    table-layout: fixed;
+  }
+
   :deep(.ant-table-thead > tr > th) {
     background: @color-bg-elevated;
     font-weight: 500;
     padding: @spacing-sm;
     font-size: @font-size-sm;
+    position: relative;
   }
 
   :deep(.ant-table-tbody > tr > td) {

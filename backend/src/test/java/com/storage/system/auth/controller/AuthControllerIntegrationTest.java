@@ -305,6 +305,35 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
+    void register_withMissingEmail_returns400() throws Exception {
+        RegisterRequestDTO request = new RegisterRequestDTO();
+        request.setUsername("registernoemail");
+        request.setDisplayName("注册用户");
+        request.setPassword("newpass123");
+
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("请输入邮箱"));
+    }
+
+    @Test
+    void register_withBlankEmail_returns400() throws Exception {
+        RegisterRequestDTO request = new RegisterRequestDTO();
+        request.setUsername("registerblankemail");
+        request.setDisplayName("注册用户");
+        request.setPassword("newpass123");
+        request.setEmail("");
+
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("请输入邮箱"));
+    }
+
+    @Test
     void register_returnsAccessTokenThatCanAccessMe() throws Exception {
         RegisterRequestDTO request = new RegisterRequestDTO();
         request.setUsername("registerok");

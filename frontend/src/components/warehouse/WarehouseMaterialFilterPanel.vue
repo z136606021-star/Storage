@@ -40,6 +40,8 @@ const hasSecondRowTrailing = computed(() => !!slots['second-row-trailing'])
           <a-select
             v-model:value="queryForm.category"
             :options="toSelectOptions(filterOptions.category)"
+            allow-clear
+            placeholder="全部"
             class="filter-control"
             @change="emit('categoryChange')"
           />
@@ -50,6 +52,8 @@ const hasSecondRowTrailing = computed(() => !!slots['second-row-trailing'])
           <a-select
             v-model:value="queryForm.genericName"
             :options="toSelectOptions(filterOptions.genericName)"
+            allow-clear
+            placeholder="全部"
             class="filter-control"
             @change="emit('genericNameChange')"
           />
@@ -60,6 +64,8 @@ const hasSecondRowTrailing = computed(() => !!slots['second-row-trailing'])
           <a-select
             v-model:value="queryForm.brand"
             :options="toSelectOptions(filterOptions.brand)"
+            allow-clear
+            placeholder="全部"
             class="filter-control"
             @change="emit('brandChange')"
           />
@@ -81,6 +87,8 @@ const hasSecondRowTrailing = computed(() => !!slots['second-row-trailing'])
           <a-select
             v-model:value="queryForm.model"
             :options="toSelectOptions(filterOptions.model)"
+            allow-clear
+            placeholder="全部"
             class="filter-control"
           />
         </a-form-item>
@@ -90,6 +98,8 @@ const hasSecondRowTrailing = computed(() => !!slots['second-row-trailing'])
           <a-select
             v-model:value="queryForm.binLocation"
             :options="toSelectOptions(filterOptions.binLocation)"
+            allow-clear
+            placeholder="全部"
             class="filter-control"
           />
         </a-form-item>
@@ -109,6 +119,8 @@ const hasSecondRowTrailing = computed(() => !!slots['second-row-trailing'])
           <a-select
             v-model:value="queryForm.category"
             :options="toSelectOptions(filterOptions.category)"
+            allow-clear
+            placeholder="全部"
             class="filter-control"
             @change="emit('categoryChange')"
           />
@@ -119,6 +131,8 @@ const hasSecondRowTrailing = computed(() => !!slots['second-row-trailing'])
           <a-select
             v-model:value="queryForm.genericName"
             :options="toSelectOptions(filterOptions.genericName)"
+            allow-clear
+            placeholder="全部"
             class="filter-control"
             @change="emit('genericNameChange')"
           />
@@ -129,6 +143,8 @@ const hasSecondRowTrailing = computed(() => !!slots['second-row-trailing'])
           <a-select
             v-model:value="queryForm.brand"
             :options="toSelectOptions(filterOptions.brand)"
+            allow-clear
+            placeholder="全部"
             class="filter-control"
             @change="emit('brandChange')"
           />
@@ -155,6 +171,8 @@ const hasSecondRowTrailing = computed(() => !!slots['second-row-trailing'])
           <a-select
             v-model:value="queryForm.model"
             :options="toSelectOptions(filterOptions.model)"
+            allow-clear
+            placeholder="全部"
             class="filter-control"
           />
         </a-form-item>
@@ -164,6 +182,8 @@ const hasSecondRowTrailing = computed(() => !!slots['second-row-trailing'])
           <a-select
             v-model:value="queryForm.binLocation"
             :options="toSelectOptions(filterOptions.binLocation)"
+            allow-clear
+            placeholder="全部"
             class="filter-control"
           />
         </a-form-item>
@@ -290,7 +310,39 @@ const hasSecondRowTrailing = computed(() => !!slots['second-row-trailing'])
 }
 
 .filter-grid-split--extended .filter-grid-actions {
-  grid-column: 1 / -1;
+  grid-column: 3 / -1;
+  grid-row: 3;
+  justify-content: flex-end;
+}
+
+.filter-grid-split--extended > .filter-grid-cell:nth-child(4) {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.filter-grid-split--extended > .filter-grid-cell:nth-child(6) {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.filter-grid-split--extended > .filter-grid-cell:nth-child(7) {
+  grid-column: 3;
+  grid-row: 2;
+}
+
+.filter-grid-split--extended :deep(.filter-grid-slot--first > .filter-grid-cell) {
+  grid-column: 4;
+  grid-row: 1;
+}
+
+.filter-grid-split--extended :deep(.filter-grid-slot--second > .filter-grid-cell:first-child) {
+  grid-column: 4;
+  grid-row: 2;
+}
+
+.filter-grid-split--extended :deep(.filter-grid-slot--second > .filter-grid-cell:last-child) {
+  grid-column: 1 / span 2;
+  grid-row: 3;
 }
 
 .filter-grid-compact .filter-grid-actions--compact {
@@ -317,6 +369,20 @@ const hasSecondRowTrailing = computed(() => !!slots['second-row-trailing'])
   .filter-grid-split:not(.filter-grid-split--extended) .filter-grid-cell--model,
   .filter-grid-split:not(.filter-grid-split--extended) .filter-grid-cell--bin {
     grid-column: auto;
+    grid-row: auto;
+  }
+
+  .filter-grid-split--extended > .filter-grid-cell:nth-child(4),
+  .filter-grid-split--extended > .filter-grid-cell:nth-child(6),
+  .filter-grid-split--extended > .filter-grid-cell:nth-child(7),
+  .filter-grid-split--extended :deep(.filter-grid-slot--first > .filter-grid-cell),
+  .filter-grid-split--extended :deep(.filter-grid-slot--second > .filter-grid-cell) {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .filter-grid-split--extended .filter-grid-actions {
+    grid-column: 1 / -1;
     grid-row: auto;
   }
 }

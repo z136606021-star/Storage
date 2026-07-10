@@ -8,6 +8,7 @@ import { message } from 'ant-design-vue'
 
 import WarehouseMaterialFilterPanel from '@/components/warehouse/WarehouseMaterialFilterPanel.vue'
 
+import { DEFAULT_PICKER_STOCK_STATUS } from '@/constants/materialStockStatus'
 import { useMaterialLedgerList } from '@/composables/useMaterialLedgerList'
 
 import type { MaterialLedger } from '@/types/warehouse/materialLedger'
@@ -77,6 +78,8 @@ const {
 } = useMaterialLedgerList({
 
   loadErrorMessage: '加载物料台账失败',
+
+  initialStockStatus: DEFAULT_PICKER_STOCK_STATUS,
 
 })
 

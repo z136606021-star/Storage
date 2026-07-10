@@ -18,7 +18,7 @@ import { usePaginatedCrudList } from '@/composables/usePaginatedCrudList'
 import { useWritePermission } from '@/composables/useWritePermission'
 import type { WarehouseBin, WarehouseBinExportQuery } from '@/types/warehouse/warehouseBin'
 import { confirmBatchDelete, confirmDelete } from '@/utils/confirmDelete'
-import { displayValue } from '@/utils/format'
+import { displayValue, formatDateTime } from '@/utils/format'
 import { getTableRowIndex } from '@/utils/tableIndex'
 
 const { canWrite } = useWritePermission('warehouse:bin:write')
@@ -87,6 +87,8 @@ const columns = [
   { title: '列', dataIndex: 'colNo', key: 'colNo', width: 72, align: 'center' as const },
   { title: '层', dataIndex: 'levelNo', key: 'levelNo', width: 72, align: 'center' as const },
   { title: '备注', dataIndex: 'remark', key: 'remark', ellipsis: true, minWidth: 120 },
+  { title: '更新人', dataIndex: 'operatorName', key: 'operatorName', width: 120, ellipsis: true },
+  { title: '更新时间', dataIndex: 'updatedAt', key: 'updatedAt', width: 170 },
   { title: '操作', key: 'action', width: 140, align: 'center' as const, fixed: 'right' as const },
 ]
 
@@ -150,6 +152,7 @@ function onBatchExport() {
 }
 
 async function onFormSuccess() {
+  pagination.current = 1
   await loadData()
 }
 
@@ -158,13 +161,14 @@ onMounted(loadData)
 
 <template>
   <CrudListPage
+    table-key="warehouse.bin"
     :columns="columns"
     :loading="loading"
     :data-source="dataSource"
     :pagination="pagination"
     :row-key="(record: WarehouseBin) => record.id"
     :row-selection="canWrite ? rowSelection : undefined"
-    :scroll="{ x: 900 }"
+    :scroll="{ x: 1180 }"
     toolbar-create-green
     toolbar-export-icon="download"
     :toolbar-show-export="true"
@@ -183,30 +187,25 @@ onMounted(loadData)
     @toolbar-import="handleImport"
     @toolbar-download-template="handleDownloadTemplate"
   >
-    <template #filters>
-      <a-form layout="inline" class="filter-form">
-        <a-form-item label="Bin位">
-          <a-input
-            v-model:value="queryForm.binCode"
-            allow-clear
-            placeholder="关键字查找"
-            style="width: 200px"
-            @press-enter="handleSearch"
-          />
-        </a-form-item>
-        <a-form-item>
-          <a-space>
-            <a-button type="primary" @click="handleSearch">
-              <template #icon><SearchOutlined /></template>
-              查询
-            </a-button>
-            <a-button @click="handleReset">
-              <template #icon><ReloadOutlined /></template>
-              重置
-            </a-button>
-          </a-space>
-        </a-form-item>
-      </a-form>
+    <template #toolbarPrepend>
+      <div class="bin-toolbar-filters">
+        <span class="bin-toolbar-label">Bin位</span>
+        <a-input
+          v-model:value="queryForm.binCode"
+          allow-clear
+          placeholder="关键字查找"
+          class="bin-toolbar-input"
+          @press-enter="handleSearch"
+        />
+        <a-button type="primary" @click="handleSearch">
+          <template #icon><SearchOutlined /></template>
+          查询
+        </a-button>
+        <a-button @click="handleReset">
+          <template #icon><ReloadOutlined /></template>
+          重置
+        </a-button>
+      </div>
     </template>
 
     <template #bodyCell="{ column, record, index }">
@@ -221,6 +220,12 @@ onMounted(loadData)
       </template>
       <template v-else-if="column.key === 'remark'">
         {{ displayValue(record.remark) }}
+      </template>
+      <template v-else-if="column.key === 'operatorName'">
+        {{ displayValue(record.operatorName) }}
+      </template>
+      <template v-else-if="column.key === 'updatedAt'">
+        {{ formatDateTime(record.updatedAt) }}
       </template>
       <template v-else-if="column.key === 'action'">
         <CrudRowActions
@@ -239,7 +244,21 @@ onMounted(loadData)
 <style scoped lang="less">
 @import '@/styles/variables.less';
 
-.filter-form {
-  row-gap: @spacing-sm;
+.bin-toolbar-filters {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: @spacing-sm;
+  margin-right: @spacing-md;
+}
+
+.bin-toolbar-label {
+  flex-shrink: 0;
+  color: @color-text-secondary;
+  font-size: @font-size-sm;
+}
+
+.bin-toolbar-input {
+  width: 200px;
 }
 </style>

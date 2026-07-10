@@ -1,11 +1,15 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
-import type { FormInstance, UploadFile, UploadProps } from 'ant-design-vue'
+import type { FormInstance } from 'ant-design-vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined } from '@ant-design/icons-vue'
 import { getErrorMessage } from '@/api/http'
-import { uploadFile } from '@/api/file'
+import { fetchUploadPolicy } from '@/api/file'
 import { createWarehouseBom, updateWarehouseBom } from '@/api/warehouse/warehouseBom'
+import {
+  useControlledFileUpload,
+  type ControlledUploadItem,
+} from '@/composables/useControlledFileUpload'
 import type { WarehouseBom, WarehouseBomSavePayload } from '@/types/warehouse/warehouseBom'
 
 const props = defineProps<{
@@ -18,12 +22,21 @@ const emit = defineEmits<{
   success: []
 }>()
 
-const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
-const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024
-
 const formRef = ref<FormInstance>()
 const submitting = ref(false)
-const fileList = ref<UploadFile[]>([])
+
+const {
+  fileList,
+  isUploading,
+  canAddMore,
+  maxCount,
+  setPolicy,
+  setItems,
+  clearItems,
+  beforeUpload,
+  handleRemove,
+  resolveObjectKeys,
+} = useControlledFileUpload()
 
 const defaultForm = (): WarehouseBomSavePayload => ({
   category: '',
@@ -46,7 +59,7 @@ const rules = {
   name: [{ required: true, message: '请输入名称', trigger: 'blur' }],
 }
 
-function buildFileList(record: WarehouseBom | null): UploadFile[] {
+function buildItems(record: WarehouseBom | null): ControlledUploadItem[] {
   if (!record) {
     return []
   }
@@ -64,17 +77,35 @@ function buildFileList(record: WarehouseBom | null): UploadFile[] {
     uid: `${objectKey}-${index}`,
     name: objectKey.split('/').pop() ?? `image-${index + 1}`,
     status: 'done' as const,
-    url: urls[index] ?? undefined,
+    url: urls[index] ?? null,
     objectKey,
   }))
 }
 
+async function loadUploadPolicy() {
+  try {
+    const policy = await fetchUploadPolicy()
+    setPolicy({
+      ...policy,
+      allowedContentTypes: policy.imageContentTypes.length
+        ? policy.imageContentTypes
+        : policy.allowedContentTypes.filter((type) => type.startsWith('image/')),
+    })
+  } catch {
+    setPolicy({
+      allowedContentTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
+      imageContentTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
+    })
+  }
+}
+
 watch(
   () => props.open,
-  (open) => {
+  async (open) => {
     if (!open) {
       return
     }
+    await loadUploadPolicy()
     if (props.record) {
       Object.assign(formState, {
         category: props.record.category,
@@ -85,65 +116,26 @@ watch(
         remark: props.record.remark,
         imageObjectKeys: props.record.imageObjectKeys ?? [],
       })
-      fileList.value = buildFileList(props.record)
+      setItems(buildItems(props.record))
     } else {
       Object.assign(formState, defaultForm())
-      fileList.value = []
+      clearItems()
     }
   },
 )
 
-const beforeUpload: UploadProps['beforeUpload'] = (file) => {
-  if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
-    message.error('仅支持 JPG、PNG、WebP、GIF 格式图片')
-    return false
-  }
-  if (file.size > MAX_IMAGE_SIZE_BYTES) {
-    message.error('图片大小不能超过 5MB')
-    return false
-  }
-  return true
-}
-
-const customUpload: UploadProps['customRequest'] = async (options) => {
-  const file = options.file as File
-  try {
-    const result = await uploadFile(file)
-    const sourceFile = options.file as UploadFile
-    const uploadUid = sourceFile.uid ?? result.objectKey
-    const uploadedFile: UploadFile & { objectKey: string } = {
-      uid: uploadUid,
-      name: file.name,
-      status: 'done',
-      url: result.url ?? undefined,
-      objectKey: result.objectKey,
-    }
-    fileList.value = [...fileList.value, uploadedFile]
-    options.onSuccess?.(result)
-    message.success('图片上传成功')
-  } catch (error) {
-    options.onError?.(error as Error)
-    message.error(getErrorMessage(error, '图片上传失败'))
-  }
-}
-
-function handleRemove(file: UploadFile) {
-  fileList.value = fileList.value.filter((item) => item.uid !== file.uid)
-}
-
-function resolveImageObjectKeys(): string[] {
-  return fileList.value
-    .map((file) => (file as UploadFile & { objectKey?: string }).objectKey)
-    .filter((key): key is string => Boolean(key))
-}
-
 function handleCancel() {
   emit('update:open', false)
   formRef.value?.resetFields()
-  fileList.value = []
+  clearItems()
 }
 
 async function handleSubmit() {
+  if (isUploading.value) {
+    message.warning('图片仍在上传中，请稍候')
+    return
+  }
+
   try {
     await formRef.value?.validate()
   } catch {
@@ -151,7 +143,7 @@ async function handleSubmit() {
   }
 
   submitting.value = true
-  const imageObjectKeys = resolveImageObjectKeys()
+  const imageObjectKeys = resolveObjectKeys()
   const payload: WarehouseBomSavePayload = {
     category: formState.category.trim(),
     genericName: formState.genericName.trim(),
@@ -218,19 +210,19 @@ async function handleSubmit() {
       </a-form-item>
       <a-form-item label="图片">
         <a-upload
-          v-model:file-list="fileList"
+          :file-list="fileList"
           list-type="picture-card"
           accept="image/*"
           multiple
           :before-upload="beforeUpload"
-          :custom-request="customUpload"
           @remove="handleRemove"
         >
-          <div v-if="fileList.length < 8" class="upload-placeholder">
+          <div v-if="canAddMore" class="upload-placeholder">
             <PlusOutlined />
             <div class="upload-text">上传</div>
           </div>
         </a-upload>
+        <div class="upload-hint">最多 {{ maxCount }} 张，单张不超过 50MB，支持多选上传</div>
       </a-form-item>
     </a-form>
   </a-modal>
@@ -250,6 +242,12 @@ async function handleSubmit() {
 
 .upload-text {
   margin-top: @spacing-sm;
+  font-size: 12px;
+  color: @color-text-tertiary;
+}
+
+.upload-hint {
+  margin-top: @spacing-xs;
   font-size: 12px;
   color: @color-text-tertiary;
 }

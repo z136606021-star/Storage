@@ -35,8 +35,7 @@ public final class WarehouseBinQueryBuilder {
             wrapper.eq(WarehouseBin::getLevelNo, query.getLevelNo());
         }
 
-        wrapper.orderByDesc(WarehouseBin::getUpdatedAt)
-                .orderByAsc(WarehouseBin::getBinCode);
+        wrapper.orderByDesc(WarehouseBin::getUpdatedAt, WarehouseBin::getId);
         return wrapper;
     }
 }

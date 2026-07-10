@@ -147,6 +147,28 @@ class ExperienceRecordServiceIntegrationTest {
     }
 
     @Test
+    void createWithAttachment_rejectsMoreThanTwentyAttachments() {
+        List<String> keys = new ArrayList<>();
+        for (int i = 0; i < 21; i++) {
+            SysFile file = new SysFile();
+            String key = "2026-07-10/file-" + i + ".pdf";
+            file.setObjectKey(key);
+            file.setOriginalName("file-" + i + ".pdf");
+            file.setContentType("application/pdf");
+            file.setSizeBytes(128L);
+            sysFileMapper.insert(file);
+            keys.add(key);
+        }
+
+        ExperienceRecordSaveDTO dto = saveDto("附件数量超限");
+        dto.setAttachmentObjectKeys(keys);
+
+        assertThatThrownBy(() -> experienceRecordService.createImported(dto, "测试人"))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("附件数量不能超过20个");
+    }
+
+    @Test
     void importExcel_withUnknownType_returnsRowError() throws Exception {
         ExperienceExportRow row = new ExperienceExportRow();
         row.setTypeName("未知类型");

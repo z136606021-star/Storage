@@ -5,7 +5,6 @@ import {
   useWarehouseMaterialFilters,
 } from '@/composables/useWarehouseMaterialFilters'
 import { usePaginatedCrudList } from '@/composables/usePaginatedCrudList'
-import { ALL_OPTION } from '@/constants/filter'
 import type { SafetyStockRecord } from '@/types/warehouse/safetyStock'
 import { buildMaterialQueryParams } from '@/utils/warehouseMaterialTable'
 
@@ -13,7 +12,7 @@ export function defaultSafetyStockQuery() {
   return {
     ...defaultMaterialQuery(),
     safetyQuantityKeyword: '',
-    warningPeriod: ALL_OPTION,
+    warningPeriod: undefined as '是' | '否' | undefined,
   }
 }
 
@@ -44,8 +43,7 @@ export function useSafetyStockList(options: UseSafetyStockListOptions = {}) {
     return {
       ...buildMaterialQueryParams(queryForm),
       safetyQuantityKeyword: queryForm.safetyQuantityKeyword.trim() || undefined,
-      warningPeriod:
-        queryForm.warningPeriod === ALL_OPTION ? undefined : queryForm.warningPeriod,
+      warningPeriod: queryForm.warningPeriod,
     }
   }
 

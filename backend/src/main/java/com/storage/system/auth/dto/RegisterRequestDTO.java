@@ -20,6 +20,7 @@ public class RegisterRequestDTO {
     @Size(max = 64, message = "显示名称不能超过 64 个字符")
     private String displayName;
 
+    @NotBlank(message = "请输入邮箱")
     @Size(max = 128, message = "邮箱不能超过 128 个字符")
     @Email(message = "邮箱格式不正确")
     private String email;

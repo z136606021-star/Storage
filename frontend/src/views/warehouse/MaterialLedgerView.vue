@@ -16,7 +16,7 @@ import { useCrudDetailDrawer } from '@/composables/useCrudDetailDrawer'
 import { useExcelImportExport } from '@/composables/useExcelImportExport'
 import { useMaterialLedgerList } from '@/composables/useMaterialLedgerList'
 import { useMaterialLedgerRouteDetail } from '@/composables/useMaterialLedgerRouteDetail'
-import { defaultMaterialQuery } from '@/composables/useWarehouseMaterialFilters'
+import { DEFAULT_LEDGER_STOCK_STATUS, MATERIAL_STOCK_STATUS_OPTIONS } from '@/constants/materialStockStatus'
 import { useAuth } from '@/composables/useAuth'
 import { useMenuStore } from '@/stores/menu'
 import type { MaterialLedger } from '@/types/warehouse/materialLedger'
@@ -31,10 +31,6 @@ const router = useRouter()
 
 const canViewMaterialIo = computed(() => hasPermission('warehouse:material-io:read'))
 
-const defaultQuery = {
-  ...defaultMaterialQuery(),
-}
-
 const {
   queryForm,
   filterOptions,
@@ -43,13 +39,12 @@ const {
   handleGenericNameChange,
   handleBrandChange,
   buildQueryParams,
-  refreshAll,
+  handleReset,
   loading,
   dataSource,
   pagination,
   loadData,
   handleSearch,
-  handleResetQuery,
   handleTableChange,
   selectedRowKeys,
   rowSelection,
@@ -58,6 +53,7 @@ const {
 } = useMaterialLedgerList({
   loadErrorMessage: '加载物料台账失败，请确认后端服务已启动',
   enableRowSelection: true,
+  initialStockStatus: DEFAULT_LEDGER_STOCK_STATUS,
 })
 
 const {
@@ -78,13 +74,6 @@ const {
 function handleCloseDetail() {
   closeDetail()
   clearRouteDetailQuery()
-}
-
-function handleReset() {
-  Object.assign(queryForm, defaultQuery)
-  handleResetQuery()
-  clearSelection()
-  refreshAll()
 }
 
 const {
@@ -154,6 +143,7 @@ setupRouteWatch()
 
 <template>
   <CrudListPage
+    table-key="warehouse.material-ledger"
     :columns="columns"
     :loading="loading"
     :data-source="dataSource"
@@ -185,6 +175,19 @@ setupRouteWatch()
         @brand-change="handleBrandChange"
         @search="handleSearch"
       >
+        <template #first-row-trailing>
+          <div class="filter-grid-cell">
+            <a-form-item label="库存状态" class="filter-item">
+              <a-select
+                v-model:value="queryForm.stockStatus"
+                :options="MATERIAL_STOCK_STATUS_OPTIONS"
+                allow-clear
+                placeholder="全部"
+                class="filter-control"
+              />
+            </a-form-item>
+          </div>
+        </template>
         <template #actions>
           <a-space>
             <a-button type="primary" @click="handleSearch">

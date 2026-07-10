@@ -1,5 +1,7 @@
 export type { ImportResult, PageResult } from '@/types/common'
 
+export type MaterialStockStatus = 'IN_STOCK' | 'ZERO_STOCK'
+
 export interface MaterialLedger {
   id: number
   category: string
@@ -23,6 +25,7 @@ export interface MaterialQuery {
   model?: string
   binLocation?: string
   ids?: number[]
+  stockStatus?: MaterialStockStatus
   page?: number
   pageSize?: number
 }

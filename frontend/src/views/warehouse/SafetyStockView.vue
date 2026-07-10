@@ -20,7 +20,6 @@ import { useExcelImportExport } from '@/composables/useExcelImportExport'
 import { useSafetyStockList } from '@/composables/useSafetyStockList'
 import { useWritePermission } from '@/composables/useWritePermission'
 import { useAuth } from '@/composables/useAuth'
-import { ALL_OPTION } from '@/constants/filter'
 import type {
   SafetyStockExportQuery,
   SafetyStockPurchaseListExportQuery,
@@ -37,7 +36,6 @@ const canViewMaterialLedger = computed(() => hasPermission('warehouse:material-l
 const canViewMaterialIo = computed(() => hasPermission('warehouse:material-io:read'))
 
 const WARNING_PERIOD_OPTIONS = [
-  { label: '全部', value: ALL_OPTION },
   { label: '是', value: '是' },
   { label: '否', value: '否' },
 ]
@@ -193,6 +191,7 @@ onMounted(async () => {
 
 <template>
   <CrudListPage
+    table-key="warehouse.safety-stock"
     :columns="columns"
     :loading="loading"
     :data-source="dataSource"
@@ -250,6 +249,8 @@ onMounted(async () => {
               <a-select
                 v-model:value="queryForm.warningPeriod"
                 :options="WARNING_PERIOD_OPTIONS"
+                allow-clear
+                placeholder="全部"
                 class="filter-control"
               />
             </a-form-item>

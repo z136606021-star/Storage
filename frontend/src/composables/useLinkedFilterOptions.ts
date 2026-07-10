@@ -1,21 +1,18 @@
 import { ref } from 'vue'
-import { ALL_OPTION } from '@/constants/filter'
 
-export interface LinkedFilterOptionsConfig<TQuery extends Record<string, unknown>> {
+export interface LinkedFilterOptionsConfig<TQuery extends Record<string, string | undefined>> {
   queryForm: TQuery
-  allOptionValue?: string
 }
 
-export function useLinkedFilterOptions<TQuery extends Record<string, string>>(
+export function useLinkedFilterOptions<TQuery extends Record<string, string | undefined>>(
   config: LinkedFilterOptionsConfig<TQuery>,
 ) {
-  const allOption = config.allOptionValue ?? ALL_OPTION
   const filterOptionsRaw = ref<Record<string, string[]>>({})
 
   function ensureOptionValue(field: keyof TQuery, options: string[]) {
     const value = config.queryForm[field]
-    if (typeof value === 'string' && value !== allOption && !options.includes(value)) {
-      config.queryForm[field] = allOption as TQuery[keyof TQuery]
+    if (typeof value === 'string' && value.trim() && !options.includes(value)) {
+      config.queryForm[field] = undefined as TQuery[keyof TQuery]
     }
   }
 
@@ -23,13 +20,12 @@ export function useLinkedFilterOptions<TQuery extends Record<string, string>>(
     fetchFn: (linkageParams: Record<string, string | undefined>) => Promise<TOptions>,
     linkageParams: Record<string, string | undefined>,
     ensureFields: Array<{ field: keyof TQuery; optionsKey: keyof TOptions }>,
-    withAllOptionFn: (items: string[]) => string[],
     pickList: (raw: TOptions, key: keyof TOptions) => string[],
   ) {
     const raw = await fetchFn(linkageParams)
     filterOptionsRaw.value = raw as Record<string, string[]>
     for (const { field, optionsKey } of ensureFields) {
-      const options = withAllOptionFn(pickList(raw, optionsKey))
+      const options = pickList(raw, optionsKey)
       ensureOptionValue(field, options)
     }
   }
@@ -40,7 +36,7 @@ export function useLinkedFilterOptions<TQuery extends Record<string, string>>(
   ) {
     return async () => {
       for (const field of fieldsToReset) {
-        config.queryForm[field] = allOption as TQuery[keyof TQuery]
+        config.queryForm[field] = undefined as TQuery[keyof TQuery]
       }
       await reload()
     }
@@ -52,8 +48,8 @@ export function useLinkedFilterOptions<TQuery extends Record<string, string>>(
     const params: Record<string, string | undefined> = {}
     for (const { formKey, paramKey } of fields) {
       const value = config.queryForm[formKey]
-      if (typeof value === 'string' && value !== allOption) {
-        params[paramKey] = value
+      if (typeof value === 'string' && value.trim()) {
+        params[paramKey] = value.trim()
       }
     }
     return params

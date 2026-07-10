@@ -5,6 +5,8 @@ export interface WarehouseBin {
   colNo: number | null
   levelNo: number | null
   remark: string | null
+  operatorUserId: number | null
+  operatorName: string | null
   createdAt: string
   updatedAt: string
 }

@@ -1,5 +1,6 @@
 package com.storage.infrastructure.file.controller;
 
+import com.storage.infrastructure.file.dto.FileUploadPolicyVO;
 import com.storage.infrastructure.file.dto.FileUploadVO;
 import com.storage.infrastructure.file.service.FileStorageService;
 import com.storage.system.auth.service.AuthService;
@@ -29,6 +30,11 @@ public class FileController {
 
     private final FileStorageService fileStorageService;
     private final AuthService authService;
+
+    @GetMapping("/upload-policy")
+    public FileUploadPolicyVO uploadPolicy() {
+        return fileStorageService.uploadPolicy();
+    }
 
     @PostMapping("/upload")
     @RequiresPermissions(value = {"platform:file:upload", "warehouse:bom:write", "platform:experience:write"}, logical = Logical.OR)

@@ -150,7 +150,10 @@ function Format-WorktreeEnvContent {
         [string]$ResetAdminPasswordOnStartup = 'true',
         [string]$JwtSecret = 'dev-only-change-this-jwt-secret-at-least-32-bytes',
         [string]$JwtTtlMinutes = '120',
-        [string]$UploadMaxSizeBytes = '5242880',
+        [string]$UploadMaxSizeBytes = '52428800',
+        [string]$UploadMaxRequestSizeBytes = '57671680',
+        [string]$UploadMaxFilesPerRecord = '20',
+        [string]$UploadConcurrency = '3',
         [string]$UploadAllowedContentTypes = 'image/jpeg,image/png,image/webp,image/gif,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain',
         [string]$AppPublicBaseUrl = '',
         [string]$PasswordResetTokenTtlMinutes = '30',
@@ -197,6 +200,9 @@ RESET_ADMIN_PASSWORD_ON_STARTUP=$ResetAdminPasswordOnStartup
 JWT_SECRET=$JwtSecret
 JWT_TTL_MINUTES=$JwtTtlMinutes
 UPLOAD_MAX_SIZE_BYTES=$UploadMaxSizeBytes
+UPLOAD_MAX_REQUEST_SIZE_BYTES=$UploadMaxRequestSizeBytes
+UPLOAD_MAX_FILES_PER_RECORD=$UploadMaxFilesPerRecord
+UPLOAD_CONCURRENCY=$UploadConcurrency
 UPLOAD_ALLOWED_CONTENT_TYPES=$UploadAllowedContentTypes
 
 APP_PUBLIC_BASE_URL=$AppPublicBaseUrl
@@ -285,7 +291,10 @@ function Write-WorktreeEnvFile {
     $resetAdminPasswordOnStartup = Get-EnvOrExistingValue -Existing $existing -Name 'RESET_ADMIN_PASSWORD_ON_STARTUP' -DefaultValue 'true'
     $jwtSecret = Get-EnvOrExistingValue -Existing $existing -Name 'JWT_SECRET' -DefaultValue 'dev-only-change-this-jwt-secret-at-least-32-bytes'
     $jwtTtlMinutes = Get-EnvOrExistingValue -Existing $existing -Name 'JWT_TTL_MINUTES' -DefaultValue '120'
-    $uploadMaxSizeBytes = Get-EnvOrExistingValue -Existing $existing -Name 'UPLOAD_MAX_SIZE_BYTES' -DefaultValue '5242880'
+    $uploadMaxSizeBytes = Get-EnvOrExistingValue -Existing $existing -Name 'UPLOAD_MAX_SIZE_BYTES' -DefaultValue '52428800'
+    $uploadMaxRequestSizeBytes = Get-EnvOrExistingValue -Existing $existing -Name 'UPLOAD_MAX_REQUEST_SIZE_BYTES' -DefaultValue '57671680'
+    $uploadMaxFilesPerRecord = Get-EnvOrExistingValue -Existing $existing -Name 'UPLOAD_MAX_FILES_PER_RECORD' -DefaultValue '20'
+    $uploadConcurrency = Get-EnvOrExistingValue -Existing $existing -Name 'UPLOAD_CONCURRENCY' -DefaultValue '3'
     $uploadAllowedContentTypes = Get-EnvOrExistingValue -Existing $existing -Name 'UPLOAD_ALLOWED_CONTENT_TYPES' -DefaultValue 'image/jpeg,image/png,image/webp,image/gif,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain'
     $appPublicBaseUrl = Get-EnvOrExistingValue -Existing $existing -Name 'APP_PUBLIC_BASE_URL' -DefaultValue "http://localhost"
     if ($appPublicBaseUrl -eq "http://localhost:$frontendPort") {
@@ -317,6 +326,9 @@ function Write-WorktreeEnvFile {
         -JwtSecret $jwtSecret `
         -JwtTtlMinutes $jwtTtlMinutes `
         -UploadMaxSizeBytes $uploadMaxSizeBytes `
+        -UploadMaxRequestSizeBytes $uploadMaxRequestSizeBytes `
+        -UploadMaxFilesPerRecord $uploadMaxFilesPerRecord `
+        -UploadConcurrency $uploadConcurrency `
         -UploadAllowedContentTypes $uploadAllowedContentTypes `
         -AppPublicBaseUrl $appPublicBaseUrl `
         -PasswordResetTokenTtlMinutes $passwordResetTokenTtlMinutes `

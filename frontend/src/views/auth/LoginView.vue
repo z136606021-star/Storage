@@ -109,18 +109,8 @@ const registerRules = computed<Record<string, Rule[]>>(() => ({
     },
   ],
   email: [
-    {
-      validator: async (_rule, value: string) => {
-        const trimmed = value?.trim()
-        if (!trimmed) {
-          return
-        }
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
-          throw new Error('邮箱格式不正确')
-        }
-      },
-      trigger: 'blur',
-    },
+    { required: true, message: '请输入邮箱', trigger: 'blur' },
+    { type: 'email', message: '邮箱格式不正确', trigger: 'blur' },
   ],
 }))
 
@@ -293,7 +283,7 @@ async function handleRegister() {
       username: registerForm.username.trim(),
       password: registerForm.password,
       displayName: registerForm.displayName.trim(),
-      ...(registerForm.email.trim() ? { email: registerForm.email.trim() } : {}),
+      email: registerForm.email.trim(),
     })
     message.success('注册成功')
     await menu.ensureDynamicRoutes(router)
@@ -461,7 +451,7 @@ async function handleRegister() {
             </a-input>
           </a-form-item>
           <a-form-item name="email">
-            <a-input v-model:value="registerForm.email" size="large" placeholder="邮箱（选填，用于找回密码）" autocomplete="email">
+            <a-input v-model:value="registerForm.email" size="large" placeholder="请输入邮箱（用于找回密码）" autocomplete="email">
               <template #prefix><UserOutlined class="login-form__icon" /></template>
             </a-input>
           </a-form-item>

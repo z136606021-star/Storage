@@ -1,4 +1,4 @@
-import { ref, watch, type Ref } from 'vue'
+import { onActivated, onDeactivated, ref, watch, type Ref } from 'vue'
 import type { RouteLocationNormalizedLoaded, Router } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { fetchMaterialLedgerDetail } from '@/api/warehouse/materialLedger'
@@ -15,6 +15,30 @@ export interface MaterialLedgerDeepLinkConfig {
 export function useMaterialLedgerDeepLink(config: MaterialLedgerDeepLinkConfig) {
   const materialLedgerIdFilter = ref<number | null>(null)
   const materialContext = ref<MaterialLedger | null>(null)
+  const ownerPath = config.route.path
+  let isActive = true
+
+  onActivated(() => {
+    isActive = true
+    const id = parseMaterialLedgerIdFromQuery(config.route.query.materialLedgerId)
+    if (id != null && materialLedgerIdFilter.value !== id) {
+      void applyMaterialLedgerFilter(id)
+      return
+    }
+    if (id == null && materialLedgerIdFilter.value != null) {
+      materialLedgerIdFilter.value = null
+      materialContext.value = null
+      void config.loadData()
+    }
+  })
+
+  onDeactivated(() => {
+    isActive = false
+  })
+
+  function ownsCurrentRoute() {
+    return isActive && config.route.path === ownerPath
+  }
 
   function materialLedgerIdParam(): number | undefined {
     return materialLedgerIdFilter.value ?? undefined
@@ -63,6 +87,9 @@ export function useMaterialLedgerDeepLink(config: MaterialLedgerDeepLinkConfig) 
     watch(
       () => config.route.query.materialLedgerId,
       async (raw) => {
+        if (!ownsCurrentRoute()) {
+          return
+        }
         const id = parseMaterialLedgerIdFromQuery(raw)
         if (id != null) {
           if (materialLedgerIdFilter.value !== id) {

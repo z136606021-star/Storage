@@ -231,6 +231,7 @@ onMounted(async () => {
 
 <template>
   <CrudListPage
+    table-key="design.guide"
     :columns="columns"
     :loading="loading"
     :data-source="dataSource"
@@ -253,8 +254,8 @@ onMounted(async () => {
   >
     <template #filters>
       <a-form layout="inline" class="filter-form">
-        <a-row :gutter="[24, 12]" class="filter-row">
-          <a-col :xs="24" :md="12" :xl="6">
+        <a-row :gutter="[12, 8]" class="filter-row">
+          <a-col :xs="24" :sm="12" :md="8" :lg="6">
             <a-form-item label="产品类型" class="filter-item">
               <a-select
                 v-model:value="queryForm.productTypeId"
@@ -265,7 +266,7 @@ onMounted(async () => {
               />
             </a-form-item>
           </a-col>
-          <a-col :xs="24" :md="12" :xl="6">
+          <a-col :xs="24" :sm="12" :md="8" :lg="6">
             <a-form-item label="项目阶段" class="filter-item">
               <a-select
                 v-model:value="queryForm.stageId"
@@ -276,7 +277,7 @@ onMounted(async () => {
               />
             </a-form-item>
           </a-col>
-          <a-col :xs="24" :md="12" :xl="6">
+          <a-col :xs="24" :sm="12" :md="8" :lg="6">
             <a-form-item label="检查项" class="filter-item">
               <a-input
                 v-model:value="queryForm.checkItem"
@@ -287,7 +288,7 @@ onMounted(async () => {
               />
             </a-form-item>
           </a-col>
-          <a-col :xs="24" :md="12" :xl="6">
+          <a-col :xs="24" :sm="12" :md="8" :lg="6">
             <a-form-item label="适用范围" class="filter-item">
               <a-select
                 v-model:value="queryForm.scope"
@@ -298,8 +299,9 @@ onMounted(async () => {
               />
             </a-form-item>
           </a-col>
-          <a-col :span="24" class="filter-actions-col">
-            <a-space class="filter-actions">
+          <a-col :xs="24" :sm="24" :md="24" :lg="24" class="filter-actions-col">
+            <a-form-item class="filter-item filter-actions">
+              <a-space>
               <a-button type="primary" @click="handleSearch">
                 <template #icon><SearchOutlined /></template>
                 查询
@@ -308,7 +310,8 @@ onMounted(async () => {
                 <template #icon><ReloadOutlined /></template>
                 重置
               </a-button>
-            </a-space>
+              </a-space>
+            </a-form-item>
           </a-col>
         </a-row>
       </a-form>
@@ -400,8 +403,4 @@ onMounted(async () => {
 
 <style scoped lang="less">
 @import '@/styles/variables.less';
-
-.filter-form {
-  width: 100%;
-}
 </style>

@@ -280,7 +280,15 @@ public class WarehouseBomServiceImpl extends ServiceImpl<WarehouseBomMapper, War
         if (StringUtils.hasText(dto.getImageObjectKey())) {
             keys.add(dto.getImageObjectKey().trim());
         }
-        return new ArrayList<>(keys);
+        List<String> objectKeys = new ArrayList<>(keys);
+        int maxFiles = fileStorageService.uploadPolicy().getMaxFilesPerRecord();
+        if (objectKeys.size() > maxFiles) {
+            throw new BusinessException("图片数量不能超过" + maxFiles + "张");
+        }
+        for (String objectKey : objectKeys) {
+            fileStorageService.assertImageFile(objectKey);
+        }
+        return objectKeys;
     }
 
     private String resolvePrimaryImageObjectKey(WarehouseBomSaveDTO dto) {

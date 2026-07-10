@@ -255,6 +255,7 @@ onMounted(async () => {
 
 <template>
   <CrudListPage
+    table-key="experience.library"
     :columns="columns"
     :loading="loading"
     :data-source="dataSource"
@@ -281,8 +282,8 @@ onMounted(async () => {
   >
     <template #filters>
       <a-form layout="inline" class="filter-form">
-        <a-row :gutter="[24, 12]" class="filter-row">
-          <a-col :span="7">
+        <a-row :gutter="[12, 8]" class="filter-row">
+          <a-col :xs="24" :sm="12" :md="8" :lg="6">
             <a-form-item label="类型" class="filter-item">
               <a-select
                 v-model:value="queryForm.typeId"
@@ -293,7 +294,7 @@ onMounted(async () => {
               />
             </a-form-item>
           </a-col>
-          <a-col :span="7">
+          <a-col :xs="24" :sm="12" :md="8" :lg="6">
             <a-form-item label="模糊查找" class="filter-item">
               <a-input
                 v-model:value="queryForm.keyword"
@@ -304,7 +305,7 @@ onMounted(async () => {
               />
             </a-form-item>
           </a-col>
-          <a-col :span="7">
+          <a-col :xs="24" :sm="12" :md="8" :lg="6">
             <a-form-item label="记录人" class="filter-item">
               <a-select
                 v-model:value="queryForm.recorderName"
@@ -317,22 +318,24 @@ onMounted(async () => {
               />
             </a-form-item>
           </a-col>
-          <a-col :span="10">
+          <a-col :xs="24" :sm="12" :md="8" :lg="6">
             <a-form-item label="记录时间" class="filter-item">
               <a-range-picker v-model:value="queryForm.recordedRange" class="filter-control" />
             </a-form-item>
           </a-col>
-          <a-col :span="8" class="filter-actions-col">
-            <a-space class="filter-actions">
-              <a-button type="primary" @click="handleSearch">
-                <template #icon><SearchOutlined /></template>
-                查询
-              </a-button>
-              <a-button @click="handleReset">
-                <template #icon><ReloadOutlined /></template>
-                重置
-              </a-button>
-            </a-space>
+          <a-col :xs="24" :sm="24" :md="24" :lg="24" class="filter-actions-col">
+            <a-form-item class="filter-item filter-actions">
+              <a-space>
+                <a-button type="primary" @click="handleSearch">
+                  <template #icon><SearchOutlined /></template>
+                  查询
+                </a-button>
+                <a-button @click="handleReset">
+                  <template #icon><ReloadOutlined /></template>
+                  重置
+                </a-button>
+              </a-space>
+            </a-form-item>
           </a-col>
         </a-row>
       </a-form>
@@ -452,10 +455,6 @@ onMounted(async () => {
 
 <style scoped lang="less">
 @import '@/styles/variables.less';
-
-.filter-form {
-  width: 100%;
-}
 
 .detail-text {
   white-space: pre-wrap;

@@ -12,7 +12,11 @@ import java.util.List;
 @ConfigurationProperties(prefix = "storage.file-upload")
 public class FileUploadProperties {
 
-    private long maxSizeBytes = 5 * 1024 * 1024;
+    private long maxSizeBytes = 50L * 1024 * 1024;
+
+    private int maxFilesPerRecord = 20;
+
+    private int uploadConcurrency = 3;
 
     private List<String> allowedContentTypes = new ArrayList<>();
 }

@@ -1,16 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { ALL_OPTION } from '@/constants/filter'
 import { buildMaterialQueryParams } from '@/utils/warehouseMaterialTable'
 
 describe('buildMaterialQueryParams', () => {
-  it('omits all-option filters so empty params mean all records', () => {
+  it('omits blank filters so empty params mean all records', () => {
     expect(buildMaterialQueryParams({
-      category: ALL_OPTION,
-      genericName: ALL_OPTION,
-      brand: ALL_OPTION,
+      category: undefined,
+      genericName: undefined,
+      brand: undefined,
       name: '  ',
-      model: ALL_OPTION,
-      binLocation: ALL_OPTION,
+      model: undefined,
+      binLocation: undefined,
     })).toEqual({
       category: undefined,
       genericName: undefined,
@@ -18,6 +17,24 @@ describe('buildMaterialQueryParams', () => {
       name: undefined,
       model: undefined,
       binLocation: undefined,
+    })
+  })
+
+  it('treats legacy 全部 option as a concrete filter value', () => {
+    expect(buildMaterialQueryParams({
+      category: '全部',
+      genericName: '全部',
+      brand: '全部',
+      name: '',
+      model: '全部',
+      binLocation: '全部',
+    })).toEqual({
+      category: '全部',
+      genericName: '全部',
+      brand: '全部',
+      name: undefined,
+      model: '全部',
+      binLocation: '全部',
     })
   })
 

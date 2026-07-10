@@ -6,14 +6,21 @@ import com.storage.warehouse.entity.WarehouseBin;
 import com.storage.warehouse.mapper.WarehouseBinMapper;
 import com.storage.warehouse.dto.MaterialQueryDTO;
 import com.storage.warehouse.dto.MaterialSaveDTO;
+import com.storage.warehouse.mapper.MaterialIoRecordMapper;
 import com.storage.warehouse.mapper.MaterialLedgerMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static com.storage.warehouse.query.MaterialLedgerQueryBuilder.STOCK_STATUS_IN_STOCK;
+import static com.storage.warehouse.query.MaterialLedgerQueryBuilder.STOCK_STATUS_ZERO_STOCK;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -29,10 +36,14 @@ class MaterialLedgerServiceIntegrationTest {
     private WarehouseBomMapper warehouseBomMapper;
 
     @Autowired
+    private MaterialIoRecordMapper materialIoRecordMapper;
+
+    @Autowired
     private MaterialLedgerMapper materialLedgerMapper;
 
     @BeforeEach
     void setUp() {
+        materialIoRecordMapper.delete(null);
         materialLedgerMapper.delete(null);
         warehouseBomMapper.delete(null);
         warehouseBinMapper.delete(null);
@@ -46,6 +57,8 @@ class MaterialLedgerServiceIntegrationTest {
 
         insertBom("耗材", "测试品");
         insertBom("耗材", "测试品A");
+        insertBom("耗材", "零库存测试品");
+        insertBom("耗材", "有库存测试品");
         insertBom("电子", "测试品B");
     }
 
@@ -98,6 +111,92 @@ class MaterialLedgerServiceIntegrationTest {
 
         assertThat(page.getRecords()).hasSize(1);
         assertThat(page.getRecords().get(0).getName()).isEqualTo("测试品");
+    }
+
+    @Test
+    void page_filtersByInStockStatus() {
+        createLedger("零库存测试品", "耗材", "1-1-1");
+        var inStock = createLedger("有库存测试品", "耗材", "1-1-1");
+        inStock.setStockQuantity(10);
+        materialLedgerMapper.updateById(inStock);
+
+        MaterialQueryDTO query = new MaterialQueryDTO();
+        query.setStockStatus(STOCK_STATUS_IN_STOCK);
+        query.setPage(1);
+        query.setPageSize(10);
+
+        var page = materialLedgerService.page(query);
+
+        assertThat(page.getRecords()).hasSize(1);
+        assertThat(page.getRecords().get(0).getId()).isEqualTo(inStock.getId());
+        assertThat(page.getRecords().get(0).getStockQuantity()).isEqualTo(10);
+        assertThat(page.getRecords().get(0).getName()).isEqualTo("有库存测试品");
+    }
+
+    @Test
+    void page_filtersByZeroStockStatus() {
+        var zeroStock = createLedger("零库存测试品", "耗材", "1-1-1");
+        var inStock = createLedger("有库存测试品", "耗材", "1-1-1");
+        inStock.setStockQuantity(10);
+        materialLedgerMapper.updateById(inStock);
+
+        MaterialQueryDTO query = new MaterialQueryDTO();
+        query.setStockStatus(STOCK_STATUS_ZERO_STOCK);
+        query.setPage(1);
+        query.setPageSize(10);
+
+        var page = materialLedgerService.page(query);
+
+        assertThat(page.getRecords()).hasSize(1);
+        assertThat(page.getRecords().get(0).getId()).isEqualTo(zeroStock.getId());
+        assertThat(page.getRecords().get(0).getStockQuantity()).isZero();
+    }
+
+    @ParameterizedTest
+    @NullAndEmptySource
+    @ValueSource(strings = {"  ", "\t"})
+    void page_withoutStockFilter_returnsAllRecords(String stockStatus) {
+        createLedger("零库存测试品", "耗材", "1-1-1");
+        var inStock = createLedger("有库存测试品", "耗材", "1-1-1");
+        inStock.setStockQuantity(10);
+        materialLedgerMapper.updateById(inStock);
+
+        MaterialQueryDTO query = new MaterialQueryDTO();
+        query.setStockStatus(stockStatus);
+        query.setPage(1);
+        query.setPageSize(10);
+
+        var page = materialLedgerService.page(query);
+
+        assertThat(page.getRecords()).hasSize(2);
+    }
+
+    @Test
+    void listByQuery_appliesStockStatusForExportPath() {
+        createLedger("零库存测试品", "耗材", "1-1-1");
+        var inStock = createLedger("有库存测试品", "耗材", "1-1-1");
+        inStock.setStockQuantity(10);
+        materialLedgerMapper.updateById(inStock);
+
+        MaterialQueryDTO query = new MaterialQueryDTO();
+        query.setStockStatus(STOCK_STATUS_IN_STOCK);
+
+        var records = materialLedgerService.listByQuery(query);
+
+        assertThat(records).hasSize(1);
+        assertThat(records.get(0).getName()).isEqualTo("有库存测试品");
+    }
+
+    @Test
+    void page_rejectsInvalidStockStatus() {
+        MaterialQueryDTO query = new MaterialQueryDTO();
+        query.setStockStatus("INVALID");
+        query.setPage(1);
+        query.setPageSize(10);
+
+        assertThatThrownBy(() -> materialLedgerService.page(query))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("库存状态无效");
     }
 
     @Test

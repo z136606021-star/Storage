@@ -1,6 +1,7 @@
 package com.storage.warehouse.service;
 
 import com.storage.warehouse.entity.MaterialLedger;
+import com.storage.warehouse.mapper.MaterialIoRecordMapper;
 import com.storage.warehouse.mapper.MaterialLedgerMapper;
 import com.storage.warehouse.dto.SafetyStockQueryDTO;
 import com.storage.warehouse.dto.SafetyStockRecordVO;
@@ -15,6 +16,7 @@ import org.springframework.test.context.ActiveProfiles;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -22,6 +24,9 @@ class SafetyStockServiceIntegrationTest {
 
     @Autowired
     private SafetyStockService safetyStockService;
+
+    @Autowired
+    private MaterialIoRecordMapper materialIoRecordMapper;
 
     @Autowired
     private MaterialLedgerMapper materialLedgerMapper;
@@ -35,6 +40,7 @@ class SafetyStockServiceIntegrationTest {
 
     @BeforeEach
     void setUp() {
+        materialIoRecordMapper.delete(null);
         safetyStockMapper.delete(null);
         materialLedgerMapper.delete(null);
 
@@ -140,6 +146,17 @@ class SafetyStockServiceIntegrationTest {
         List<SafetyStockRecordVO> records = safetyStockService.listByQuery(query);
         assertThat(records).extracting(SafetyStockRecordVO::getMaterialLedgerId)
                 .containsExactly(lowStockLedgerId);
+    }
+
+    @Test
+    void page_rejectsInvalidWarningPeriod() {
+        SafetyStockQueryDTO query = new SafetyStockQueryDTO();
+        query.setWarningPeriod("INVALID");
+
+        assertThatThrownBy(() -> safetyStockService.page(query))
+                .getRootCause()
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("预警状态无效");
     }
 
     private void upsert(Long ledgerId, int safetyQuantity) {
