@@ -16,6 +16,8 @@ class FlywayMigrationHistoryTest {
     private static final int PUBLISHED_V001_CHECKSUM = 311517955;
     private static final String V001 = "db/migration/V001__baseline_schema.sql";
     private static final String V007 = "db/migration/V007__material_ledger_natural_key_unique.sql";
+    private static final String V013 = "db/migration/V013__optimize_navigation_hierarchy.sql";
+    private static final String V017 = "db/migration/V017__flatten_system_management_menus.sql";
 
     @Test
     void publishedBaselineMigration_keepsOriginalFlywayChecksum() {
@@ -31,6 +33,26 @@ class FlywayMigrationHistoryTest {
 
         assertThat(baselineSql).doesNotContain("uk_material_ledger_natural_key");
         assertThat(incrementalSql).contains("uk_material_ledger_natural_key");
+    }
+
+    @Test
+    void systemMenuFlattenMigration_restoresSiblingRoutesUnderCatalog200() {
+        String migrationSql = readResource(V013);
+
+        assertThat(migrationSql).contains("WHERE id = 202");
+        assertThat(migrationSql).contains("path = '/system/roles'");
+        assertThat(migrationSql).contains("component_key = 'views/system/UserManageView.vue'");
+    }
+
+    @Test
+    void systemMenuFlattenMigration_reappliesFlatRoutesByMenuId() {
+        String migrationSql = readResource(V017);
+
+        assertThat(migrationSql).contains("WHERE id = 201");
+        assertThat(migrationSql).contains("WHERE id = 202");
+        assertThat(migrationSql).contains("WHERE id = 203");
+        assertThat(migrationSql).contains("WHERE id = 204");
+        assertThat(migrationSql).contains("path = '/system/customers'");
     }
 
     private static String readResource(String path) {

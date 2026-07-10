@@ -312,7 +312,18 @@ INSERT INTO sys_menu (id, parent_id, name, permission, path, component_key, sort
 (8, NULL, '经验库写', 'platform:experience:write', NULL, NULL, 51, 0),
 (9, NULL, '文件上传', 'platform:file:upload', NULL, NULL, 52, 0),
 (10, NULL, '设计指引', 'platform:design:read', '/platform/design', 'views/design/DesignGuideView.vue', 60, 1),
-(11, NULL, '设计指引写', 'platform:design:write', NULL, NULL, 61, 0);
+(11, NULL, '设计指引写', 'platform:design:write', NULL, NULL, 61, 0),
+(200, NULL, '系统管理', NULL, NULL, NULL, 90, 1),
+(201, 200, '用户管理', 'system:user:read', '/system/users', 'views/system/UserManageView.vue', 10, 1),
+(202, 200, '角色管理', 'system:role:read', '/system/roles', 'components/system/RoleManagePanel.vue', 20, 1),
+(203, 200, '菜单管理', 'system:menu:read', '/system/menus', 'components/system/MenuManagePanel.vue', 30, 1),
+(204, 200, '客户管理', 'system:customer:read', '/system/customers', 'views/system/CustomerManageView.vue', 40, 1),
+(214, NULL, '用户写', 'system:user:write', NULL, NULL, 214, 0),
+(224, NULL, '角色写', 'system:role:write', NULL, NULL, 224, 0),
+(234, NULL, '菜单写', 'system:menu:write', NULL, NULL, 234, 0),
+(244, NULL, '客户写', 'system:customer:write', NULL, NULL, 244, 0);
+
+UPDATE sys_menu SET menu_type = 'CATALOG' WHERE id = 200;
 
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 (1, 1),
@@ -326,6 +337,15 @@ INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 (1, 9),
 (1, 10),
 (1, 11),
+(1, 200),
+(1, 201),
+(1, 202),
+(1, 203),
+(1, 204),
+(1, 214),
+(1, 224),
+(1, 234),
+(1, 244),
 (2, 1);
 
 INSERT INTO experience_type (id, name, status, sort_order) VALUES

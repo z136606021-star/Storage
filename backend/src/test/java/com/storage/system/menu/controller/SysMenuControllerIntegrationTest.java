@@ -111,6 +111,32 @@ class SysMenuControllerIntegrationTest {
         assertThat(response).contains("\"key\":\"6\"");
     }
 
+    @Test
+    void navTree_returnsFlatSystemManagementMenus() throws Exception {
+        String token = loginAsAdmin("menuadmin5");
+
+        String response = mockMvc.perform(get("/api/menus/nav-tree")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        var root = objectMapper.readTree(response);
+        var catalogNode = root.findParents("key").stream()
+                .filter(node -> "200".equals(node.get("key").asText()))
+                .findFirst()
+                .orElseThrow();
+        var children = catalogNode.get("children");
+        assertThat(children).isNotNull();
+        assertThat(children).hasSize(4);
+        assertThat(children.findValuesAsText("key")).containsExactlyInAnyOrder("201", "202", "203", "204");
+        for (var child : children) {
+            assertThat(child.hasNonNull("children")).isFalse();
+            assertThat(child.get("path").asText()).startsWith("/system/");
+        }
+    }
+
     private String loginAsAdmin(String username) throws Exception {
         SysUser user = new SysUser();
         user.setUsername(username);

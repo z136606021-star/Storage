@@ -16,6 +16,7 @@ describe('route component resolver', () => {
 
   it('resolves existing views and rejects non-menu module keys', () => {
     expect(resolveRouteComponent('views/warehouse/MaterialLedgerView.vue')).toEqual(expect.any(Function))
+    expect(resolveRouteComponent('views/system/CustomerManageView.vue')).toEqual(expect.any(Function))
     expect(resolveRouteComponent('MaterialLedger')).toBeNull()
     expect(resolveRouteComponent('views/warehouse/UnknownView.vue')).toBeNull()
   })

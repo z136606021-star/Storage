@@ -109,6 +109,14 @@ describe('menu store dynamic routes', () => {
           componentKey: MENU_MANAGE_COMPONENT,
           visible: 1,
         },
+        {
+          key: '204',
+          label: '客户管理',
+          path: '/system/customers',
+          permission: 'system:customer:read',
+          componentKey: 'views/system/CustomerManageView.vue',
+          visible: 1,
+        },
       ] satisfies NavMenuNode[],
     } as never)
     const router = createTestRouter()
@@ -119,11 +127,14 @@ describe('menu store dynamic routes', () => {
     expect(router.hasRoute('UserManage')).toBe(true)
     expect(router.hasRoute('RoleManage')).toBe(true)
     expect(router.hasRoute('MenuManage')).toBe(true)
+    expect(router.hasRoute('DynamicMenu204')).toBe(true)
     expect(router.resolve('/system/users').matched.some((record) => record.name === 'UserManage')).toBe(true)
     expect(router.resolve('/system/roles').matched.some((record) => record.name === 'RoleManage')).toBe(true)
     expect(router.resolve('/system/menus').matched.some((record) => record.name === 'MenuManage')).toBe(true)
+    expect(router.resolve('/system/customers').matched.some((record) => record.name === 'DynamicMenu204')).toBe(true)
     expect(menu.findRouteByPermission('system:user:read')?.path).toBe('/system/users')
     expect(menu.findRouteByPermission('system:role:read')?.path).toBe('/system/roles')
+    expect(menu.findRouteByPermission('system:customer:read')?.path).toBe('/system/customers')
   })
 
   it('skips menu routes without path instead of throwing during registration', async () => {
