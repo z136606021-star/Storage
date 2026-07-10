@@ -44,50 +44,20 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
           cache: maven
-      - name: Flyway migrate dev path and validate
+      - name: Flyway migrate and validate
         working-directory: backend
         run: |
           mvn -q flyway:migrate flyway:validate \
             -Dflyway.url="jdbc:mysql://localhost:3306/storage?useUnicode=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_unicode_ci&serverTimezone=UTC" \
             -Dflyway.user=storage \
-            -Dflyway.password=storage123 \
-            -DloadDemoData=true
-      - name: Verify dev path keeps demo business data
+            -Dflyway.password=storage123
+      - name: Verify runtime database has no demo business data
         run: |
           docker run --rm --network host mysql:8.0 \
             mysql -h 127.0.0.1 -ustorage -pstorage123 storage -e "
-              SELECT 'sys_user' AS table_name, COUNT(*) AS row_count FROM sys_user;
-              SELECT 'sys_menu' AS table_name, COUNT(*) AS row_count FROM sys_menu;
-              SELECT 'material_ledger' AS table_name, COUNT(*) AS row_count FROM material_ledger;
-              SELECT 'design_guide' AS table_name, COUNT(*) AS row_count FROM design_guide;
-              SELECT 'experience_type' AS table_name, COUNT(*) AS row_count FROM experience_type;
-            " | tee /tmp/flyway-dev-counts.txt
-          grep -q 'material_ledger.*15' /tmp/flyway-dev-counts.txt
-          grep -q 'design_guide.*9' /tmp/flyway-dev-counts.txt
-          grep -q 'experience_type.*3' /tmp/flyway-dev-counts.txt
-      - name: Prepare prod-like database
-        run: |
-          docker run --rm --network host mysql:8.0 \
-            mysql -h 127.0.0.1 -uroot -proot123 -e "
-              DROP DATABASE IF EXISTS storage_prod;
-              CREATE DATABASE storage_prod CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-              GRANT ALL PRIVILEGES ON storage_prod.* TO 'storage'@'%';
-              FLUSH PRIVILEGES;
-            "
-      - name: Flyway migrate prod path
-        working-directory: backend
-        run: |
-          mvn -q flyway:migrate flyway:validate \
-            -Dflyway.url="jdbc:mysql://localhost:3306/storage_prod?useUnicode=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_unicode_ci&serverTimezone=UTC" \
-            -Dflyway.user=storage \
-            -Dflyway.password=storage123 \
-            -DloadDemoData=false
-      - name: Verify prod path strips demo business data but keeps bootstrap metadata
-        run: |
-          docker run --rm --network host mysql:8.0 \
-            mysql -h 127.0.0.1 -ustorage -pstorage123 storage_prod -e "
-              SELECT installed_rank, version, description, type, success
+              SELECT version, description, success
               FROM flyway_schema_history
+              WHERE version IN ('018', '019')
               ORDER BY installed_rank;
               SELECT 'sys_user' AS table_name, COUNT(*) AS row_count FROM sys_user;
               SELECT 'sys_menu' AS table_name, COUNT(*) AS row_count FROM sys_menu;
@@ -98,15 +68,16 @@ jobs:
               SELECT 'design_product_type' AS table_name, COUNT(*) AS row_count FROM design_product_type;
               SELECT 'design_stage' AS table_name, COUNT(*) AS row_count FROM design_stage;
               SELECT 'experience_type' AS table_name, COUNT(*) AS row_count FROM experience_type;
-            " | tee /tmp/flyway-prod-counts.txt
-          grep -q 'sys_user.*1' /tmp/flyway-prod-counts.txt
-          grep -q 'material_ledger.*0' /tmp/flyway-prod-counts.txt
-          grep -q 'warehouse_bin.*0' /tmp/flyway-prod-counts.txt
-          grep -q 'warehouse_bom.*0' /tmp/flyway-prod-counts.txt
-          grep -q 'design_guide.*0' /tmp/flyway-prod-counts.txt
-          grep -q 'design_product_type.*0' /tmp/flyway-prod-counts.txt
-          grep -q 'design_stage.*0' /tmp/flyway-prod-counts.txt
-          grep -q 'experience_type.*0' /tmp/flyway-prod-counts.txt
+            " | tee /tmp/flyway-counts.txt
+          grep -q '019.*strip pristine demo data unconditionally' /tmp/flyway-counts.txt
+          grep -q 'sys_user.*1' /tmp/flyway-counts.txt
+          grep -q 'material_ledger.*0' /tmp/flyway-counts.txt
+          grep -q 'warehouse_bin.*0' /tmp/flyway-counts.txt
+          grep -q 'warehouse_bom.*0' /tmp/flyway-counts.txt
+          grep -q 'design_guide.*0' /tmp/flyway-counts.txt
+          grep -q 'design_product_type.*0' /tmp/flyway-counts.txt
+          grep -q 'design_stage.*0' /tmp/flyway-counts.txt
+          grep -q 'experience_type.*0' /tmp/flyway-counts.txt
 
   frontend-test:
     runs-on: ubuntu-latest

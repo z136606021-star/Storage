@@ -98,12 +98,12 @@ powershell -ExecutionPolicy Bypass -File .\scripts\sync-worktree-env.ps1
 
 将自动创建 `storage` 数据库；**表结构与系统初始化数据由后端启动时 Flyway 迁移**（`backend/src/main/resources/db/migration/`），首次启动会执行 `V001__baseline_schema.sql` 并写入 `flyway_schema_history`。
 
-**业务演示数据按环境开关控制**：
+**运行时业务数据不自动注入**：
 
-- 本地 / dev Compose：`LOAD_DEMO_DATA=true`（默认），保留仓库、设计指引、经验库等模拟数据，便于联调与手工测试。
-- 生产 Compose：`LOAD_DEMO_DATA=false`，`V018__strip_pristine_demo_data_when_disabled.sql` 仅在数据库仍处于历史纯种子快照时自动清空业务演示数据；admin、菜单、权限等系统启动数据保留。
-- 已有生产卷且已录入真实业务数据时，后续发版不会清空业务表；V018 只在“仍是纯种子、且 LOAD_DEMO_DATA=false”时生效一次。
-- 单元 / 集成测试继续使用 H2 + `schema-test.sql`，不受 `LOAD_DEMO_DATA` 影响。
+- 所有运行环境（本地、worktree、生产）初始化后，仓库、设计指引、经验库等业务表均为空；台账、Bin、BOM、设计指引、经验类型等需由人员录入或通过导入功能维护。
+- `V018` / `V019` 会在数据库仍处于历史纯种子快照时自动移除 Flyway 遗留的演示 INSERT；admin、菜单、权限等系统启动数据保留。
+- 已有真实业务数据的数据库升级时不会被清空；若库中仍混有历史演示数据且已不满足纯种子条件，需人工识别并清理。
+- 单元 / 集成测试继续使用 H2 + `schema-test.sql` 独立夹具，不受运行时迁移清理影响。
 
 **Git worktree 端口分配**（逻辑库名均为 `storage`，隔离靠端口 + 独立 Docker 卷）：
 
@@ -148,9 +148,8 @@ powershell -ExecutionPolicy Bypass -File .\scripts\sync-worktree-env.ps1
 - `APP_PUBLIC_BASE_URL`：忘记密码邮件链接使用的外部访问地址；base/prod 默认为 Nginx 入口 `http://localhost` 或真实域名，dev compose 会覆盖为 `http://localhost:${FRONTEND_PORT}`
 - `JWT_SECRET`：JWT HMAC 签名密钥（本地默认仅用于开发，生产必须改为部署侧强密钥）
 - `JWT_TTL_MINUTES`：JWT access token 有效期分钟数（默认 `120`）
-- `LOAD_DEMO_DATA`：是否保留 Flyway 写入的业务演示数据；dev 默认 `true`，生产 Compose 强制 `false`
 
-`sync-worktree-env.ps1` / `sync-worktree-env.sh` 会按分支重写 MySQL/MinIO 端口、容器名和卷名，但会保留已有 `.env` 或当前进程中的数据库/MinIO 凭据、`BACKEND_PORT` / `FRONTEND_PORT` / `VITE_API_PROXY` / `SESSION_COOKIE_*` / `RESET_ADMIN_PASSWORD_ON_STARTUP` / `LOAD_DEMO_DATA` / `JWT_*` / `UPLOAD_*` / `APP_PUBLIC_BASE_URL` / `PASSWORD_RESET_TOKEN_TTL_MINUTES` / `MAIL_*`，便于本地避开端口冲突和使用自定义本地密码。
+`sync-worktree-env.ps1` / `sync-worktree-env.sh` 会按分支重写 MySQL/MinIO 端口、容器名和卷名，但会保留已有 `.env` 或当前进程中的数据库/MinIO 凭据、`BACKEND_PORT` / `FRONTEND_PORT` / `VITE_API_PROXY` / `SESSION_COOKIE_*` / `RESET_ADMIN_PASSWORD_ON_STARTUP` / `JWT_*` / `UPLOAD_*` / `APP_PUBLIC_BASE_URL` / `PASSWORD_RESET_TOKEN_TTL_MINUTES` / `MAIL_*`，便于本地避开端口冲突和使用自定义本地密码。
 
 ### 部署交付核验
 
