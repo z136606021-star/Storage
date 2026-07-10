@@ -148,6 +148,7 @@ function Format-WorktreeEnvContent {
         [string]$SessionCookieHttpOnly = 'true',
         [string]$SessionCookieSecure = 'false',
         [string]$ResetAdminPasswordOnStartup = 'true',
+        [string]$LoadDemoData = 'true',
         [string]$JwtSecret = 'dev-only-change-this-jwt-secret-at-least-32-bytes',
         [string]$JwtTtlMinutes = '120',
         [string]$UploadMaxSizeBytes = '52428800',
@@ -197,6 +198,7 @@ VITE_API_PROXY=$ViteApiProxy
 SESSION_COOKIE_HTTP_ONLY=$SessionCookieHttpOnly
 SESSION_COOKIE_SECURE=$SessionCookieSecure
 RESET_ADMIN_PASSWORD_ON_STARTUP=$ResetAdminPasswordOnStartup
+LOAD_DEMO_DATA=$LoadDemoData
 JWT_SECRET=$JwtSecret
 JWT_TTL_MINUTES=$JwtTtlMinutes
 UPLOAD_MAX_SIZE_BYTES=$UploadMaxSizeBytes
@@ -289,6 +291,7 @@ function Write-WorktreeEnvFile {
     $sessionCookieHttpOnly = Get-EnvOrExistingValue -Existing $existing -Name 'SESSION_COOKIE_HTTP_ONLY' -DefaultValue 'true'
     $sessionCookieSecure = Get-EnvOrExistingValue -Existing $existing -Name 'SESSION_COOKIE_SECURE' -DefaultValue 'false'
     $resetAdminPasswordOnStartup = Get-EnvOrExistingValue -Existing $existing -Name 'RESET_ADMIN_PASSWORD_ON_STARTUP' -DefaultValue 'true'
+    $loadDemoData = Get-EnvOrExistingValue -Existing $existing -Name 'LOAD_DEMO_DATA' -DefaultValue 'true'
     $jwtSecret = Get-EnvOrExistingValue -Existing $existing -Name 'JWT_SECRET' -DefaultValue 'dev-only-change-this-jwt-secret-at-least-32-bytes'
     $jwtTtlMinutes = Get-EnvOrExistingValue -Existing $existing -Name 'JWT_TTL_MINUTES' -DefaultValue '120'
     $uploadMaxSizeBytes = Get-EnvOrExistingValue -Existing $existing -Name 'UPLOAD_MAX_SIZE_BYTES' -DefaultValue '52428800'
@@ -323,6 +326,7 @@ function Write-WorktreeEnvFile {
         -SessionCookieHttpOnly $sessionCookieHttpOnly `
         -SessionCookieSecure $sessionCookieSecure `
         -ResetAdminPasswordOnStartup $resetAdminPasswordOnStartup `
+        -LoadDemoData $loadDemoData `
         -JwtSecret $jwtSecret `
         -JwtTtlMinutes $jwtTtlMinutes `
         -UploadMaxSizeBytes $uploadMaxSizeBytes `

@@ -24,6 +24,7 @@
         <mapstruct.version>1.6.3</mapstruct.version>
         <lombok.version>1.18.36</lombok.version>
         <shiro.version>2.0.2</shiro.version>
+        <loadDemoData>true</loadDemoData>
     </properties>
 
     <dependencies>
@@ -195,6 +196,9 @@
                         <location>classpath:db/migration</location>
                     </locations>
                     <encoding>UTF-8</encoding>
+                    <placeholders>
+                        <loadDemoData>${loadDemoData}</loadDemoData>
+                    </placeholders>
                 </configuration>
             </plugin>
         </plugins>

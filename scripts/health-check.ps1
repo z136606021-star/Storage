@@ -108,7 +108,7 @@ if ($profile) {
         $mysqlArgs = @(
             'exec', '-e', "MYSQL_PWD=$mysqlPassword", $profile.MysqlContainer,
             'mysql', "-u$mysqlUser", '--default-character-set=utf8mb4',
-            $mysqlDb, '-N', '-e', "SELECT CONCAT(category, '|', name) FROM material_ledger LIMIT 1;"
+            $mysqlDb, '-N', '-e', "SELECT name FROM sys_menu WHERE id = 111 LIMIT 1;"
         )
         $sample = docker @mysqlArgs 2>$null
         $chineseOk = $LASTEXITCODE -eq 0 -and $sample -and ($sample -notmatch '\?')

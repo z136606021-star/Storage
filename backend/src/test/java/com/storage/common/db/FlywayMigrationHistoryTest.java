@@ -18,6 +18,7 @@ class FlywayMigrationHistoryTest {
     private static final String V007 = "db/migration/V007__material_ledger_natural_key_unique.sql";
     private static final String V013 = "db/migration/V013__optimize_navigation_hierarchy.sql";
     private static final String V017 = "db/migration/V017__flatten_system_management_menus.sql";
+    private static final String V018 = "db/migration/V018__strip_pristine_demo_data_when_disabled.sql";
 
     @Test
     void publishedBaselineMigration_keepsOriginalFlywayChecksum() {
@@ -53,6 +54,20 @@ class FlywayMigrationHistoryTest {
         assertThat(migrationSql).contains("WHERE id = 203");
         assertThat(migrationSql).contains("WHERE id = 204");
         assertThat(migrationSql).contains("path = '/system/customers'");
+    }
+
+    @Test
+    void demoDataCleanupMigration_isGuardedByLoadDemoDataPlaceholder() {
+        String migrationSql = readResource(V018);
+
+        assertThat(migrationSql).contains("${loadDemoData}");
+        assertThat(migrationSql).contains("@strip_pristine_demo");
+        assertThat(migrationSql).contains("DELETE FROM material_ledger");
+        assertThat(migrationSql).contains("DELETE FROM design_guide");
+        assertThat(migrationSql).contains("DELETE FROM experience_type");
+        assertThat(migrationSql).doesNotContain("DELETE FROM sys_user");
+        assertThat(migrationSql).doesNotContain("DELETE FROM sys_menu");
+        assertThat(migrationSql).doesNotContain("DELETE FROM sys_role");
     }
 
     private static String readResource(String path) {

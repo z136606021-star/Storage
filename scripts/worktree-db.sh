@@ -228,6 +228,7 @@ write_worktree_env_file() {
   session_cookie_http_only="$(env_or_existing SESSION_COOKIE_HTTP_ONLY true "$env_path")"
   session_cookie_secure="$(env_or_existing SESSION_COOKIE_SECURE false "$env_path")"
   reset_admin_password_on_startup="$(env_or_existing RESET_ADMIN_PASSWORD_ON_STARTUP true "$env_path")"
+  load_demo_data="$(env_or_existing LOAD_DEMO_DATA true "$env_path")"
   jwt_secret="$(env_or_existing JWT_SECRET "dev-only-change-this-jwt-secret-at-least-32-bytes" "$env_path")"
   jwt_ttl_minutes="$(env_or_existing JWT_TTL_MINUTES 120 "$env_path")"
   upload_max_size_bytes="$(env_or_existing UPLOAD_MAX_SIZE_BYTES 52428800 "$env_path")"
@@ -272,6 +273,7 @@ VITE_API_PROXY=$vite_api_proxy
 SESSION_COOKIE_HTTP_ONLY=$session_cookie_http_only
 SESSION_COOKIE_SECURE=$session_cookie_secure
 RESET_ADMIN_PASSWORD_ON_STARTUP=$reset_admin_password_on_startup
+LOAD_DEMO_DATA=$load_demo_data
 JWT_SECRET=$jwt_secret
 JWT_TTL_MINUTES=$jwt_ttl_minutes
 UPLOAD_MAX_SIZE_BYTES=$upload_max_size_bytes

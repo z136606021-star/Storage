@@ -47,6 +47,7 @@ services:
       MINIO_ENDPOINT: http://minio:9000
       BACKEND_PORT: 8080
       RESET_ADMIN_PASSWORD_ON_STARTUP: ${RESET_ADMIN_PASSWORD_ON_STARTUP:-false}
+      LOAD_DEMO_DATA: "false"
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:8080/health || exit 1"]
       interval: 10s

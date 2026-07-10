@@ -130,7 +130,7 @@ if [[ "$mysql_running" == true ]]; then
   MYSQL_DB="${MYSQL_DB:-storage}"
   sample="$(docker exec -e "MYSQL_PWD=$MYSQL_PASSWORD" "$PROFILE_MYSQL_CONTAINER" \
     mysql "-u$MYSQL_USER" --default-character-set=utf8mb4 "$MYSQL_DB" -N \
-    -e "SELECT CONCAT(category, '|', name) FROM material_ledger LIMIT 1;" 2>/dev/null || true)"
+    -e "SELECT name FROM sys_menu WHERE id = 111 LIMIT 1;" 2>/dev/null || true)"
   if [[ -n "$sample" && "$sample" != *"?"* ]]; then
     check_result mysql-chinese true "sample=$sample"
   else
