@@ -3,6 +3,8 @@ package com.storage.common.mapper;
 import org.mapstruct.Named;
 import org.springframework.util.StringUtils;
 
+import java.util.Locale;
+
 public final class StringMapping {
 
     private StringMapping() {
@@ -21,5 +23,13 @@ public final class StringMapping {
     @Named("trimToEmpty")
     public static String trimToEmpty(String value) {
         return StringUtils.hasText(value) ? value.trim() : "";
+    }
+
+    @Named("trimToNullLowercase")
+    public static String trimToNullLowercase(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        return value.trim().toLowerCase(Locale.ROOT);
     }
 }

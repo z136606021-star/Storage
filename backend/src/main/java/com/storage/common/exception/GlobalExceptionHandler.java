@@ -13,6 +13,7 @@ import com.storage.warehouse.exception.WarehouseBomNotFoundException;
 import com.storage.system.customer.exception.SysCustomerNotFoundException;
 import org.apache.shiro.authz.UnauthenticatedException;
 import org.apache.shiro.authz.UnauthorizedException;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -126,6 +127,16 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> handleMaxUploadSize(MaxUploadSizeExceededException ex) {
         return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
                 .body(Map.of("message", "单文件大小超过限制"));
+    }
+
+    @ExceptionHandler(DuplicateKeyException.class)
+    public ResponseEntity<Map<String, String>> handleDuplicateKey(DuplicateKeyException ex) {
+        String message = "数据已存在，请检查唯一字段";
+        if (ex.getMessage() != null && ex.getMessage().contains("uk_sys_user_email")) {
+            message = "邮箱已被其他用户使用";
+        }
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(Map.of("message", message));
     }
 
     @ExceptionHandler({IllegalArgumentException.class, BusinessException.class})

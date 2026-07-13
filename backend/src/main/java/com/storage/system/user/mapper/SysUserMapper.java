@@ -14,6 +14,17 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
     @Select("SELECT * FROM sys_user WHERE username = #{username} LIMIT 1")
     SysUser selectByUsername(@Param("username") String username);
 
+    @Select("SELECT * FROM sys_user WHERE email = #{email} LIMIT 1")
+    SysUser selectByEmail(@Param("email") String email);
+
+    @Select("""
+            SELECT * FROM sys_user
+            WHERE username = #{identity}
+               OR email = #{identity}
+            LIMIT 1
+            """)
+    SysUser selectByUsernameOrEmail(@Param("identity") String identity);
+
     @Select("""
             SELECT r.code FROM sys_role r
             INNER JOIN sys_user_role ur ON ur.role_id = r.id

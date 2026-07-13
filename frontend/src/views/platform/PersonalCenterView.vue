@@ -1,16 +1,18 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { LockOutlined, MailOutlined, UserOutlined } from '@ant-design/icons-vue'
+import { LockOutlined, MailOutlined, SettingOutlined, UserOutlined } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
 import {
   changePasswordByCurrentPassword,
   changePasswordByVerificationCode,
   fetchMe,
   sendPasswordVerificationCode,
+  updateMyPhone,
 } from '@/api/auth'
 import { getErrorMessage } from '@/api/http'
 import { useAuth } from '@/composables/useAuth'
+import { displayValue } from '@/utils/format'
 import type { AuthUser } from '@/types/auth'
 
 const auth = useAuth()
@@ -21,6 +23,11 @@ const profile = ref<AuthUser | null>(null)
 const passwordTab = ref<'current' | 'email'>('current')
 const sendingCode = ref(false)
 const countdown = ref(0)
+const phoneModalOpen = ref(false)
+const phoneSubmitting = ref(false)
+const phoneForm = reactive({
+  phone: '',
+})
 let countdownTimer: ReturnType<typeof setInterval> | null = null
 
 const currentForm = reactive({
@@ -36,8 +43,48 @@ const emailForm = reactive({
 })
 
 const displayName = computed(() => profile.value?.displayName || profile.value?.username || '用户')
-const maskedEmail = computed(() => profile.value?.maskedEmail || '-')
-const hasBoundEmail = computed(() => Boolean(profile.value?.maskedEmail))
+const boundEmail = computed(() => profile.value?.email || '-')
+const boundPhone = computed(() => displayValue(profile.value?.phone))
+const hasBoundEmail = computed(() => Boolean(profile.value?.email))
+
+function syncSessionUser(user: AuthUser) {
+  profile.value = user
+  if (auth.session.value) {
+    auth.session.value = {
+      ...auth.session.value,
+      user,
+    }
+  }
+}
+
+function openPhoneModal() {
+  phoneForm.phone = profile.value?.phone ?? ''
+  phoneModalOpen.value = true
+}
+
+function closePhoneModal() {
+  phoneModalOpen.value = false
+}
+
+async function submitPhoneUpdate() {
+  const trimmed = phoneForm.phone.trim()
+  if (trimmed.length > 32) {
+    message.warning('手机号不能超过 32 个字符')
+    return Promise.reject(new Error('phone too long'))
+  }
+  phoneSubmitting.value = true
+  try {
+    const { data } = await updateMyPhone({ phone: trimmed || null })
+    syncSessionUser(data)
+    message.success('手机号已更新')
+    closePhoneModal()
+  } catch (error) {
+    message.error(getErrorMessage(error, '手机号更新失败'))
+    return Promise.reject(error)
+  } finally {
+    phoneSubmitting.value = false
+  }
+}
 
 function validatePasswordPair(newPassword: string, confirmPassword: string): boolean {
   if (newPassword.length < 6 || newPassword.length > 64) {
@@ -56,6 +103,12 @@ async function loadProfile() {
   try {
     const { data } = await fetchMe()
     profile.value = data.user
+    if (auth.session.value) {
+      auth.session.value = {
+        ...data,
+        accessToken: auth.session.value.accessToken ?? data.accessToken ?? null,
+      }
+    }
   } catch (error) {
     message.error(getErrorMessage(error, '加载账号信息失败'))
   } finally {
@@ -173,7 +226,17 @@ onMounted(loadProfile)
                 {{ profile?.displayName || '-' }}
               </a-descriptions-item>
               <a-descriptions-item label="绑定邮箱">
-                {{ maskedEmail }}
+                {{ boundEmail }}
+              </a-descriptions-item>
+              <a-descriptions-item label="手机号">
+                <div class="phone-row">
+                  <span>{{ boundPhone }}</span>
+                  <a-tooltip title="编辑手机号">
+                    <a-button type="text" size="small" class="phone-row__edit" @click="openPhoneModal">
+                      <SettingOutlined />
+                    </a-button>
+                  </a-tooltip>
+                </div>
               </a-descriptions-item>
             </a-descriptions>
           </a-card>
@@ -225,7 +288,7 @@ onMounted(loadProfile)
                 />
                 <a-form layout="vertical">
                   <a-form-item label="绑定邮箱">
-                    <a-input :value="maskedEmail" disabled>
+                    <a-input :value="boundEmail" disabled>
                       <template #prefix><MailOutlined /></template>
                     </a-input>
                   </a-form-item>
@@ -277,6 +340,29 @@ onMounted(loadProfile)
           </a-card>
         </a-col>
       </a-row>
+
+      <a-modal
+        v-model:open="phoneModalOpen"
+        title="编辑手机号"
+        ok-text="提交"
+        cancel-text="关闭"
+        :confirm-loading="phoneSubmitting"
+        destroy-on-close
+        @ok="submitPhoneUpdate"
+        @cancel="closePhoneModal"
+      >
+        <a-form layout="vertical">
+          <a-form-item label="手机号">
+            <a-input
+              v-model:value="phoneForm.phone"
+              allow-clear
+              maxlength="32"
+              placeholder="请输入手机号，留空可清除"
+            />
+          </a-form-item>
+          <div class="phone-modal__hint">无需短信验证，留空可清除手机号</div>
+        </a-form>
+      </a-modal>
     </a-spin>
   </div>
 </template>
@@ -313,5 +399,21 @@ onMounted(loadProfile)
 .welcome-icon {
   font-size: 48px;
   opacity: 0.85;
+}
+
+.phone-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.phone-row__edit {
+  color: @color-text-tertiary;
+}
+
+.phone-modal__hint {
+  color: @color-text-tertiary;
+  font-size: 12px;
 }
 </style>

@@ -11,6 +11,9 @@ $script:WorktreeDbProfiles = @(
         MinioPort           = 9000
         MysqlContainer      = 'storage-main-mysql'
         MinioContainer      = 'storage-main-minio'
+        BackendContainer    = 'storage-main-backend'
+        FrontendContainer   = 'storage-main-frontend'
+        MinioConsolePort    = 9001
         MysqlVolume         = 'storage-main_mysql_data'
         MinioVolume         = 'storage-main_minio_data'
     }
@@ -23,6 +26,9 @@ $script:WorktreeDbProfiles = @(
         MinioPort           = 9010
         MysqlContainer      = 'storage-material-ledger-mysql'
         MinioContainer      = 'storage-material-ledger-minio'
+        BackendContainer    = 'storage-material-ledger-backend'
+        FrontendContainer   = 'storage-material-ledger-frontend'
+        MinioConsolePort    = 9011
         MysqlVolume         = 'storage-material-ledger_mysql_data'
         MinioVolume         = 'storage-material-ledger_minio_data'
     }
@@ -35,6 +41,9 @@ $script:WorktreeDbProfiles = @(
         MinioPort           = 9020
         MysqlContainer      = 'storage-material-io-mysql'
         MinioContainer      = 'storage-material-io-minio'
+        BackendContainer    = 'storage-material-io-backend'
+        FrontendContainer   = 'storage-material-io-frontend'
+        MinioConsolePort    = 9021
         MysqlVolume         = 'storage-material-io_mysql_data'
         MinioVolume         = 'storage-material-io_minio_data'
     }
@@ -47,6 +56,9 @@ $script:WorktreeDbProfiles = @(
         MinioPort           = 9030
         MysqlContainer      = 'storage-safety-stock-mysql'
         MinioContainer      = 'storage-safety-stock-minio'
+        BackendContainer    = 'storage-safety-stock-backend'
+        FrontendContainer   = 'storage-safety-stock-frontend'
+        MinioConsolePort    = 9031
         MysqlVolume         = 'storage-safety-stock_mysql_data'
         MinioVolume         = 'storage-safety-stock_minio_data'
     }
@@ -59,6 +71,9 @@ $script:WorktreeDbProfiles = @(
         MinioPort           = 9040
         MysqlContainer      = 'storage-config-mgmt-mysql'
         MinioContainer      = 'storage-config-mgmt-minio'
+        BackendContainer    = 'storage-config-mgmt-backend'
+        FrontendContainer   = 'storage-config-mgmt-frontend'
+        MinioConsolePort    = 9041
         MysqlVolume         = 'storage-config-mgmt_mysql_data'
         MinioVolume         = 'storage-config-mgmt_minio_data'
     }
@@ -71,6 +86,9 @@ $script:WorktreeDbProfiles = @(
         MinioPort           = 9050
         MysqlContainer      = 'storage-knowledge-base-mysql'
         MinioContainer      = 'storage-knowledge-base-minio'
+        BackendContainer    = 'storage-knowledge-base-backend'
+        FrontendContainer   = 'storage-knowledge-base-frontend'
+        MinioConsolePort    = 9051
         MysqlVolume         = 'storage-knowledge-base_mysql_data'
         MinioVolume         = 'storage-knowledge-base_minio_data'
     }
@@ -83,6 +101,9 @@ $script:WorktreeDbProfiles = @(
         MinioPort           = 9060
         MysqlContainer      = 'storage-design-guidelines-mysql'
         MinioContainer      = 'storage-design-guidelines-minio'
+        BackendContainer    = 'storage-design-guidelines-backend'
+        FrontendContainer   = 'storage-design-guidelines-frontend'
+        MinioConsolePort    = 9061
         MysqlVolume         = 'storage-design-guidelines_mysql_data'
         MinioVolume         = 'storage-design-guidelines_minio_data'
     }
@@ -214,8 +235,11 @@ MAIL_SMTP_STARTTLS_ENABLE=$MailSmtpStarttlsEnable
 COMPOSE_PROJECT_NAME=$($Profile.ComposeProjectName)
 STORAGE_MYSQL_PORT=$($Profile.MysqlPort)
 STORAGE_MINIO_PORT=$($Profile.MinioPort)
+STORAGE_MINIO_CONSOLE_PORT=$($Profile.MinioConsolePort)
 STORAGE_MYSQL_CONTAINER=$($Profile.MysqlContainer)
 STORAGE_MINIO_CONTAINER=$($Profile.MinioContainer)
+STORAGE_BACKEND_CONTAINER=$($Profile.BackendContainer)
+STORAGE_FRONTEND_CONTAINER=$($Profile.FrontendContainer)
 STORAGE_MYSQL_VOLUME=$($Profile.MysqlVolume)
 STORAGE_MINIO_VOLUME=$($Profile.MinioVolume)
 "@

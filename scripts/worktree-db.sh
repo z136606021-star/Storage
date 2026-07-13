@@ -19,6 +19,9 @@ worktree_profile_field() {
         minio_port) echo "9000" ;;
         mysql_container) echo "storage-main-mysql" ;;
         minio_container) echo "storage-main-minio" ;;
+        backend_container) echo "storage-main-backend" ;;
+        frontend_container) echo "storage-main-frontend" ;;
+        minio_console_port) echo "9001" ;;
         mysql_volume) echo "storage-main_mysql_data" ;;
         minio_volume) echo "storage-main_minio_data" ;;
         *) return 1 ;;
@@ -34,6 +37,9 @@ worktree_profile_field() {
         minio_port) echo "9010" ;;
         mysql_container) echo "storage-material-ledger-mysql" ;;
         minio_container) echo "storage-material-ledger-minio" ;;
+        backend_container) echo "storage-material-ledger-backend" ;;
+        frontend_container) echo "storage-material-ledger-frontend" ;;
+        minio_console_port) echo "9011" ;;
         mysql_volume) echo "storage-material-ledger_mysql_data" ;;
         minio_volume) echo "storage-material-ledger_minio_data" ;;
         *) return 1 ;;
@@ -49,6 +55,9 @@ worktree_profile_field() {
         minio_port) echo "9020" ;;
         mysql_container) echo "storage-material-io-mysql" ;;
         minio_container) echo "storage-material-io-minio" ;;
+        backend_container) echo "storage-material-io-backend" ;;
+        frontend_container) echo "storage-material-io-frontend" ;;
+        minio_console_port) echo "9021" ;;
         mysql_volume) echo "storage-material-io_mysql_data" ;;
         minio_volume) echo "storage-material-io_minio_data" ;;
         *) return 1 ;;
@@ -64,6 +73,9 @@ worktree_profile_field() {
         minio_port) echo "9030" ;;
         mysql_container) echo "storage-safety-stock-mysql" ;;
         minio_container) echo "storage-safety-stock-minio" ;;
+        backend_container) echo "storage-safety-stock-backend" ;;
+        frontend_container) echo "storage-safety-stock-frontend" ;;
+        minio_console_port) echo "9031" ;;
         mysql_volume) echo "storage-safety-stock_mysql_data" ;;
         minio_volume) echo "storage-safety-stock_minio_data" ;;
         *) return 1 ;;
@@ -79,6 +91,9 @@ worktree_profile_field() {
         minio_port) echo "9040" ;;
         mysql_container) echo "storage-config-mgmt-mysql" ;;
         minio_container) echo "storage-config-mgmt-minio" ;;
+        backend_container) echo "storage-config-mgmt-backend" ;;
+        frontend_container) echo "storage-config-mgmt-frontend" ;;
+        minio_console_port) echo "9041" ;;
         mysql_volume) echo "storage-config-mgmt_mysql_data" ;;
         minio_volume) echo "storage-config-mgmt_minio_data" ;;
         *) return 1 ;;
@@ -94,6 +109,9 @@ worktree_profile_field() {
         minio_port) echo "9050" ;;
         mysql_container) echo "storage-knowledge-base-mysql" ;;
         minio_container) echo "storage-knowledge-base-minio" ;;
+        backend_container) echo "storage-knowledge-base-backend" ;;
+        frontend_container) echo "storage-knowledge-base-frontend" ;;
+        minio_console_port) echo "9051" ;;
         mysql_volume) echo "storage-knowledge-base_mysql_data" ;;
         minio_volume) echo "storage-knowledge-base_minio_data" ;;
         *) return 1 ;;
@@ -109,6 +127,9 @@ worktree_profile_field() {
         minio_port) echo "9060" ;;
         mysql_container) echo "storage-design-guidelines-mysql" ;;
         minio_container) echo "storage-design-guidelines-minio" ;;
+        backend_container) echo "storage-design-guidelines-backend" ;;
+        frontend_container) echo "storage-design-guidelines-frontend" ;;
+        minio_console_port) echo "9061" ;;
         mysql_volume) echo "storage-design-guidelines_mysql_data" ;;
         minio_volume) echo "storage-design-guidelines_minio_data" ;;
         *) return 1 ;;
@@ -146,8 +167,11 @@ load_current_worktree_profile() {
   COMPOSE_PROJECT_NAME="$(worktree_profile_field "$WORKTREE_BRANCH" compose_project_name)"
   STORAGE_MYSQL_PORT="$(worktree_profile_field "$WORKTREE_BRANCH" mysql_port)"
   STORAGE_MINIO_PORT="$(worktree_profile_field "$WORKTREE_BRANCH" minio_port)"
+  STORAGE_MINIO_CONSOLE_PORT="$(worktree_profile_field "$WORKTREE_BRANCH" minio_console_port)"
   STORAGE_MYSQL_CONTAINER="$(worktree_profile_field "$WORKTREE_BRANCH" mysql_container)"
   STORAGE_MINIO_CONTAINER="$(worktree_profile_field "$WORKTREE_BRANCH" minio_container)"
+  STORAGE_BACKEND_CONTAINER="$(worktree_profile_field "$WORKTREE_BRANCH" backend_container)"
+  STORAGE_FRONTEND_CONTAINER="$(worktree_profile_field "$WORKTREE_BRANCH" frontend_container)"
   STORAGE_MYSQL_VOLUME="$(worktree_profile_field "$WORKTREE_BRANCH" mysql_volume)"
   STORAGE_MINIO_VOLUME="$(worktree_profile_field "$WORKTREE_BRANCH" minio_volume)"
 
@@ -296,8 +320,11 @@ MAIL_SMTP_STARTTLS_ENABLE=$mail_smtp_starttls_enable
 COMPOSE_PROJECT_NAME=$COMPOSE_PROJECT_NAME
 STORAGE_MYSQL_PORT=$STORAGE_MYSQL_PORT
 STORAGE_MINIO_PORT=$STORAGE_MINIO_PORT
+STORAGE_MINIO_CONSOLE_PORT=$STORAGE_MINIO_CONSOLE_PORT
 STORAGE_MYSQL_CONTAINER=$STORAGE_MYSQL_CONTAINER
 STORAGE_MINIO_CONTAINER=$STORAGE_MINIO_CONTAINER
+STORAGE_BACKEND_CONTAINER=$STORAGE_BACKEND_CONTAINER
+STORAGE_FRONTEND_CONTAINER=$STORAGE_FRONTEND_CONTAINER
 STORAGE_MYSQL_VOLUME=$STORAGE_MYSQL_VOLUME
 STORAGE_MINIO_VOLUME=$STORAGE_MINIO_VOLUME
 EOF

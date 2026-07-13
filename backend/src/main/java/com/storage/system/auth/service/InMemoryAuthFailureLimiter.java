@@ -10,7 +10,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 @Service
-public class InMemoryAuthFailureLimiter implements LoginFailureLimiter, ForgotPasswordFailureLimiter, PasswordVerificationFailureLimiter {
+public class InMemoryAuthFailureLimiter implements LoginFailureLimiter, ForgotPasswordFailureLimiter,
+        PasswordVerificationFailureLimiter, RegistrationVerificationFailureLimiter {
 
     private static final int FORGOT_PASSWORD_MAX_FAILURES = 5;
     private static final Duration FORGOT_PASSWORD_FAILURE_WINDOW = Duration.ofMinutes(15);
@@ -22,6 +23,7 @@ public class InMemoryAuthFailureLimiter implements LoginFailureLimiter, ForgotPa
     private final ConcurrentMap<String, Failures> forgotPasswordFailures = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, Failures> loginFailures = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, Failures> passwordVerificationFailures = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, Failures> registrationVerificationFailures = new ConcurrentHashMap<>();
 
     @Override
     public void assertAllowed(String username) {
@@ -39,23 +41,23 @@ public class InMemoryAuthFailureLimiter implements LoginFailureLimiter, ForgotPa
     }
 
     @Override
-    public void assertAllowedForgotPassword(String username) {
+    public void assertAllowedForgotPassword(String email) {
         assertAllowed(
                 forgotPasswordFailures,
-                normalize(username),
+                normalize(email),
                 FORGOT_PASSWORD_MAX_FAILURES,
                 "密码找回尝试次数过多，请 15 分钟后再试"
         );
     }
 
     @Override
-    public void recordForgotPasswordFailure(String username) {
-        recordFailure(forgotPasswordFailures, normalize(username), FORGOT_PASSWORD_FAILURE_WINDOW);
+    public void recordForgotPasswordFailure(String email) {
+        recordFailure(forgotPasswordFailures, normalize(email), FORGOT_PASSWORD_FAILURE_WINDOW);
     }
 
     @Override
-    public void resetForgotPassword(String username) {
-        forgotPasswordFailures.remove(normalize(username));
+    public void resetForgotPassword(String email) {
+        forgotPasswordFailures.remove(normalize(email));
     }
 
     @Override
@@ -76,6 +78,26 @@ public class InMemoryAuthFailureLimiter implements LoginFailureLimiter, ForgotPa
     @Override
     public void resetVerifyFailures(Long userId) {
         passwordVerificationFailures.remove(String.valueOf(userId));
+    }
+
+    @Override
+    public void assertAllowedVerify(String email) {
+        assertAllowed(
+                registrationVerificationFailures,
+                normalize(email),
+                VERIFY_PASSWORD_MAX_FAILURES,
+                "验证码尝试次数过多，请 15 分钟后再试"
+        );
+    }
+
+    @Override
+    public void recordVerifyFailure(String email) {
+        recordFailure(registrationVerificationFailures, normalize(email), VERIFY_PASSWORD_FAILURE_WINDOW);
+    }
+
+    @Override
+    public void resetVerifyFailures(String email) {
+        registrationVerificationFailures.remove(normalize(email));
     }
 
     private void assertAllowed(

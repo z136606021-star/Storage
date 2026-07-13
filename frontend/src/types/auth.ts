@@ -2,7 +2,8 @@ export interface AuthUser {
   id: number
   username: string
   displayName: string
-  maskedEmail?: string | null
+  email?: string | null
+  phone?: string | null
 }
 
 export interface AuthSession {
@@ -19,7 +20,6 @@ export interface LoginRequest {
 }
 
 export interface ForgotPasswordRequest {
-  username: string
   email: string
 }
 
@@ -38,4 +38,12 @@ export interface ChangePasswordByVerificationCodeRequest {
   verificationCode: string
   newPassword: string
   confirmPassword: string
+}
+
+export interface SendRegistrationVerificationCodeRequest {
+  email: string
+}
+
+export interface UpdateCurrentUserPhoneRequest {
+  phone?: string | null
 }

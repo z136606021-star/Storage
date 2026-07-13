@@ -1,7 +1,8 @@
 package com.storage.system.auth.service;
 
 import com.storage.common.exception.BusinessException;
-import com.storage.common.util.EmailMaskUtils;
+import com.storage.common.mapper.StringMapping;
+import com.storage.common.util.IdentityTextValidation;
 import com.storage.system.auth.config.PasswordVerificationProperties;
 import com.storage.system.auth.dto.AuthSessionVO;
 import com.storage.system.auth.dto.AuthUserVO;
@@ -12,10 +13,14 @@ import com.storage.system.auth.dto.ForgotPasswordResetDTO;
 import com.storage.system.auth.dto.JwtClaims;
 import com.storage.system.auth.dto.LoginRequestDTO;
 import com.storage.system.auth.dto.RegisterRequestDTO;
+import com.storage.system.auth.dto.SendRegistrationVerificationCodeDTO;
+import com.storage.system.auth.dto.UpdateCurrentUserPhoneDTO;
 import com.storage.system.auth.entity.EmailVerificationCode;
 import com.storage.system.auth.entity.PasswordResetToken;
+import com.storage.system.auth.entity.RegistrationVerificationCode;
 import com.storage.system.auth.mapper.EmailVerificationCodeMapper;
 import com.storage.system.auth.mapper.PasswordResetTokenMapper;
+import com.storage.system.auth.mapper.RegistrationVerificationCodeMapper;
 import com.storage.system.auth.shiro.UserRealm;
 import com.storage.system.menu.mapper.SysMenuMapper;
 import com.storage.system.role.entity.SysRole;
@@ -45,19 +50,22 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
 
-    private static final String FORGOT_PASSWORD_IDENTITY_ERROR = "账号或邮箱不正确，或账号未绑定邮箱";
+    private static final String FORGOT_PASSWORD_IDENTITY_ERROR = "邮箱不正确或未绑定账号";
     private static final String RESET_PASSWORD_TOKEN_ERROR = "重置链接无效或已过期";
     private static final String LOGIN_IDENTITY_ERROR = "账号或密码错误";
     private static final String VERIFICATION_CODE_ERROR = "验证码无效或已过期";
     private static final String CHANGE_PASSWORD_PURPOSE = "CHANGE_PASSWORD";
+    private static final String REGISTER_VERIFICATION_CODE_ERROR = "验证码无效或已过期";
 
     private final SysUserMapper sysUserMapper;
     private final SysRoleMapper sysRoleMapper;
     private final SysMenuMapper sysMenuMapper;
     private final PasswordResetTokenMapper passwordResetTokenMapper;
     private final EmailVerificationCodeMapper emailVerificationCodeMapper;
+    private final RegistrationVerificationCodeMapper registrationVerificationCodeMapper;
     private final PasswordResetMailService passwordResetMailService;
     private final PasswordVerificationMailService passwordVerificationMailService;
+    private final RegistrationVerificationMailService registrationVerificationMailService;
     private final PasswordResetProperties passwordResetProperties;
     private final PasswordVerificationProperties passwordVerificationProperties;
     private final BCryptPasswordEncoder passwordEncoder;
@@ -67,53 +75,97 @@ public class AuthServiceImpl implements AuthService {
     private final LoginFailureLimiter loginFailureLimiter;
     private final ForgotPasswordFailureLimiter forgotPasswordFailureLimiter;
     private final PasswordVerificationFailureLimiter passwordVerificationFailureLimiter;
+    private final RegistrationVerificationFailureLimiter registrationVerificationFailureLimiter;
     private final SecureRandom secureRandom = new SecureRandom();
 
     @Override
     public AuthSessionVO login(LoginRequestDTO request) {
-        String username = request.getUsername().trim();
-        loginFailureLimiter.assertAllowed(username);
+        String identity = normalizeLoginIdentity(request.getUsername());
+        loginFailureLimiter.assertAllowed(identity);
 
-        SysUser user = sysUserMapper.selectByUsername(username);
+        SysUser user = resolveLoginUser(identity);
         if (user == null || user.getStatus() == null || user.getStatus() != 1) {
-            loginFailureLimiter.recordFailure(username);
+            loginFailureLimiter.recordFailure(identity);
             throw new BusinessException(LOGIN_IDENTITY_ERROR);
         }
         if (!userRealm.matchesPassword(request.getPassword(), user.getPasswordHash())) {
-            loginFailureLimiter.recordFailure(username);
+            loginFailureLimiter.recordFailure(identity);
             throw new BusinessException(LOGIN_IDENTITY_ERROR);
         }
 
-        loginFailureLimiter.reset(username);
+        loginFailureLimiter.reset(identity);
         return buildSession(user, jwtService.issueToken(user));
     }
 
     @Override
     @Transactional
+    public void sendRegistrationVerificationCode(SendRegistrationVerificationCodeDTO request) {
+        String email = requireNormalizedEmail(request.getEmail());
+        if (sysUserMapper.selectByEmail(email) != null) {
+            throw new BusinessException("该邮箱已被注册");
+        }
+
+        RegistrationVerificationCode latest = registrationVerificationCodeMapper.selectLatestByEmail(email);
+        if (latest != null && latest.getCreatedAt() != null) {
+            LocalDateTime cooldownUntil = latest.getCreatedAt().plusSeconds(passwordVerificationProperties.getSendCooldownSeconds());
+            if (cooldownUntil.isAfter(LocalDateTime.now())) {
+                throw new BusinessException("发送过于频繁，请稍后再试");
+            }
+        }
+
+        String rawCode = generateVerificationCode();
+        RegistrationVerificationCode code = new RegistrationVerificationCode();
+        code.setEmail(email);
+        code.setCodeHash(hashToken(rawCode));
+        code.setExpiresAt(LocalDateTime.now().plusMinutes(passwordVerificationProperties.getTtlMinutes()));
+        registrationVerificationCodeMapper.insert(code);
+
+        registrationVerificationMailService.sendVerificationCode(email, rawCode);
+    }
+
+    @Override
+    @Transactional
     public AuthSessionVO register(RegisterRequestDTO request) {
-        if (sysUserMapper.selectByUsername(request.getUsername()) != null) {
+        IdentityTextValidation.requireNoWhitespace(request.getUsername(), "账号");
+        IdentityTextValidation.requireNoWhitespace(request.getDisplayName(), "显示名称");
+
+        String username = request.getUsername().trim();
+        String displayName = request.getDisplayName().trim();
+        String email = requireNormalizedEmail(request.getEmail());
+
+        if (sysUserMapper.selectByUsername(username) != null) {
             throw new BusinessException("账号已存在");
         }
+        assertEmailAvailable(email, null);
+
+        registrationVerificationFailureLimiter.assertAllowedVerify(email);
+        RegistrationVerificationCode code = registrationVerificationCodeMapper.selectValidForUpdate(
+                email,
+                hashToken(request.getVerificationCode().trim())
+        );
+        if (code == null) {
+            registrationVerificationFailureLimiter.recordVerifyFailure(email);
+            throw new BusinessException(REGISTER_VERIFICATION_CODE_ERROR);
+        }
+
         SysRole userRole = sysRoleMapper.selectByCode("USER");
         if (userRole == null) {
             throw new BusinessException("系统未配置 USER 角色");
         }
 
         SysUser user = new SysUser();
-        user.setUsername(request.getUsername());
-        user.setDisplayName(request.getDisplayName());
+        user.setUsername(username);
+        user.setDisplayName(displayName);
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         user.setTokenVersion(0);
-        if (StringUtils.hasText(request.getEmail())) {
-            String email = request.getEmail().trim();
-            if (!email.matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")) {
-                throw new BusinessException("邮箱格式不正确");
-            }
-            user.setEmail(email);
-        }
+        user.setEmail(email);
         user.setStatus(1);
         sysUserMapper.insert(user);
         sysMenuMapper.insertUserRole(user.getId(), userRole.getId());
+
+        code.setUsedAt(LocalDateTime.now());
+        registrationVerificationCodeMapper.updateById(code);
+        registrationVerificationFailureLimiter.resetVerifyFailures(email);
 
         return buildSession(user, jwtService.issueToken(user));
     }
@@ -139,20 +191,12 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public void forgotPassword(ForgotPasswordDTO request) {
-        String username = request.getUsername().trim();
-        forgotPasswordFailureLimiter.assertAllowedForgotPassword(username);
+        String email = StringMapping.trimToNullLowercase(request.getEmail());
+        forgotPasswordFailureLimiter.assertAllowedForgotPassword(email);
 
-        SysUser user = sysUserMapper.selectByUsername(username);
-        if (user == null || user.getStatus() == null || user.getStatus() != 1) {
-            forgotPasswordFailureLimiter.recordForgotPasswordFailure(username);
-            throw new BusinessException(FORGOT_PASSWORD_IDENTITY_ERROR);
-        }
-        if (!StringUtils.hasText(user.getEmail())) {
-            forgotPasswordFailureLimiter.recordForgotPasswordFailure(username);
-            throw new BusinessException(FORGOT_PASSWORD_IDENTITY_ERROR);
-        }
-        if (!user.getEmail().trim().equalsIgnoreCase(request.getEmail().trim())) {
-            forgotPasswordFailureLimiter.recordForgotPasswordFailure(username);
+        SysUser user = sysUserMapper.selectByEmail(email);
+        if (user == null || user.getStatus() == null || user.getStatus() != 1 || !StringUtils.hasText(user.getEmail())) {
+            forgotPasswordFailureLimiter.recordForgotPasswordFailure(email);
             throw new BusinessException(FORGOT_PASSWORD_IDENTITY_ERROR);
         }
 
@@ -164,7 +208,7 @@ public class AuthServiceImpl implements AuthService {
         passwordResetTokenMapper.insert(token);
 
         passwordResetMailService.sendResetLink(user, rawToken);
-        forgotPasswordFailureLimiter.resetForgotPassword(username);
+        forgotPasswordFailureLimiter.resetForgotPassword(email);
     }
 
     @Override
@@ -182,7 +226,9 @@ public class AuthServiceImpl implements AuthService {
 
         token.setUsedAt(LocalDateTime.now());
         passwordResetTokenMapper.updateById(token);
-        forgotPasswordFailureLimiter.resetForgotPassword(user.getUsername());
+        if (StringUtils.hasText(user.getEmail())) {
+            forgotPasswordFailureLimiter.resetForgotPassword(StringMapping.trimToNullLowercase(user.getEmail()));
+        }
     }
 
     @Override
@@ -265,6 +311,21 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    public AuthUserVO updateCurrentUserPhone(UpdateCurrentUserPhoneDTO request) {
+        SysUser user = requireCurrentUser();
+        user.setPhone(StringMapping.trimToNull(request.getPhone()));
+        sysUserMapper.updateById(user);
+        SysUser updated = sysUserMapper.selectById(user.getId());
+        return AuthUserVO.builder()
+                .id(updated.getId())
+                .username(updated.getUsername())
+                .displayName(updated.getDisplayName())
+                .email(updated.getEmail())
+                .phone(updated.getPhone())
+                .build();
+    }
+
+    @Override
     public SysUser currentUser() {
         Subject subject = SecurityUtils.getSubject();
         Object principal = subject.getPrincipal();
@@ -303,7 +364,8 @@ public class AuthServiceImpl implements AuthService {
                         .id(user.getId())
                         .username(user.getUsername())
                         .displayName(user.getDisplayName())
-                        .maskedEmail(EmailMaskUtils.mask(user.getEmail()))
+                        .email(user.getEmail())
+                        .phone(user.getPhone())
                         .build())
                 .roles(roles)
                 .permissions(permissions)
@@ -330,6 +392,39 @@ public class AuthServiceImpl implements AuthService {
             return HexFormat.of().formatHex(digest.digest(rawToken.getBytes(StandardCharsets.UTF_8)));
         } catch (NoSuchAlgorithmException ex) {
             throw new IllegalStateException("SHA-256 algorithm is unavailable", ex);
+        }
+    }
+
+    private String normalizeLoginIdentity(String rawIdentity) {
+        String identity = rawIdentity.trim();
+        if (identity.contains("@")) {
+            return StringMapping.trimToNullLowercase(identity);
+        }
+        return identity;
+    }
+
+    private SysUser resolveLoginUser(String identity) {
+        if (identity.contains("@")) {
+            return sysUserMapper.selectByEmail(identity);
+        }
+        return sysUserMapper.selectByUsername(identity);
+    }
+
+    private String requireNormalizedEmail(String rawEmail) {
+        String email = StringMapping.trimToNullLowercase(rawEmail);
+        if (email == null || !email.matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")) {
+            throw new BusinessException("邮箱格式不正确");
+        }
+        return email;
+    }
+
+    private void assertEmailAvailable(String email, Long excludeUserId) {
+        if (email == null) {
+            return;
+        }
+        SysUser existing = sysUserMapper.selectByEmail(email);
+        if (existing != null && (excludeUserId == null || !existing.getId().equals(excludeUserId))) {
+            throw new BusinessException("邮箱已被其他用户使用");
         }
     }
 }

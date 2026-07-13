@@ -1,12 +1,15 @@
 package com.storage.system.auth.controller;
 
 import com.storage.system.auth.dto.AuthSessionVO;
+import com.storage.system.auth.dto.AuthUserVO;
 import com.storage.system.auth.dto.ChangePasswordByCurrentPasswordDTO;
 import com.storage.system.auth.dto.ChangePasswordByVerificationCodeDTO;
 import com.storage.system.auth.dto.ForgotPasswordDTO;
 import com.storage.system.auth.dto.ForgotPasswordResetDTO;
 import com.storage.system.auth.dto.LoginRequestDTO;
 import com.storage.system.auth.dto.RegisterRequestDTO;
+import com.storage.system.auth.dto.SendRegistrationVerificationCodeDTO;
+import com.storage.system.auth.dto.UpdateCurrentUserPhoneDTO;
 import com.storage.system.auth.service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -30,6 +33,12 @@ public class AuthController {
     @PostMapping("/login")
     public AuthSessionVO login(@Valid @RequestBody LoginRequestDTO request) {
         return authService.login(request);
+    }
+
+    @PostMapping("/register/verification-code")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void sendRegistrationVerificationCode(@Valid @RequestBody SendRegistrationVerificationCodeDTO request) {
+        authService.sendRegistrationVerificationCode(request);
     }
 
     @PostMapping("/register")
@@ -76,5 +85,10 @@ public class AuthController {
     @GetMapping("/me")
     public AuthSessionVO me() {
         return authService.currentSession();
+    }
+
+    @PutMapping("/me/phone")
+    public AuthUserVO updateMyPhone(@Valid @RequestBody UpdateCurrentUserPhoneDTO request) {
+        return authService.updateCurrentUserPhone(request);
     }
 }

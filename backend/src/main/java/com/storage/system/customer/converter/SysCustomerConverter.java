@@ -18,7 +18,7 @@ public interface SysCustomerConverter {
     @Mapping(target = "name", source = "name", qualifiedByName = "trim")
     @Mapping(target = "contactName", source = "contactName", qualifiedByName = "trimToNull")
     @Mapping(target = "phone", source = "phone", qualifiedByName = "trimToNull")
-    @Mapping(target = "email", source = "email", qualifiedByName = "trimToNull")
+    @Mapping(target = "email", source = "email", qualifiedByName = "trimToNullLowercase")
     @Mapping(target = "address", source = "address", qualifiedByName = "trimToNull")
     @Mapping(target = "remark", source = "remark", qualifiedByName = "trimToNull")
     @Mapping(target = "status", source = "status", defaultValue = "1")

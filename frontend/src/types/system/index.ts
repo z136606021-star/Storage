@@ -97,4 +97,5 @@ export interface RegisterRequest {
   password: string
   displayName: string
   email: string
+  verificationCode: string
 }

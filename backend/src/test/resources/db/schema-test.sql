@@ -13,6 +13,7 @@ DROP TABLE IF EXISTS experience_record;
 DROP TABLE IF EXISTS experience_type;
 DROP TABLE IF EXISTS sys_customer;
 DROP TABLE IF EXISTS password_reset_token;
+DROP TABLE IF EXISTS registration_verification_code;
 DROP TABLE IF EXISTS email_verification_code;
 DROP TABLE IF EXISTS jwt_revoked_token;
 DROP TABLE IF EXISTS sys_file;
@@ -28,12 +29,13 @@ CREATE TABLE sys_user (
     password_hash VARCHAR(128) NOT NULL,
     token_version INT NOT NULL DEFAULT 0,
     display_name VARCHAR(64) NOT NULL,
-    email VARCHAR(128) NULL,
+    email VARCHAR(128) NULL, -- stored lowercase after V024 / write-path normalization
     phone VARCHAR(32) NULL,
     status TINYINT NOT NULL DEFAULT 1,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (username)
+    UNIQUE (username),
+    UNIQUE (email)
 );
 
 CREATE TABLE password_reset_token (
@@ -109,6 +111,15 @@ CREATE TABLE email_verification_code (
     CONSTRAINT fk_test_email_verification_user FOREIGN KEY (user_id) REFERENCES sys_user (id) ON DELETE CASCADE
 );
 
+CREATE TABLE registration_verification_code (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    email VARCHAR(128) NOT NULL,
+    code_hash VARCHAR(64) NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    used_at TIMESTAMP NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE jwt_revoked_token (
     jti VARCHAR(64) NOT NULL PRIMARY KEY,
     expires_at TIMESTAMP NOT NULL,
@@ -121,7 +132,7 @@ CREATE TABLE sys_customer (
     name VARCHAR(128) NOT NULL,
     contact_name VARCHAR(64) NULL,
     phone VARCHAR(32) NULL,
-    email VARCHAR(128) NULL,
+    email VARCHAR(128) NULL, -- stored lowercase after V024 / write-path normalization
     address VARCHAR(255) NULL,
     remark VARCHAR(255) NULL,
     status TINYINT NOT NULL DEFAULT 1,

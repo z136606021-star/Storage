@@ -5,6 +5,7 @@ import { message } from 'ant-design-vue'
 import { getErrorMessage } from '@/api/http'
 import { createCustomer, updateCustomer } from '@/api/system/customer'
 import type { SysCustomer, SysCustomerSavePayload } from '@/types/system/customer'
+import { normalizeEmail } from '@/utils/format'
 
 const props = defineProps<{
   open: boolean
@@ -73,6 +74,10 @@ function handleCancel() {
   emit('update:open', false)
 }
 
+function normalizeEmailField(value: string | null | undefined) {
+  return normalizeEmail(value) ?? ''
+}
+
 async function handleSubmit() {
   try {
     await formRef.value?.validate()
@@ -87,7 +92,7 @@ async function handleSubmit() {
       name: formState.name.trim(),
       contactName: formState.contactName?.trim() || null,
       phone: formState.phone?.trim() || null,
-      email: formState.email?.trim() || null,
+      email: normalizeEmail(formState.email),
       address: formState.address?.trim() || null,
       remark: formState.remark?.trim() || null,
       status: formState.status,
@@ -143,7 +148,11 @@ async function handleSubmit() {
         </a-col>
         <a-col :span="12">
           <a-form-item label="邮箱" name="email">
-            <a-input v-model:value="formState.email" allow-clear />
+            <a-input
+              v-model:value="formState.email"
+              allow-clear
+              @blur="formState.email = normalizeEmailField(formState.email)"
+            />
           </a-form-item>
         </a-col>
         <a-col :span="12">

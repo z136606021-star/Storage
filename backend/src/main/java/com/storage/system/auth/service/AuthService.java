@@ -8,6 +8,9 @@ import com.storage.system.auth.dto.ForgotPasswordDTO;
 import com.storage.system.auth.dto.ForgotPasswordResetDTO;
 import com.storage.system.auth.dto.LoginRequestDTO;
 import com.storage.system.auth.dto.RegisterRequestDTO;
+import com.storage.system.auth.dto.AuthUserVO;
+import com.storage.system.auth.dto.SendRegistrationVerificationCodeDTO;
+import com.storage.system.auth.dto.UpdateCurrentUserPhoneDTO;
 import jakarta.servlet.http.HttpServletRequest;
 
 public interface AuthService {
@@ -15,6 +18,8 @@ public interface AuthService {
     AuthSessionVO login(LoginRequestDTO request);
 
     AuthSessionVO register(RegisterRequestDTO request);
+
+    void sendRegistrationVerificationCode(SendRegistrationVerificationCodeDTO request);
 
     void logout(HttpServletRequest request);
 
@@ -29,6 +34,8 @@ public interface AuthService {
     void changePasswordByVerificationCode(ChangePasswordByVerificationCodeDTO request);
 
     AuthSessionVO currentSession();
+
+    AuthUserVO updateCurrentUserPhone(UpdateCurrentUserPhoneDTO request);
 
     SysUser currentUser();
 }

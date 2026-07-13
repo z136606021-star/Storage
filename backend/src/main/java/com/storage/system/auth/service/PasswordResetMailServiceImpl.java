@@ -26,7 +26,7 @@ public class PasswordResetMailServiceImpl implements PasswordResetMailService {
 
     public void sendResetLink(SysUser user, String rawToken) {
         if (!StringUtils.hasText(user.getEmail())) {
-            throw new BusinessException("账号或邮箱不正确，或账号未绑定邮箱");
+            throw new BusinessException("邮箱不正确或未绑定账号");
         }
 
         SimpleMailMessage message = new SimpleMailMessage();

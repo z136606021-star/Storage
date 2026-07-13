@@ -2,25 +2,13 @@
 
 set -euo pipefail
 
-REMOVE_ORPHAN_VOLUMES=false
-
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --remove-orphan-volumes)
-      REMOVE_ORPHAN_VOLUMES=true
-      shift
-      ;;
-    *)
-      echo "Unknown option: $1" >&2
-      exit 2
-      ;;
-  esac
-done
-
 legacy_containers=(material-ledger-mysql material-ledger-minio)
-legacy_volumes=(storage_mysql_data storage_minio_data)
 
-echo "Cleaning up legacy Docker resources..."
+echo "Cleaning up legacy Docker containers..."
+echo
+echo "Note: this script only removes old material-ledger-* containers."
+echo "It does not delete Docker volumes or database/object storage data."
+echo "Use DBeaver or MinIO Console for manual data maintenance."
 echo
 
 for name in "${legacy_containers[@]}"; do
@@ -32,23 +20,6 @@ for name in "${legacy_containers[@]}"; do
     echo "Container not found (skip): $name"
   fi
 done
-
-if [[ "$REMOVE_ORPHAN_VOLUMES" == true ]]; then
-  echo
-  echo "Removing orphan legacy volumes..."
-  for volume in "${legacy_volumes[@]}"; do
-    exists="$(docker volume ls --filter "name=^${volume}$" --format "{{.Name}}" 2>/dev/null || true)"
-    if [[ "$exists" == "$volume" ]]; then
-      echo "Removing volume: $volume"
-      docker volume rm "$volume" >/dev/null
-    else
-      echo "Volume not found (skip): $volume"
-    fi
-  done
-else
-  echo
-  echo "Orphan volumes not removed. Pass --remove-orphan-volumes to delete storage_mysql_data / storage_minio_data."
-fi
 
 cat <<EOF
 

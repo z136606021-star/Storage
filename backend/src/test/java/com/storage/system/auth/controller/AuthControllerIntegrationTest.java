@@ -8,9 +8,13 @@ import com.storage.system.auth.dto.ForgotPasswordDTO;
 import com.storage.system.auth.dto.ForgotPasswordResetDTO;
 import com.storage.system.auth.dto.LoginRequestDTO;
 import com.storage.system.auth.dto.RegisterRequestDTO;
+import com.storage.system.auth.dto.SendRegistrationVerificationCodeDTO;
+import com.storage.system.auth.dto.UpdateCurrentUserPhoneDTO;
 import com.storage.system.auth.entity.PasswordResetToken;
+import com.storage.system.auth.entity.RegistrationVerificationCode;
 import com.storage.system.auth.mapper.JwtRevokedTokenMapper;
 import com.storage.system.auth.mapper.PasswordResetTokenMapper;
+import com.storage.system.auth.mapper.RegistrationVerificationCodeMapper;
 import com.storage.system.auth.shiro.UserRealm;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,6 +30,10 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.time.LocalDateTime;
+import java.util.HexFormat;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -34,6 +42,7 @@ import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -63,6 +72,9 @@ class AuthControllerIntegrationTest {
     private JwtRevokedTokenMapper jwtRevokedTokenMapper;
 
     @Autowired
+    private RegistrationVerificationCodeMapper registrationVerificationCodeMapper;
+
+    @Autowired
     private BCryptPasswordEncoder passwordEncoder;
 
     @Autowired
@@ -75,8 +87,25 @@ class AuthControllerIntegrationTest {
     void setUp() {
         passwordResetTokenMapper.delete(null);
         jwtRevokedTokenMapper.delete(null);
+        registrationVerificationCodeMapper.delete(null);
         sysUserMapper.delete(null);
         reset(mailSender);
+    }
+
+    @Test
+    void login_withEmail_returnsAccessToken() throws Exception {
+        SysUser user = insertActiveUser("loginemail", "loginemail@example.com", "oldpass");
+        sysMenuMapper.insertUserRole(user.getId(), 1L);
+
+        LoginRequestDTO dto = new LoginRequestDTO();
+        dto.setUsername("loginemail@example.com");
+        dto.setPassword("oldpass");
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.user.email").value("loginemail@example.com"));
     }
 
     @Test
@@ -138,7 +167,6 @@ class AuthControllerIntegrationTest {
     @Test
     void forgotPassword_withInvalidBody_returns400() throws Exception {
         ForgotPasswordDTO dto = new ForgotPasswordDTO();
-        dto.setUsername("");
         dto.setEmail("not-an-email");
 
         mockMvc.perform(post("/api/auth/forgot-password")
@@ -153,14 +181,13 @@ class AuthControllerIntegrationTest {
         insertActiveUser("forgotwrong", "forgotwrong@example.com", "oldpass");
 
         ForgotPasswordDTO dto = new ForgotPasswordDTO();
-        dto.setUsername("forgotwrong");
         dto.setEmail("wrong@example.com");
 
         mockMvc.perform(post("/api/auth/forgot-password")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("账号或邮箱不正确，或账号未绑定邮箱"));
+                .andExpect(jsonPath("$.message").value("邮箱不正确或未绑定账号"));
     }
 
     @Test
@@ -168,15 +195,14 @@ class AuthControllerIntegrationTest {
         insertActiveUser("forgotlimited", "forgotlimited@example.com", "oldpass");
 
         ForgotPasswordDTO dto = new ForgotPasswordDTO();
-        dto.setUsername("forgotlimited");
-        dto.setEmail("wrong@example.com");
+        dto.setEmail("throttlefail@example.com");
 
         for (int i = 0; i < 5; i++) {
             mockMvc.perform(post("/api/auth/forgot-password")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(dto)))
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.message").value("账号或邮箱不正确，或账号未绑定邮箱"));
+                    .andExpect(jsonPath("$.message").value("邮箱不正确或未绑定账号"));
         }
 
         mockMvc.perform(post("/api/auth/forgot-password")
@@ -191,7 +217,6 @@ class AuthControllerIntegrationTest {
         insertActiveUser("forgotok", "forgotok@example.com", "oldpass");
 
         ForgotPasswordDTO dto = new ForgotPasswordDTO();
-        dto.setUsername("forgotok");
         dto.setEmail("forgotok@example.com");
 
         mockMvc.perform(post("/api/auth/forgot-password")
@@ -222,7 +247,6 @@ class AuthControllerIntegrationTest {
     void resetPassword_withValidToken_returns204AndUpdatesPassword() throws Exception {
         insertActiveUser("resetok", "resetok@example.com", "oldpass");
         ForgotPasswordDTO forgot = new ForgotPasswordDTO();
-        forgot.setUsername("resetok");
         forgot.setEmail("resetok@example.com");
         mockMvc.perform(post("/api/auth/forgot-password")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -305,6 +329,146 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
+    void me_withBearerToken_returnsCurrentUserPhone() throws Exception {
+        SysUser user = insertActiveUser("phoneuser", "phoneuser@example.com", "oldpass");
+        user.setPhone("13800138000");
+        sysUserMapper.updateById(user);
+        sysMenuMapper.insertUserRole(user.getId(), 1L);
+
+        String token = loginExistingUser("phoneuser", "oldpass");
+
+        mockMvc.perform(get("/api/auth/me")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.user.phone").value("13800138000"));
+    }
+
+    @Test
+    void updateMePhone_withBearerToken_updatesOnlyCurrentUser() throws Exception {
+        SysUser caller = insertActiveUser("phonecaller", "phonecaller@example.com", "oldpass");
+        SysUser other = insertActiveUser("phoneother", "phoneother@example.com", "oldpass");
+        other.setPhone("13900139000");
+        sysUserMapper.updateById(other);
+        sysMenuMapper.insertUserRole(caller.getId(), 1L);
+
+        String token = loginExistingUser("phonecaller", "oldpass");
+
+        UpdateCurrentUserPhoneDTO request = new UpdateCurrentUserPhoneDTO();
+        request.setPhone(" 13800138001 ");
+
+        mockMvc.perform(put("/api/auth/me/phone")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.phone").value("13800138001"));
+
+        assertThat(sysUserMapper.selectById(caller.getId()).getPhone()).isEqualTo("13800138001");
+        assertThat(sysUserMapper.selectById(other.getId()).getPhone()).isEqualTo("13900139000");
+    }
+
+    @Test
+    void updateMePhone_withBlankPhone_clearsPhone() throws Exception {
+        SysUser user = insertActiveUser("phoneclear", "phoneclear@example.com", "oldpass");
+        user.setPhone("13800138000");
+        sysUserMapper.updateById(user);
+        sysMenuMapper.insertUserRole(user.getId(), 1L);
+
+        String token = loginExistingUser("phoneclear", "oldpass");
+
+        UpdateCurrentUserPhoneDTO request = new UpdateCurrentUserPhoneDTO();
+        request.setPhone("   ");
+
+        mockMvc.perform(put("/api/auth/me/phone")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.phone").isEmpty());
+
+        assertThat(sysUserMapper.selectById(user.getId()).getPhone()).isNull();
+    }
+
+    @Test
+    void updateMePhone_withTooLongPhone_returns400() throws Exception {
+        String token = loginAndExtractToken("phonelimit", "phonelimit@example.com", "oldpass", 1L);
+
+        UpdateCurrentUserPhoneDTO request = new UpdateCurrentUserPhoneDTO();
+        request.setPhone("1".repeat(33));
+
+        mockMvc.perform(put("/api/auth/me/phone")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("手机号不能超过 32 个字符"));
+    }
+
+    @Test
+    void updateMePhone_withoutToken_returns401() throws Exception {
+        UpdateCurrentUserPhoneDTO request = new UpdateCurrentUserPhoneDTO();
+        request.setPhone("13800138000");
+
+        mockMvc.perform(put("/api/auth/me/phone")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").exists());
+    }
+
+    @Test
+    void register_withMissingVerificationCode_returns400() throws Exception {
+        RegisterRequestDTO request = new RegisterRequestDTO();
+        request.setUsername("registernocode");
+        request.setDisplayName("注册用户");
+        request.setPassword("newpass123");
+        request.setEmail("registernocode@example.com");
+
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("请输入验证码"));
+    }
+
+    @Test
+    void register_withWhitespaceUsername_returns400() throws Exception {
+        RegisterRequestDTO request = buildRegisterRequest(
+                "123 asd",
+                "注册用户",
+                "newpass123",
+                "whitespace@example.com",
+                "123456"
+        );
+
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("账号不能包含空格或空白字符"));
+    }
+
+    @Test
+    void register_withDuplicateEmail_rejects() throws Exception {
+        insertActiveUser("existingmail", "dupmail@example.com", "oldpass");
+        insertRegistrationCode("dupmail@example.com", "123456");
+
+        RegisterRequestDTO request = buildRegisterRequest(
+                "newuser1",
+                "新用户",
+                "newpass123",
+                "dupmail@example.com",
+                "123456"
+        );
+
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("邮箱已被其他用户使用"));
+    }
+
+    @Test
     void register_withMissingEmail_returns400() throws Exception {
         RegisterRequestDTO request = new RegisterRequestDTO();
         request.setUsername("registernoemail");
@@ -315,7 +479,7 @@ class AuthControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("请输入邮箱"));
+                .andExpect(jsonPath("$.message").value("请输入验证码；请输入邮箱"));
     }
 
     @Test
@@ -330,16 +494,19 @@ class AuthControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("请输入邮箱"));
+                .andExpect(jsonPath("$.message").value("请输入验证码；请输入邮箱"));
     }
 
     @Test
     void register_returnsAccessTokenThatCanAccessMe() throws Exception {
-        RegisterRequestDTO request = new RegisterRequestDTO();
-        request.setUsername("registerok");
-        request.setDisplayName("注册用户");
-        request.setPassword("newpass123");
-        request.setEmail("registerok@example.com");
+        insertRegistrationCode("registerok@example.com", "123456");
+        RegisterRequestDTO request = buildRegisterRequest(
+                "registerok",
+                "注册用户",
+                "newpass123",
+                "registerok@example.com",
+                "123456"
+        );
 
         String response = mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -347,6 +514,7 @@ class AuthControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accessToken").isString())
                 .andExpect(jsonPath("$.roles[0]").value("USER"))
+                .andExpect(jsonPath("$.user.email").value("registerok@example.com"))
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
@@ -355,7 +523,62 @@ class AuthControllerIntegrationTest {
         mockMvc.perform(get("/api/auth/me")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.user.username").value("registerok"));
+                .andExpect(jsonPath("$.user.username").value("registerok"))
+                .andExpect(jsonPath("$.user.email").value("registerok@example.com"));
+    }
+
+    @Test
+    void register_normalizesMixedCaseEmailToLowercase() throws Exception {
+        insertRegistrationCode("regemailmix@example.com", "654321");
+        RegisterRequestDTO request = buildRegisterRequest(
+                "regemailmix",
+                "混合大小写邮箱",
+                "newpass123",
+                "RegEmailMix@Example.COM",
+                "654321"
+        );
+
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk());
+
+        SysUser user = sysUserMapper.selectByUsername("regemailmix");
+        assertThat(user).isNotNull();
+        assertThat(user.getEmail()).isEqualTo("regemailmix@example.com");
+    }
+
+    private RegisterRequestDTO buildRegisterRequest(
+            String username,
+            String displayName,
+            String password,
+            String email,
+            String verificationCode
+    ) {
+        RegisterRequestDTO request = new RegisterRequestDTO();
+        request.setUsername(username);
+        request.setDisplayName(displayName);
+        request.setPassword(password);
+        request.setEmail(email);
+        request.setVerificationCode(verificationCode);
+        return request;
+    }
+
+    private void insertRegistrationCode(String email, String rawCode) {
+        RegistrationVerificationCode code = new RegistrationVerificationCode();
+        code.setEmail(email.trim().toLowerCase());
+        code.setCodeHash(hashCode(rawCode));
+        code.setExpiresAt(LocalDateTime.now().plusMinutes(10));
+        registrationVerificationCodeMapper.insert(code);
+    }
+
+    private String hashCode(String rawCode) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            return HexFormat.of().formatHex(digest.digest(rawCode.getBytes(StandardCharsets.UTF_8)));
+        } catch (Exception ex) {
+            throw new IllegalStateException(ex);
+        }
     }
 
     private SysUser insertActiveUser(String username, String email, String password) {
@@ -369,10 +592,7 @@ class AuthControllerIntegrationTest {
         return user;
     }
 
-    private String loginAndExtractToken(String username, String email, String password, Long roleId) throws Exception {
-        SysUser user = insertActiveUser(username, email, password);
-        sysMenuMapper.insertUserRole(user.getId(), roleId);
-
+    private String loginExistingUser(String username, String password) throws Exception {
         LoginRequestDTO dto = new LoginRequestDTO();
         dto.setUsername(username);
         dto.setPassword(password);
@@ -385,6 +605,13 @@ class AuthControllerIntegrationTest {
                 .getResponse()
                 .getContentAsString();
         return objectMapper.readTree(response).get("accessToken").asText();
+    }
+
+    private String loginAndExtractToken(String username, String email, String password, Long roleId) throws Exception {
+        SysUser user = insertActiveUser(username, email, password);
+        sysMenuMapper.insertUserRole(user.getId(), roleId);
+
+        return loginExistingUser(username, password);
     }
 
     private SimpleMailMessage sentMail() {

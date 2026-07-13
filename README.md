@@ -107,19 +107,19 @@ powershell -ExecutionPolicy Bypass -File .\scripts\sync-worktree-env.ps1
 
 **Git worktree 端口分配**（逻辑库名均为 `storage`，隔离靠端口 + 独立 Docker 卷）：
 
-| 分支 | Worktree 路径 | MySQL | MinIO API |
-|------|---------------|-------|-----------|
-| `main` | `E:/Storage`（Windows 示例；Linux/macOS 可为实际 clone 路径） | **3307** | 9000 |
-| `feat/material-ledger` | `E:/Storage-worktrees/material-ledger`（示例） | **3308** | 9010 |
-| `feat/material-io` | `E:/Storage-worktrees/material-io`（示例） | **3309** | 9020 |
-| `feat/safety-stock` | `E:/Storage-worktrees/safety-stock`（示例） | **3310** | 9030 |
-| `feat/config-mgmt` | `E:/Storage-worktrees/config-mgmt`（示例） | **3311** | 9040 |
-| `feat/knowledge-base` | `E:/Storage-worktrees/knowledge-base`（示例） | **3312** | 9050 |
-| `feat/design-guidelines` | `E:/Storage-worktrees/design-guidelines`（示例） | **3313** | 9060 |
+| 分支 | Worktree 路径 | MySQL | MinIO API | MinIO Console |
+|------|---------------|-------|-----------|---------------|
+| `main` | `E:/Storage`（Windows 示例；Linux/macOS 可为实际 clone 路径） | **3307** | 9000 | 9001 |
+| `feat/material-ledger` | `E:/Storage-worktrees/material-ledger`（示例） | **3308** | 9010 | 9011 |
+| `feat/material-io` | `E:/Storage-worktrees/material-io`（示例） | **3309** | 9020 | 9021 |
+| `feat/safety-stock` | `E:/Storage-worktrees/safety-stock`（示例） | **3310** | 9030 | 9031 |
+| `feat/config-mgmt` | `E:/Storage-worktrees/config-mgmt`（示例） | **3311** | 9040 | 9041 |
+| `feat/knowledge-base` | `E:/Storage-worktrees/knowledge-base`（示例） | **3312** | 9050 | 9051 |
+| `feat/design-guidelines` | `E:/Storage-worktrees/design-guidelines`（示例） | **3313** | 9060 | 9061 |
 
 切换 worktree 或分支后务必先执行 `sync-worktree-env.ps1`（Windows）或 `sync-worktree-env.sh`（Linux/macOS/Git Bash），再 `docker compose --env-file .env up -d`。详见 [AGENTS.md](AGENTS.md)「Worktree 数据库隔离」。
 
-已有数据库卷升级时，Flyway 通过 `baseline-on-migrate` 兼容历史卷，仅执行新增版本脚本；禁止把 `down -v` / 清空卷作为常规升级路径。迁移脚本须为 **UTF-8** 编码；迁移失败会阻断启动以避免静默漏表/漏列。
+已有数据库卷升级时，Flyway 通过 `baseline-on-migrate` 兼容历史卷，仅执行新增版本脚本；禁止把 `down -v` / 清空卷作为常规升级路径。`V025` 若检测到重复邮箱会 **安全中止迁移**，需管理员在 DBeaver 保留正确账号邮箱、清空或修正其他重复项后重启后端继续升级。迁移脚本须为 **UTF-8** 编码；迁移失败会阻断启动以避免静默漏表/漏列。
 
 #### Flyway 升级与备份流程
 
@@ -135,8 +135,20 @@ powershell -ExecutionPolicy Bypass -File .\scripts\sync-worktree-env.ps1
 
 默认连接信息见 [.env.example](.env.example)：
 
-- 宿主机访问 MySQL/MinIO 走映射端口（dev compose）
-- 容器内服务互联使用服务名：`mysql:3306`、`http://minio:9000`（不要用 `localhost`）
+- **容器内互联**（Compose DNS + hostname）：`mysql:3306`、`http://minio:9000`、`backend:8080`；backend 不要使用 `http://minio:9090` 或宿主机名访问 MinIO。
+- **容器外管理访问**（宿主机/IP + 映射端口）：MySQL `${STORAGE_MYSQL_PORT}`（默认 `3307`）、MinIO API `${STORAGE_MINIO_PORT}`（默认 `9000`）、MinIO Console `${STORAGE_MINIO_CONSOLE_PORT}`（默认 `9001`）。
+- **显式容器名**（随 `COMPOSE_PROJECT_NAME` 隔离）：`${STORAGE_MYSQL_CONTAINER}`、`${STORAGE_MINIO_CONTAINER}`、`${STORAGE_BACKEND_CONTAINER}`、`${STORAGE_FRONTEND_CONTAINER}`；容器 hostname 固定为 `mysql` / `minio` / `backend` / `frontend`，供容器间访问。
+
+内网部署示例（`COMPOSE_PROJECT_NAME=storage-main`，应用入口 `http://cnhuam0hmcprd01:4600/`）：
+
+| 用途 | 地址 |
+|------|------|
+| 应用前端 | `http://cnhuam0hmcprd01:4600/` |
+| DBeaver / MySQL CLI | `cnhuam0hmcprd01:3307`（库 `storage`，用户见 `.env`） |
+| MinIO API | `http://cnhuam0hmcprd01:9000` |
+| MinIO Console | `http://cnhuam0hmcprd01:9001` |
+
+数据库与对象存储数据维护请通过 **DBeaver / MinIO Console 手工操作**；禁止把 `docker compose down -v`、删卷或脚本清库作为常规运维手段。修改 `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` 后需保留数据卷并重建 backend/minio 容器，使 `.env` 与 MinIO 卷内凭据一致；若出现 `access key ID ... does not exist`，通常是凭据不一致而非 hostname 缺失。
 
 其他 worktree 端口见上表；以 `scripts/sync-worktree-env.ps1` 或 `scripts/sync-worktree-env.sh` 生成的 `.env` 为准。
 
@@ -156,7 +168,8 @@ powershell -ExecutionPolicy Bypass -File .\scripts\sync-worktree-env.ps1
 - Docker Compose 主路径已统一为 `docker compose up -d`；`--build` / `-Build` 仅作为显式重建选项。
 - `--env-file .env` 用于 Compose 变量替换；service 级 `env_file: .env` 用于把 `.env` 注入容器，后端不再在 `environment` 中复制全量变量列表。
 - 前端由 `frontend/Dockerfile` 构建并通过 Nginx 暴露，`/api` 由 Nginx 反向代理到后端服务，Compose 部署不依赖本地 Vite 代理。
-- 容器内数据库与对象存储访问使用服务名：`mysql:3306`、`http://minio:9000`；Compose 仅在必要处覆盖这些容器网络地址，宿主机访问才使用映射端口。
+- 容器内数据库与对象存储访问使用 hostname：`mysql:3306`、`http://minio:9000`、`backend:8080`；Compose 仅在必要处覆盖这些容器网络地址，宿主机/DBeaver/Console 才使用映射端口。
+- 生产 `docker-compose.yml` 同样发布 MySQL/MinIO 管理端口（默认 3307/9000/9001），便于内网 DBeaver 与 MinIO Console 运维；应用仍通过 Nginx 入口访问。
 - Nginx 前端入口包含 gzip、hash 静态资源长缓存、`index.html` no-cache、SPA fallback 与 `/api` 反向代理配置。
 - 后端默认不启用全局 CORS；Compose 通过 Nginx 同源代理 `/api/**`，本地 Vite 开发通过 dev proxy 转发 `/api/**`。
 - Linux/macOS/Git Bash 版脚本保持 LF 与可执行位；常规验证可运行 `bash -n scripts/*.sh` 与两套 `docker compose ... config`。
@@ -217,9 +230,13 @@ npm run dev
 
 - 默认打开 `/login`（当前为 Shiro + JWT 鉴权，前端通过 Pinia + localStorage 保存 access token）；注册 Tab：`/login?tab=register`；忘记密码申请 Tab：`/login?tab=forgot`；邮件链接重置 Tab：`/login?tab=reset&token=...`
 - **个人中心**（侧栏首位）：账号信息、原密码改密、绑定邮箱验证码改密；改密成功后递增 `sys_user.token_version`，该用户所有旧 JWT 立即失效并需重新登录
+- 个人中心支持维护 **可选手机号**（无需短信验证）；具备 `system:user:write` 权限的管理员可在用户管理中维护
 - 登录态改密 API：`PUT /api/auth/password`（原密码）、`POST /api/auth/password/verification-code`（发码）、`PUT /api/auth/password/by-verification-code`（验码改密）；验证码仅发往当前用户绑定邮箱，默认 6 位、10 分钟有效、60 秒发送冷却
-- 支持开放注册，新用户默认 `USER` 角色（仅物料台账只读）；注册账号 3-32 字符、密码至少 6 位
-- 注册支持可选邮箱；忘记密码通过账号 + 邮箱申请邮件一次性链接，链接默认 30 分钟有效，后端统一错误提示并限流（同一账号 15 分钟最多 5 次失败）
+- 登录态个人信息 API：`PUT /api/auth/me/phone`（当前用户维护手机号，可选、最大 32 字符，留空清除）
+- 支持开放注册，新用户默认 `USER` 角色（仅物料台账只读）；注册账号 3-32 字符、密码至少 6 位；**注册必须先向邮箱发送验证码并校验通过**；**一个邮箱只能绑定一个账号**
+- 登录支持 **账号或邮箱 + 密码**；账号与显示名称 **禁止包含空格或空白字符**
+- 个人中心向本人展示 **完整绑定邮箱**（不再脱敏）
+- 注册支持可选邮箱；**用户与客户邮箱统一保存为小写**（写入时 trim + lowercase；已有 MySQL 卷由 Flyway `V024` 自动归一化历史数据）；**忘记密码仅凭绑定邮箱**申请邮件一次性链接，链接默认 30 分钟有效，后端统一错误提示并限流（同一邮箱 15 分钟最多 5 次失败）
 - 邮件配置通过 `.env` 预留：`APP_PUBLIC_BASE_URL`、`PASSWORD_RESET_TOKEN_TTL_MINUTES`、`MAIL_HOST`、`MAIL_PORT`、`MAIL_USERNAME`、`MAIL_PASSWORD`、`MAIL_FROM`、`MAIL_SMTP_AUTH`、`MAIL_SMTP_STARTTLS_ENABLE`；Gmail 默认 `smtp.gmail.com:587` + STARTTLS，`MAIL_PASSWORD` 使用 Google 应用专用密码
 - 「记住密码」仅 localStorage 保存账号（不存密码）
 - 未登录访问业务页会自动跳转到登录页
@@ -263,7 +280,7 @@ curl -X POST http://localhost:8080/api/files/upload \
   -F "file=@README.md"
 ```
 
-先调用 `POST /api/auth/login` 获取 `accessToken`，再用 Bearer token 携带凭证上传。MinIO API 默认映射到 `http://localhost:9000`；MinIO Console 不作为固定交付入口，若部署侧需要控制台可单独配置新版兼容的 console 监听参数。
+先调用 `POST /api/auth/login` 获取 `accessToken`，再用 Bearer token 携带凭证上传。MinIO API 默认映射到 `http://localhost:9000`（内网部署示例：`http://cnhuam0hmcprd01:9000`）；MinIO Console 默认 `http://localhost:9001`（内网示例：`http://cnhuam0hmcprd01:9001`）。部署后建议运行 `health-check` 脚本，确认 `minio-credentials`、`minio-live`、`minio-from-backend` 均通过，再实际上传小文件验证。
 
 物料清单图片可在 **配置管理 → 物料清单** 新增/编辑弹窗中上传多张图片（JPG/PNG/WebP/GIF，每条记录最多 20 张）；经验库附件支持任意类型文件（每条记录最多 20 个）。前端通过 `GET /api/files/upload-policy` 读取运行时上传策略，不在浏览器侧拦截文件大小或限制并发。后端通用附件仅校验大小与鉴权；BOM 图片在保存时继续校验图片 MIME，图片支持预览，普通附件通过下载接口获取。Compose/Nginx 部署默认 `client_max_body_size` 对齐 `UPLOAD_MAX_REQUEST_SIZE_BYTES`（当前默认 5.125 GiB），后端 Spring multipart 与业务层默认单文件上限 5 GiB（`UPLOAD_MAX_SIZE_BYTES=5368709120`）。修改 `application.yml` 或 `frontend/nginx.conf` 后需显式重建 Docker 镜像；若公司上游网关另有请求体限制，须同步放宽。物料清单 Excel 导入/导出不含图片列。
 
@@ -416,7 +433,7 @@ flowchart TD
 
 - 本仓库默认凭据（`admin123`、`storage123`、`minioadmin123`）仅用于本地开发，生产部署必须轮换为强密码
 - `POST /api/auth/register` 是否对公网开放须由部署侧显式评估；忘记密码接口已改为邮件一次性链接，但仍需配合 HTTPS、可信前端域名与限流策略
-- 忘记密码 token 仅明文出现在邮件链接中，数据库保存 SHA-256 哈希，默认 30 分钟过期且使用后失效；失败限流为单实例内存级（15 分钟 5 次），多实例生产需迁移到 Redis/网关限流
+- 忘记密码 token 仅明文出现在邮件链接中，数据库保存 SHA-256 哈希，默认 30 分钟过期且使用后失效；失败限流为单实例内存级（15 分钟 5 次，按邮箱计），多实例生产需迁移到 Redis/网关限流
 - Google SMTP 默认按 Gmail 直连预留：`smtp.gmail.com:587` + STARTTLS；`MAIL_PASSWORD` 使用 Google 应用专用密码，不提交真实邮箱密码。公司 Workspace relay 可通过环境变量切换到 `smtp-relay.gmail.com`
 - 当前鉴权主路径为 Shiro + JWT；access token 存储在前端 localStorage。JWT 携带 `token_version` 声明，改密后会递增用户版本并使旧 token 失效。`POST /api/auth/logout` 会将当前 Bearer token 的 `jti` 写入服务端黑名单，登出后同 token 无法继续访问受保护 API。生产环境需启用 HTTPS，`JWT_SECRET` 必须使用部署侧强密钥，并持续防护 XSS 风险；如需第三方前端跨域直连后端，应优先在 Nginx/网关层显式配置跨域策略
 - 默认管理员密码自动重置能力仅建议本地排障开启，生产应关闭该初始化开关，避免启动时回退弱密码

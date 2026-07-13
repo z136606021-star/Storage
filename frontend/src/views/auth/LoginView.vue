@@ -10,13 +10,14 @@ import loginLogo from '@/assets/auth/login-logo.png'
 import loginDecoTech from '@/assets/auth/login-deco-tech.png'
 import { useAuth } from '@/composables/useAuth'
 import { useMenuStore } from '@/stores/menu'
-import { forgotPassword, resetPassword } from '@/api/auth'
+import { forgotPassword, resetPassword, sendRegistrationVerificationCode } from '@/api/auth'
 import { getErrorMessage } from '@/api/http'
 import {
   clearRememberedUsername,
   loadRememberedUsername,
   saveRememberedUsername,
 } from '@/utils/loginRemember'
+import { containsWhitespace, normalizeEmail } from '@/utils/format'
 
 type AuthTab = 'login' | 'register' | 'forgot' | 'reset'
 
@@ -53,10 +54,14 @@ const registerForm = reactive({
   confirmPassword: '',
   displayName: '',
   email: '',
+  verificationCode: '',
 })
 
+const registerSendingCode = ref(false)
+const registerCountdown = ref(0)
+let registerCountdownTimer: ReturnType<typeof setInterval> | null = null
+
 const forgotForm = reactive({
-  username: '',
   email: '',
 })
 
@@ -80,18 +85,31 @@ const panelHeading = computed(() => {
 })
 
 const loginRules: Record<string, Rule[]> = {
-  username: [{ required: true, message: '请输入账号', trigger: 'blur' }],
+  username: [{ required: true, message: '请输入账号或邮箱', trigger: 'blur' }],
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
+}
+
+function noWhitespaceRule(fieldLabel: string): Rule {
+  return {
+    validator: async (_rule, value) => {
+      if (containsWhitespace(value)) {
+        throw new Error(`${fieldLabel}不能包含空格或空白字符`)
+      }
+    },
+    trigger: 'blur',
+  }
 }
 
 const registerRules = computed<Record<string, Rule[]>>(() => ({
   username: [
     { required: true, message: '请输入账号', trigger: 'blur' },
     { min: 3, max: 32, message: '账号长度为 3-32 个字符', trigger: 'blur' },
+    noWhitespaceRule('账号'),
   ],
   displayName: [
     { required: true, message: '请输入显示名称', trigger: 'blur' },
     { max: 64, message: '显示名称不能超过 64 个字符', trigger: 'blur' },
+    noWhitespaceRule('显示名称'),
   ],
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
@@ -112,10 +130,13 @@ const registerRules = computed<Record<string, Rule[]>>(() => ({
     { required: true, message: '请输入邮箱', trigger: 'blur' },
     { type: 'email', message: '邮箱格式不正确', trigger: 'blur' },
   ],
+  verificationCode: [
+    { required: true, message: '请输入验证码', trigger: 'blur' },
+    { len: 6, message: '验证码为 6 位数字', trigger: 'blur' },
+  ],
 }))
 
 const forgotRules = computed<Record<string, Rule[]>>(() => ({
-  username: [{ required: true, message: '请输入账号', trigger: 'blur' }],
   email: [
     { required: true, message: '请输入邮箱', trigger: 'blur' },
     { type: 'email', message: '邮箱格式不正确', trigger: 'blur' },
@@ -150,18 +171,18 @@ const registerCanSubmit = computed(() => {
   return (
     username.length >= 3
     && username.length <= 32
+    && !containsWhitespace(username)
     && displayName.length > 0
     && displayName.length <= 64
+    && !containsWhitespace(displayName)
     && registerForm.password.length >= 6
     && registerForm.password.length <= 64
     && registerForm.confirmPassword === registerForm.password
+    && registerForm.verificationCode.trim().length === 6
   )
 })
 
-const forgotCanSubmit = computed(() => (
-  forgotForm.username.trim().length > 0
-  && forgotForm.email.trim().length > 0
-))
+const forgotCanSubmit = computed(() => forgotForm.email.trim().length > 0)
 
 const resetCanSubmit = computed(() => (
   resetForm.token.trim().length > 0
@@ -209,8 +230,7 @@ async function handleForgotPassword() {
   submitting.value = true
   try {
     await forgotPassword({
-      username: forgotForm.username.trim(),
-      email: forgotForm.email.trim(),
+      email: normalizeEmail(forgotForm.email) ?? '',
     })
     message.success('重置邮件已发送，请在邮箱中打开链接')
     switchTab('login')
@@ -236,6 +256,42 @@ async function handleResetPassword() {
     message.error(getErrorMessage(error, '重置密码失败'))
   } finally {
     submitting.value = false
+  }
+}
+
+function normalizeEmailField(value: string) {
+  return normalizeEmail(value) ?? ''
+}
+
+function startRegisterCountdown(seconds = 60) {
+  registerCountdown.value = seconds
+  if (registerCountdownTimer) {
+    clearInterval(registerCountdownTimer)
+  }
+  registerCountdownTimer = setInterval(() => {
+    registerCountdown.value -= 1
+    if (registerCountdown.value <= 0 && registerCountdownTimer) {
+      clearInterval(registerCountdownTimer)
+      registerCountdownTimer = null
+    }
+  }, 1000)
+}
+
+async function handleSendRegistrationCode() {
+  const email = normalizeEmail(registerForm.email)
+  if (!email) {
+    message.warning('请输入有效邮箱')
+    return
+  }
+  registerSendingCode.value = true
+  try {
+    await sendRegistrationVerificationCode({ email })
+    message.success('验证码已发送到邮箱')
+    startRegisterCountdown()
+  } catch (error) {
+    message.error(getErrorMessage(error, '验证码发送失败'))
+  } finally {
+    registerSendingCode.value = false
   }
 }
 
@@ -283,7 +339,8 @@ async function handleRegister() {
       username: registerForm.username.trim(),
       password: registerForm.password,
       displayName: registerForm.displayName.trim(),
-      email: registerForm.email.trim(),
+      email: normalizeEmail(registerForm.email) ?? '',
+      verificationCode: registerForm.verificationCode.trim(),
     })
     message.success('注册成功')
     await menu.ensureDynamicRoutes(router)
@@ -344,7 +401,7 @@ async function handleRegister() {
           @finish="handleLogin"
         >
           <a-form-item name="username">
-            <a-input v-model:value="loginForm.username" size="large" placeholder="请输入账号" autocomplete="username">
+            <a-input v-model:value="loginForm.username" size="large" placeholder="请输入账号或邮箱" autocomplete="username">
               <template #prefix><UserOutlined class="login-form__icon" /></template>
             </a-input>
           </a-form-item>
@@ -378,13 +435,14 @@ async function handleRegister() {
           :rules="forgotRules"
           @finish="handleForgotPassword"
         >
-          <a-form-item name="username">
-            <a-input v-model:value="forgotForm.username" size="large" placeholder="请输入账号" autocomplete="username">
-              <template #prefix><UserOutlined class="login-form__icon" /></template>
-            </a-input>
-          </a-form-item>
           <a-form-item name="email">
-            <a-input v-model:value="forgotForm.email" size="large" placeholder="请输入注册邮箱" autocomplete="email">
+            <a-input
+              v-model:value="forgotForm.email"
+              size="large"
+              placeholder="请输入注册邮箱"
+              autocomplete="email"
+              @blur="forgotForm.email = normalizeEmailField(forgotForm.email)"
+            >
               <template #prefix><UserOutlined class="login-form__icon" /></template>
             </a-input>
           </a-form-item>
@@ -451,9 +509,34 @@ async function handleRegister() {
             </a-input>
           </a-form-item>
           <a-form-item name="email">
-            <a-input v-model:value="registerForm.email" size="large" placeholder="请输入邮箱（用于找回密码）" autocomplete="email">
+            <a-input
+              v-model:value="registerForm.email"
+              size="large"
+              placeholder="请输入邮箱（用于找回密码）"
+              autocomplete="email"
+              @blur="registerForm.email = normalizeEmailField(registerForm.email)"
+            >
               <template #prefix><UserOutlined class="login-form__icon" /></template>
             </a-input>
+          </a-form-item>
+          <a-form-item name="verificationCode">
+            <a-space>
+              <a-input
+                v-model:value="registerForm.verificationCode"
+                size="large"
+                placeholder="6 位验证码"
+                maxlength="6"
+                style="width: 180px"
+              />
+              <a-button
+                size="large"
+                :disabled="registerSendingCode || registerCountdown > 0"
+                :loading="registerSendingCode"
+                @click="handleSendRegistrationCode"
+              >
+                {{ registerCountdown > 0 ? `${registerCountdown}s 后重发` : '发送验证码' }}
+              </a-button>
+            </a-space>
           </a-form-item>
           <a-form-item name="password">
             <a-input-password v-model:value="registerForm.password" size="large" placeholder="请输入密码（至少 6 位）" autocomplete="new-password">

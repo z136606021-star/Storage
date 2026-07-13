@@ -66,6 +66,17 @@ class SysCustomerServiceIntegrationTest {
         assertThat(updated.getName()).isEqualTo("新名称");
     }
 
+    @Test
+    void createCustomer_normalizesMixedCaseEmailToLowercase() {
+        SysCustomerSaveDTO dto = saveDto("CUST-EMAIL", "邮箱客户");
+        dto.setEmail("  Sales@Customer.COM  ");
+
+        SysCustomer created = sysCustomerService.create(dto);
+
+        assertThat(created.getEmail()).isEqualTo("sales@customer.com");
+        assertThat(sysCustomerMapper.selectById(created.getId()).getEmail()).isEqualTo("sales@customer.com");
+    }
+
     private SysCustomerSaveDTO saveDto(String code, String name) {
         SysCustomerSaveDTO dto = new SysCustomerSaveDTO();
         dto.setCustomerCode(code);

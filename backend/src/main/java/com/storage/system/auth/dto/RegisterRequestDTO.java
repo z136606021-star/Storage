@@ -24,4 +24,8 @@ public class RegisterRequestDTO {
     @Size(max = 128, message = "邮箱不能超过 128 个字符")
     @Email(message = "邮箱格式不正确")
     private String email;
+
+    @NotBlank(message = "请输入验证码")
+    @Size(min = 6, max = 6, message = "验证码为 6 位数字")
+    private String verificationCode;
 }

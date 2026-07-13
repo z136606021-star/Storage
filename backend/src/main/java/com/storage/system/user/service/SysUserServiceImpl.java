@@ -3,6 +3,8 @@ package com.storage.system.user.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.storage.common.dto.PageResult;
 import com.storage.common.exception.BusinessException;
+import com.storage.common.util.IdentityTextValidation;
+import com.storage.common.mapper.StringMapping;
 import com.storage.common.query.PageSupport;
 import com.storage.system.auth.service.AuthService;
 import com.storage.system.menu.mapper.SysMenuMapper;
@@ -79,15 +81,16 @@ public class SysUserServiceImpl implements SysUserService {
     @Transactional
     public SysUserVO create(SysUserSaveDTO dto) {
         validateSaveDto(dto);
-        if (sysUserMapper.selectByUsername(dto.getUsername()) != null) {
+        if (sysUserMapper.selectByUsername(dto.getUsername().trim()) != null) {
             throw new BusinessException("NTID 已存在");
         }
+        assertEmailAvailable(StringMapping.trimToNullLowercase(dto.getEmail()), null);
         validateRoleIds(dto.getRoleIds());
 
         SysUser user = new SysUser();
         user.setUsername(dto.getUsername().trim());
         user.setDisplayName(dto.getDisplayName().trim());
-        user.setEmail(trimToNull(dto.getEmail()));
+        user.setEmail(StringMapping.trimToNullLowercase(dto.getEmail()));
         user.setPhone(trimToNull(dto.getPhone()));
         user.setPasswordHash(passwordEncoder.encode(resolvePassword(dto)));
         user.setStatus(dto.getStatus());
@@ -101,16 +104,17 @@ public class SysUserServiceImpl implements SysUserService {
     public SysUserVO update(Long id, SysUserSaveDTO dto) {
         validateSaveDto(dto);
         SysUser user = requireUser(id);
-        SysUser existing = sysUserMapper.selectByUsername(dto.getUsername());
+        SysUser existing = sysUserMapper.selectByUsername(dto.getUsername().trim());
         if (existing != null && !existing.getId().equals(id)) {
             throw new BusinessException("NTID 已存在");
         }
+        assertEmailAvailable(StringMapping.trimToNullLowercase(dto.getEmail()), id);
         validateRoleIds(dto.getRoleIds());
         assertCanModifyUser(id, dto.getRoleIds(), dto.getStatus());
 
         user.setUsername(dto.getUsername().trim());
         user.setDisplayName(dto.getDisplayName().trim());
-        user.setEmail(trimToNull(dto.getEmail()));
+        user.setEmail(StringMapping.trimToNullLowercase(dto.getEmail()));
         user.setPhone(trimToNull(dto.getPhone()));
         user.setStatus(dto.getStatus());
         if (StringUtils.hasText(dto.getPassword())) {
@@ -171,7 +175,7 @@ public class SysUserServiceImpl implements SysUserService {
             wrapper.like(SysUser::getDisplayName, query.getDisplayName().trim());
         }
         if (StringUtils.hasText(query.getEmail())) {
-            wrapper.like(SysUser::getEmail, query.getEmail().trim());
+            wrapper.like(SysUser::getEmail, StringMapping.trimToNullLowercase(query.getEmail()));
         }
         if (StringUtils.hasText(query.getKeyword())) {
             wrapper.and(w -> w.like(SysUser::getUsername, query.getKeyword())
@@ -191,8 +195,21 @@ public class SysUserServiceImpl implements SysUserService {
     }
 
     private void validateSaveDto(SysUserSaveDTO dto) {
-        if (StringUtils.hasText(dto.getEmail()) && !EMAIL_PATTERN.matcher(dto.getEmail().trim()).matches()) {
+        IdentityTextValidation.requireNoWhitespace(dto.getUsername(), "NTID");
+        IdentityTextValidation.requireNoWhitespace(dto.getDisplayName(), "用户姓名");
+        String email = StringMapping.trimToNullLowercase(dto.getEmail());
+        if (email != null && !EMAIL_PATTERN.matcher(email).matches()) {
             throw new BusinessException("邮箱格式不正确");
+        }
+    }
+
+    private void assertEmailAvailable(String email, Long excludeUserId) {
+        if (email == null) {
+            return;
+        }
+        SysUser existing = sysUserMapper.selectByEmail(email);
+        if (existing != null && (excludeUserId == null || !existing.getId().equals(excludeUserId))) {
+            throw new BusinessException("邮箱已被其他用户使用");
         }
     }
 

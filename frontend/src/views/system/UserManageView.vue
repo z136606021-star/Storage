@@ -22,7 +22,7 @@ import { usePaginatedCrudList } from '@/composables/usePaginatedCrudList'
 import type { SysMenu, SysRole, SysUser, SysUserSave } from '@/types/system'
 import { buildMenuAuthTreeNodes } from '@/utils/menuAuthTree'
 import { confirmDelete } from '@/utils/confirmDelete'
-import { displayValue } from '@/utils/format'
+import { displayValue, normalizeEmail, containsWhitespace } from '@/utils/format'
 
 const { canWrite } = useWritePermission('system:user:write')
 
@@ -47,7 +47,7 @@ function buildQueryParams() {
   return {
     username: queryForm.username || undefined,
     displayName: queryForm.displayName || undefined,
-    email: queryForm.email || undefined,
+    email: normalizeEmail(queryForm.email) || undefined,
     roleId: queryForm.roleId,
   }
 }
@@ -113,10 +113,16 @@ function buildSavePayload(): SysUserSave {
   if (!formState.roleIds.length) {
     throw new Error('请至少选择一个角色')
   }
+  if (containsWhitespace(formState.username)) {
+    throw new Error('NTID 不能包含空格或空白字符')
+  }
+  if (containsWhitespace(formState.displayName)) {
+    throw new Error('用户姓名不能包含空格或空白字符')
+  }
   return {
     username: formState.username,
     displayName: formState.displayName,
-    email: formState.email || undefined,
+    email: normalizeEmail(formState.email) || undefined,
     phone: formState.phone || undefined,
     status: formState.status,
     roleIds: [...formState.roleIds],
@@ -182,6 +188,11 @@ function openEdit(record: SysUser) {
 function openView(record: SysUser) {
   viewRecord.value = record
   drawerOpen.value = true
+}
+
+function normalizeEmailField(value: string) {
+  const normalized = normalizeEmail(value)
+  return normalized ?? ''
 }
 
 function selectUser(record: SysUser) {
@@ -315,6 +326,7 @@ onMounted(async () => {
                       placeholder="关键字查找"
                       class="filter-control"
                       @press-enter="loadData"
+                      @blur="queryForm.email = normalizeEmailField(queryForm.email)"
                     />
                   </a-form-item>
                 </a-col>
@@ -416,7 +428,10 @@ onMounted(async () => {
           <a-input v-model:value="formState.displayName" />
         </a-form-item>
         <a-form-item label="邮箱">
-          <a-input v-model:value="formState.email" />
+          <a-input
+            v-model:value="formState.email"
+            @blur="formState.email = normalizeEmailField(formState.email)"
+          />
         </a-form-item>
         <a-form-item label="手机号">
           <a-input v-model:value="formState.phone" />

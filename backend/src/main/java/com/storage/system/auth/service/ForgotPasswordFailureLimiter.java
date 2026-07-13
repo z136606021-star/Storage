@@ -2,9 +2,9 @@ package com.storage.system.auth.service;
 
 public interface ForgotPasswordFailureLimiter {
 
-    void assertAllowedForgotPassword(String username);
+    void assertAllowedForgotPassword(String email);
 
-    void recordForgotPasswordFailure(String username);
+    void recordForgotPasswordFailure(String email);
 
-    void resetForgotPassword(String username);
+    void resetForgotPassword(String email);
 }

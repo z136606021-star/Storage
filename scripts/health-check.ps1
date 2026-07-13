@@ -79,9 +79,10 @@ if ($profile -and (Test-Path -LiteralPath $envPath)) {
     if (-not $PSBoundParameters.ContainsKey('FrontendPort')) {
         $FrontendPort = Get-EnvInt 'FRONTEND_PORT' $FrontendPort
     }
-    $envOk = ($env:MYSQL_PORT -eq [string]$profile.MysqlPort) -and
-             ($env:STORAGE_MYSQL_CONTAINER -eq $profile.MysqlContainer)
-    Write-CheckResult '.env' $envOk "MYSQL_PORT=$($env:MYSQL_PORT) container=$($env:STORAGE_MYSQL_CONTAINER)"
+    $envOk = ($env:STORAGE_MYSQL_PORT -eq [string]$profile.MysqlPort) -and
+             ($env:STORAGE_MYSQL_CONTAINER -eq $profile.MysqlContainer) -and
+             ($env:STORAGE_BACKEND_CONTAINER -eq $profile.BackendContainer)
+    Write-CheckResult '.env' $envOk "STORAGE_MYSQL_PORT=$($env:STORAGE_MYSQL_PORT) mysql=$($env:STORAGE_MYSQL_CONTAINER) backend=$($env:STORAGE_BACKEND_CONTAINER)"
 } else {
     Write-CheckResult '.env' $false "missing or no profile; run sync-worktree-env.ps1"
 }
@@ -89,8 +90,10 @@ if ($profile -and (Test-Path -LiteralPath $envPath)) {
 if ($profile) {
     $mysqlRunning = Test-ContainerRunning $profile.MysqlContainer
     $minioRunning = Test-ContainerRunning $profile.MinioContainer
+    $backendRunning = Test-ContainerRunning $profile.BackendContainer
     Write-CheckResult 'mysql-container' $mysqlRunning $profile.MysqlContainer
     Write-CheckResult 'minio-container' $minioRunning $profile.MinioContainer
+    Write-CheckResult 'backend-container' $backendRunning $profile.BackendContainer
 
     $legacyMysql = docker ps -a --filter "name=^/material-ledger-mysql$" --format "{{.Names}}" 2>$null
     $legacyMinio = docker ps -a --filter "name=^/material-ledger-minio$" --format "{{.Names}}" 2>$null
@@ -115,6 +118,34 @@ if ($profile) {
         Write-CheckResult 'mysql-chinese' $chineseOk "sample=$sample"
     } else {
         Write-CheckResult 'mysql-chinese' $false "mysql container not running"
+    }
+
+    if ($minioRunning -and $backendRunning) {
+        $backendKey = (docker exec $profile.BackendContainer printenv MINIO_ACCESS_KEY 2>$null).Trim()
+        $minioKey = (docker exec $profile.MinioContainer printenv MINIO_ROOT_USER 2>$null).Trim()
+        $keysMatch = [bool]$backendKey -and ($backendKey -eq $minioKey)
+        Write-CheckResult 'minio-credentials' $keysMatch "backend=$backendKey minio=$minioKey"
+
+        $minioHostPort = Get-EnvInt 'STORAGE_MINIO_PORT' $profile.MinioPort
+        $minioLive = $false
+        try {
+            Invoke-WebRequest -Uri "http://127.0.0.1:$minioHostPort/minio/health/live" -UseBasicParsing -TimeoutSec 3 -ErrorAction Stop | Out-Null
+            $minioLive = $true
+        } catch {
+            $minioLive = $false
+        }
+        Write-CheckResult 'minio-live' $minioLive "http://127.0.0.1:$minioHostPort/minio/health/live"
+
+        $minioReachableFromBackend = $false
+        $reachOutput = docker exec $profile.BackendContainer curl -fsS "http://minio:9000/minio/health/live" 2>$null
+        if ($LASTEXITCODE -eq 0) {
+            $minioReachableFromBackend = $true
+        }
+        Write-CheckResult 'minio-from-backend' $minioReachableFromBackend "http://minio:9000/minio/health/live"
+    } else {
+        Write-CheckResult 'minio-credentials' $false "backend or minio container not running"
+        Write-CheckResult 'minio-live' $false "minio container not running"
+        Write-CheckResult 'minio-from-backend' $false "backend or minio container not running"
     }
 }
 

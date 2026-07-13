@@ -69,7 +69,7 @@ class AuthServiceForgotPasswordIntegrationTest {
 
     @Test
     void forgotPassword_withMatchingEmail_createsTokenAndSendsMailWithoutUpdatingPassword() {
-        authService.forgotPassword(forgotDto("resetme", "reset@example.com"));
+        authService.forgotPassword(forgotDto("reset@example.com"));
 
         SysUser updated = sysUserMapper.selectByUsername("resetme");
         assertThat(userRealm.matchesPassword("oldpass", updated.getPasswordHash())).isTrue();
@@ -82,7 +82,7 @@ class AuthServiceForgotPasswordIntegrationTest {
 
     @Test
     void resetPassword_withValidToken_updatesPasswordAndMarksTokenUsed() {
-        authService.forgotPassword(forgotDto("resetme", "reset@example.com"));
+        authService.forgotPassword(forgotDto("reset@example.com"));
         String rawToken = extractToken(sentMail());
 
         ForgotPasswordResetDTO dto = new ForgotPasswordResetDTO();
@@ -99,7 +99,7 @@ class AuthServiceForgotPasswordIntegrationTest {
 
     @Test
     void resetPassword_reusingToken_rejects() {
-        authService.forgotPassword(forgotDto("resetme", "reset@example.com"));
+        authService.forgotPassword(forgotDto("reset@example.com"));
         String rawToken = extractToken(sentMail());
 
         ForgotPasswordResetDTO dto = new ForgotPasswordResetDTO();
@@ -114,7 +114,7 @@ class AuthServiceForgotPasswordIntegrationTest {
 
     @Test
     void resetPassword_withExpiredToken_rejects() {
-        authService.forgotPassword(forgotDto("resetme", "reset@example.com"));
+        authService.forgotPassword(forgotDto("reset@example.com"));
         String rawToken = extractToken(sentMail());
         PasswordResetToken stored = passwordResetTokenMapper.selectList(null).get(0);
         stored.setExpiresAt(LocalDateTime.now().minusMinutes(1));
@@ -131,20 +131,20 @@ class AuthServiceForgotPasswordIntegrationTest {
 
     @Test
     void forgotPassword_withWrongEmail_rejects() {
-        assertThatThrownBy(() -> authService.forgotPassword(forgotDto("resetme", "wrong@example.com")))
+        assertThatThrownBy(() -> authService.forgotPassword(forgotDto("service-wrong@example.com")))
                 .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("账号或邮箱不正确");
+                .hasMessageContaining("邮箱不正确");
     }
 
     @Test
-    void forgotPassword_withoutEmail_rejectsWithHint() {
+    void forgotPassword_withDisabledUser_rejectsWithHint() {
         SysUser user = sysUserMapper.selectByUsername("resetme");
-        user.setEmail("");
+        user.setStatus(0);
         sysUserMapper.updateById(user);
 
-        assertThatThrownBy(() -> authService.forgotPassword(forgotDto("resetme", "any@example.com")))
+        assertThatThrownBy(() -> authService.forgotPassword(forgotDto("reset@example.com")))
                 .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("账号或邮箱不正确");
+                .hasMessageContaining("邮箱不正确");
     }
 
     @Test
@@ -157,12 +157,12 @@ class AuthServiceForgotPasswordIntegrationTest {
         user.setStatus(1);
         sysUserMapper.insert(user);
 
-        ForgotPasswordDTO dto = forgotDto("limited", "wrong@example.com");
+        ForgotPasswordDTO dto = forgotDto("service-throttle@example.com");
 
         for (int i = 0; i < 5; i++) {
             assertThatThrownBy(() -> authService.forgotPassword(dto))
                     .isInstanceOf(BusinessException.class)
-                    .hasMessageContaining("账号或邮箱不正确");
+                    .hasMessageContaining("邮箱不正确");
         }
 
         assertThatThrownBy(() -> authService.forgotPassword(dto))
@@ -170,9 +170,8 @@ class AuthServiceForgotPasswordIntegrationTest {
                 .hasMessageContaining("尝试次数过多");
     }
 
-    private ForgotPasswordDTO forgotDto(String username, String email) {
+    private ForgotPasswordDTO forgotDto(String email) {
         ForgotPasswordDTO dto = new ForgotPasswordDTO();
-        dto.setUsername(username);
         dto.setEmail(email);
         return dto;
     }

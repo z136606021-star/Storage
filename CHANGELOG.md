@@ -1,5 +1,10 @@
 # CHANGELOG
 
+| 2026-07-13 | 邮箱找回密码：忘记密码改为仅凭绑定邮箱申请重置链接，移除账号输入；限流键改为邮箱 |
+| 2026-07-13 | 个人手机号维护：个人中心账号信息新增手机号行与齿轮编辑；`PUT /api/auth/me/phone` 供当前用户自行维护可选手机号（无短信验证）；管理员继续在用户管理维护 |
+| 2026-07-13 | 注册安全与账号登录：`sys_user.email` 唯一约束（`V025`，重复邮箱阻断迁移）、注册邮箱验证码（`V026` + `POST /api/auth/register/verification-code`）、账号/邮箱登录、本人完整邮箱展示、账号/显示名称禁止空白 |
+| 2026-07-13 | 内网容器访问与 MinIO 上传修复：Compose 显式 `container_name` + hostname（`mysql`/`minio`/`backend`/`frontend`）；生产 compose 开放 MySQL 3307、MinIO API 9000、Console 9001；backend/MinIO 凭据对齐与健康检查增强；移除 cleanup 脚本删卷能力，数据库/对象存储仅 DBeaver/Console 手工维护 |
+| 2026-07-13 | 邮箱统一小写：用户与客户邮箱写入时 `trim + lowercase`（`Locale.ROOT`）；Flyway `V024` 归一化历史 `sys_user.email` / `sys_customer.email`；前端用户管理、客户表单与注册/忘记密码提交同步规范化 |
 | 2026-07-13 | 第四十一期内网上传逻辑重写：修正 Spring Boot 3.3 `spring.servlet.multipart` 配置绑定，Nginx 请求体上限对齐 `UPLOAD_MAX_REQUEST_SIZE_BYTES` 并关闭请求缓冲；通用附件取消 MIME/魔数/并发限制，BOM 图片与 Excel 导入保留业务校验；前端上传取消固定超时并增强 413/网关错误诊断 |
 | 2026-07-13 | 修复分组 SUB 导航：无 permission 的子菜单（如配置管理）在侧栏作为容器展示已授权子页面；菜单校验与菜单管理表单支持新建纯分组 SUB |
 | 2026-07-13 | 第四十期个人中心与权限树：Flyway `V022` 菜单类型统一为 TOP/SUB/BUTTON 并重排写权限层级、恢复个人中心为侧栏首位；`V023` 新增邮箱验证码表；登录态原密码/验证码改密 API 与 `token_version` 全会话 JWT 失效；角色授权仅向上继承；前端 `PersonalCenterView`、菜单/角色授权树改造 |

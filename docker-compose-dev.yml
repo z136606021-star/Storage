@@ -3,6 +3,8 @@ name: ${COMPOSE_PROJECT_NAME:-storage}-dev
 services:
   mysql:
     image: mysql:8.0
+    container_name: ${STORAGE_MYSQL_CONTAINER:-storage-mysql}
+    hostname: mysql
     restart: unless-stopped
     ports:
       - "${STORAGE_MYSQL_PORT:-3307}:3306"
@@ -23,20 +25,25 @@ services:
 
   minio:
     image: minio/minio:latest
+    container_name: ${STORAGE_MINIO_CONTAINER:-storage-minio}
+    hostname: minio
     restart: unless-stopped
     ports:
       - "${STORAGE_MINIO_PORT:-9000}:9000"
+      - "${STORAGE_MINIO_CONSOLE_PORT:-9001}:9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin123}
     volumes:
       - minio_data:/data
-    command: server --address 0.0.0.0:9000 /data
+    command: server --address 0.0.0.0:9000 --console-address 0.0.0.0:9001 /data
 
   backend:
     build:
       context: .
       dockerfile: backend/Dockerfile
+    container_name: ${STORAGE_BACKEND_CONTAINER:-storage-backend}
+    hostname: backend
     restart: unless-stopped
     depends_on:
       mysql:
@@ -51,6 +58,8 @@ services:
       MYSQL_HOST: mysql
       MYSQL_PORT: 3306
       MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin123}
       BACKEND_PORT: 8080
       RESET_ADMIN_PASSWORD_ON_STARTUP: ${RESET_ADMIN_PASSWORD_ON_STARTUP:-true}
       APP_PUBLIC_BASE_URL: http://localhost:${FRONTEND_PORT:-5173}
@@ -65,6 +74,8 @@ services:
     build:
       context: .
       dockerfile: frontend/Dockerfile
+    container_name: ${STORAGE_FRONTEND_CONTAINER:-storage-frontend}
+    hostname: frontend
     restart: unless-stopped
     depends_on:
       backend:

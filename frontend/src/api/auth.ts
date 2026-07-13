@@ -1,11 +1,14 @@
 import { http } from '@/api/http'
 import type {
   AuthSession,
+  AuthUser,
   ChangePasswordByCurrentPasswordRequest,
   ChangePasswordByVerificationCodeRequest,
   ForgotPasswordRequest,
   LoginRequest,
   ResetPasswordRequest,
+  SendRegistrationVerificationCodeRequest,
+  UpdateCurrentUserPhoneRequest,
 } from '@/types/auth'
 import type { RegisterRequest } from '@/types/system'
 
@@ -17,12 +20,20 @@ export function register(data: RegisterRequest) {
   return http.post<AuthSession>('/auth/register', data)
 }
 
+export function sendRegistrationVerificationCode(data: SendRegistrationVerificationCodeRequest) {
+  return http.post<void>('/auth/register/verification-code', data)
+}
+
 export function logout() {
   return http.post<void>('/auth/logout')
 }
 
 export function fetchMe() {
   return http.get<AuthSession>('/auth/me')
+}
+
+export function updateMyPhone(data: UpdateCurrentUserPhoneRequest) {
+  return http.put<AuthUser>('/auth/me/phone', data)
 }
 
 export function forgotPassword(data: ForgotPasswordRequest) {

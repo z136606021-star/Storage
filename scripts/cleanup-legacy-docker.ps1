@@ -1,14 +1,13 @@
 # Remove pre-worktree-isolation Docker containers (material-ledger-*)
-param(
-    [switch]$RemoveOrphanVolumes
-)
-
 $ErrorActionPreference = "Stop"
 
 $legacyContainers = @('material-ledger-mysql', 'material-ledger-minio')
-$legacyVolumes = @('storage_mysql_data', 'storage_minio_data')
 
-Write-Host "Cleaning up legacy Docker resources..."
+Write-Host "Cleaning up legacy Docker containers..."
+Write-Host ""
+Write-Host "Note: this script only removes old material-ledger-* containers."
+Write-Host "It does not delete Docker volumes or database/object storage data."
+Write-Host "Use DBeaver or MinIO Console for manual data maintenance."
 Write-Host ""
 
 foreach ($name in $legacyContainers) {
@@ -19,23 +18,6 @@ foreach ($name in $legacyContainers) {
     } else {
         Write-Host "Container not found (skip): $name"
     }
-}
-
-if ($RemoveOrphanVolumes) {
-    Write-Host ""
-    Write-Host "Removing orphan legacy volumes..."
-    foreach ($vol in $legacyVolumes) {
-        $exists = docker volume ls --filter "name=^${vol}$" --format "{{.Name}}" 2>$null
-        if ($exists -eq $vol) {
-            Write-Host "Removing volume: $vol"
-            docker volume rm $vol 2>$null | Out-Null
-        } else {
-            Write-Host "Volume not found (skip): $vol"
-        }
-    }
-} else {
-    Write-Host ""
-    Write-Host "Orphan volumes not removed. Pass -RemoveOrphanVolumes to delete storage_mysql_data / storage_minio_data."
 }
 
 Write-Host ""

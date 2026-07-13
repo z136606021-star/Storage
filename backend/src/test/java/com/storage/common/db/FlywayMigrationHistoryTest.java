@@ -20,6 +20,9 @@ class FlywayMigrationHistoryTest {
     private static final String V017 = "db/migration/V017__flatten_system_management_menus.sql";
     private static final String V018 = "db/migration/V018__strip_pristine_demo_data_when_disabled.sql";
     private static final String V019 = "db/migration/V019__strip_pristine_demo_data_unconditionally.sql";
+    private static final String V024 = "db/migration/V024__normalize_email_lowercase.sql";
+    private static final String V025 = "db/migration/V025__sys_user_email_unique.sql";
+    private static final String V026 = "db/migration/V026__registration_verification_code.sql";
 
     @Test
     void publishedBaselineMigration_keepsOriginalFlywayChecksum() {
@@ -83,6 +86,34 @@ class FlywayMigrationHistoryTest {
         assertThat(migrationSql).doesNotContain("DELETE FROM sys_user");
         assertThat(migrationSql).doesNotContain("DELETE FROM sys_menu");
         assertThat(migrationSql).doesNotContain("DELETE FROM sys_role");
+    }
+
+    @Test
+    void normalizeEmailMigration_lowercasesExistingUserAndCustomerEmails() {
+        String migrationSql = readResource(V024);
+
+        assertThat(migrationSql).contains("UPDATE sys_user");
+        assertThat(migrationSql).contains("UPDATE sys_customer");
+        assertThat(migrationSql).contains("LOWER(TRIM(email))");
+        assertThat(migrationSql).contains("WHERE email IS NOT NULL");
+    }
+
+    @Test
+    void sysUserEmailUniqueMigration_blocksDuplicatesBeforeAddingIndex() {
+        String migrationSql = readResource(V025);
+
+        assertThat(migrationSql).contains("sys_user_duplicate_email_guard");
+        assertThat(migrationSql).contains("uk_sys_user_email");
+        assertThat(migrationSql).doesNotContain("DELETE FROM sys_user");
+    }
+
+    @Test
+    void registrationVerificationCodeMigration_createsPendingRegistrationTable() {
+        String migrationSql = readResource(V026);
+
+        assertThat(migrationSql).contains("registration_verification_code");
+        assertThat(migrationSql).contains("email VARCHAR(128) NOT NULL");
+        assertThat(migrationSql).contains("code_hash");
     }
 
     private static String readResource(String path) {
