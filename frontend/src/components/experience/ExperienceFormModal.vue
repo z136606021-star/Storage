@@ -284,16 +284,15 @@ async function handleSubmit() {
           <a-upload
             :show-upload-list="false"
             :before-upload="beforeUpload"
-            :disabled="!canAddMore || isUploading"
-            accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+            :disabled="!canAddMore"
             multiple
           >
-            <a-button :loading="isUploading" :disabled="!canAddMore">
+            <a-button :disabled="!canAddMore">
               <template #icon><UploadOutlined /></template>
               上传
             </a-button>
           </a-upload>
-          <div class="upload-hint">最多 {{ maxCount }} 个，支持多选上传</div>
+          <div class="upload-hint">最多 {{ maxCount }} 个，支持任意类型多选上传</div>
 
           <div v-if="items.length" class="attachment-list">
             <div v-for="file in items" :key="file.uid" class="attachment-item">

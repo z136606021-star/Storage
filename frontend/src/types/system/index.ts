@@ -53,7 +53,7 @@ export interface SysRoleSave {
 export interface SysMenu {
   id: number
   parentId: number | null
-  menuType: 'CATALOG' | 'MENU'
+  menuType: 'TOP' | 'SUB' | 'BUTTON' | 'CATALOG' | 'MENU'
   name: string
   permission: string | null
   path: string | null
@@ -66,7 +66,7 @@ export interface SysMenu {
 
 export interface SysMenuSave {
   parentId: number | null
-  menuType: 'CATALOG' | 'MENU'
+  menuType: 'TOP' | 'SUB' | 'BUTTON' | 'CATALOG' | 'MENU'
   name: string
   permission?: string
   path?: string

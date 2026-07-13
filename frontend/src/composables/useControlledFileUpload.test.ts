@@ -30,7 +30,6 @@ describe('useControlledFileUpload', () => {
     const uploadFn = vi.fn().mockRejectedValue(new Error('文件大小超过限制'))
     const { enqueueFile, items } = useControlledFileUpload({
       policy: { maxSizeBytes: 1024 },
-      allowedTypes: ['image/png'],
       uploadFn,
     })
 
@@ -43,6 +42,28 @@ describe('useControlledFileUpload', () => {
     expect(items.value[0]?.status).toBe('error')
   })
 
+  it('accepts unknown or empty MIME types for generic attachments', async () => {
+    const uploadFn = vi.fn().mockResolvedValue({
+      id: 1,
+      objectKey: '2026-07-13/demo.bin',
+      originalName: 'demo.bin',
+      contentType: 'application/octet-stream',
+      sizeBytes: 16,
+      url: '/api/files/preview?objectKey=demo',
+    } satisfies FileUploadResult)
+
+    const { enqueueFile, items } = useControlledFileUpload({ uploadFn })
+
+    expect(enqueueFile(createFile('demo.bin', 16, ''))).toBe(true)
+    expect(enqueueFile(createFile('legacy.cad', 16, 'application/x-cad'))).toBe(true)
+
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(uploadFn).toHaveBeenCalledTimes(2)
+    expect(items.value.every((item) => item.status === 'done')).toBe(true)
+  })
+
   it('keeps all completed uploads when completions arrive out of order', async () => {
     const first = deferred<FileUploadResult>()
     const second = deferred<FileUploadResult>()
@@ -52,8 +73,7 @@ describe('useControlledFileUpload', () => {
       .mockImplementationOnce(() => second.promise)
 
     const { enqueueFile, items } = useControlledFileUpload({
-      policy: { uploadConcurrency: 2, maxFilesPerRecord: 20 },
-      allowedTypes: ['image/png'],
+      policy: { maxFilesPerRecord: 20 },
       uploadFn,
     })
 
@@ -90,13 +110,12 @@ describe('useControlledFileUpload', () => {
     ])
   })
 
-  it('limits concurrent uploads to configured concurrency', async () => {
+  it('starts all selected uploads without an application concurrency queue', async () => {
     const gates = Array.from({ length: 5 }, () => deferred<FileUploadResult>())
     const uploadFn = vi.fn().mockImplementation(() => gates[uploadFn.mock.calls.length - 1].promise)
 
-    const { enqueueFile, items } = useControlledFileUpload({
-      policy: { uploadConcurrency: 3, maxFilesPerRecord: 20 },
-      allowedTypes: ['image/png'],
+    const { enqueueFile } = useControlledFileUpload({
+      policy: { maxFilesPerRecord: 20 },
       uploadFn,
     })
 
@@ -105,22 +124,6 @@ describe('useControlledFileUpload', () => {
     }
 
     await Promise.resolve()
-    expect(uploadFn).toHaveBeenCalledTimes(3)
-    expect(items.value.filter((item) => item.status === 'uploading').length).toBeGreaterThanOrEqual(3)
-
-    for (const gate of gates.slice(0, 3)) {
-      gate.resolve({
-        id: 1,
-        objectKey: 'done',
-        originalName: 'done.png',
-        contentType: 'image/png',
-        sizeBytes: 1,
-        url: '/api/files/preview?objectKey=done',
-      })
-    }
-    await Promise.resolve()
-    await Promise.resolve()
-
     expect(uploadFn).toHaveBeenCalledTimes(5)
   })
 
@@ -138,8 +141,7 @@ describe('useControlledFileUpload', () => {
       .mockRejectedValueOnce(new Error('network'))
 
     const { enqueueFile, items, resolveObjectKeys } = useControlledFileUpload({
-      policy: { uploadConcurrency: 2, maxFilesPerRecord: 20 },
-      allowedTypes: ['image/png'],
+      policy: { maxFilesPerRecord: 20 },
       uploadFn,
     })
 
@@ -167,5 +169,16 @@ describe('useControlledFileUpload', () => {
     const accepted = enqueueFile(createFile('c.png'))
     expect(accepted).toBe(false)
     expect(items.value).toHaveLength(2)
+  })
+
+  it('still validates MIME when allowedTypes is configured', () => {
+    const uploadFn = vi.fn()
+    const { enqueueFile } = useControlledFileUpload({
+      allowedTypes: ['image/png'],
+      uploadFn,
+    })
+
+    expect(enqueueFile(createFile('demo.jpg', 16, 'image/jpeg'))).toBe(false)
+    expect(uploadFn).not.toHaveBeenCalled()
   })
 })

@@ -26,6 +26,8 @@ public class SysUser {
 
     private Integer status;
 
+    private Integer tokenVersion;
+
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;

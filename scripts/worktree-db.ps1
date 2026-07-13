@@ -153,8 +153,6 @@ function Format-WorktreeEnvContent {
         [string]$UploadMaxSizeBytes = '5368709120',
         [string]$UploadMaxRequestSizeBytes = '5505025024',
         [string]$UploadMaxFilesPerRecord = '20',
-        [string]$UploadConcurrency = '3',
-        [string]$UploadAllowedContentTypes = 'image/jpeg,image/png,image/webp,image/gif,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain',
         [string]$AppPublicBaseUrl = '',
         [string]$PasswordResetTokenTtlMinutes = '30',
         [string]$MailHost = 'smtp.gmail.com',
@@ -202,8 +200,6 @@ JWT_TTL_MINUTES=$JwtTtlMinutes
 UPLOAD_MAX_SIZE_BYTES=$UploadMaxSizeBytes
 UPLOAD_MAX_REQUEST_SIZE_BYTES=$UploadMaxRequestSizeBytes
 UPLOAD_MAX_FILES_PER_RECORD=$UploadMaxFilesPerRecord
-UPLOAD_CONCURRENCY=$UploadConcurrency
-UPLOAD_ALLOWED_CONTENT_TYPES=$UploadAllowedContentTypes
 
 APP_PUBLIC_BASE_URL=$AppPublicBaseUrl
 PASSWORD_RESET_TOKEN_TTL_MINUTES=$PasswordResetTokenTtlMinutes
@@ -293,9 +289,14 @@ function Write-WorktreeEnvFile {
     $jwtTtlMinutes = Get-EnvOrExistingValue -Existing $existing -Name 'JWT_TTL_MINUTES' -DefaultValue '120'
     $uploadMaxSizeBytes = Get-EnvOrExistingValue -Existing $existing -Name 'UPLOAD_MAX_SIZE_BYTES' -DefaultValue '5368709120'
     $uploadMaxRequestSizeBytes = Get-EnvOrExistingValue -Existing $existing -Name 'UPLOAD_MAX_REQUEST_SIZE_BYTES' -DefaultValue '5505025024'
+    # Migrate only known historical defaults; preserve custom upload limits.
+    if ($uploadMaxSizeBytes -in @('5242880', '52428800')) {
+        $uploadMaxSizeBytes = '5368709120'
+    }
+    if ($uploadMaxRequestSizeBytes -in @('57671680', '55050240')) {
+        $uploadMaxRequestSizeBytes = '5505025024'
+    }
     $uploadMaxFilesPerRecord = Get-EnvOrExistingValue -Existing $existing -Name 'UPLOAD_MAX_FILES_PER_RECORD' -DefaultValue '20'
-    $uploadConcurrency = Get-EnvOrExistingValue -Existing $existing -Name 'UPLOAD_CONCURRENCY' -DefaultValue '3'
-    $uploadAllowedContentTypes = Get-EnvOrExistingValue -Existing $existing -Name 'UPLOAD_ALLOWED_CONTENT_TYPES' -DefaultValue 'image/jpeg,image/png,image/webp,image/gif,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain'
     $appPublicBaseUrl = Get-EnvOrExistingValue -Existing $existing -Name 'APP_PUBLIC_BASE_URL' -DefaultValue "http://localhost"
     if ($appPublicBaseUrl -eq "http://localhost:$frontendPort") {
         $appPublicBaseUrl = "http://localhost"
@@ -328,8 +329,6 @@ function Write-WorktreeEnvFile {
         -UploadMaxSizeBytes $uploadMaxSizeBytes `
         -UploadMaxRequestSizeBytes $uploadMaxRequestSizeBytes `
         -UploadMaxFilesPerRecord $uploadMaxFilesPerRecord `
-        -UploadConcurrency $uploadConcurrency `
-        -UploadAllowedContentTypes $uploadAllowedContentTypes `
         -AppPublicBaseUrl $appPublicBaseUrl `
         -PasswordResetTokenTtlMinutes $passwordResetTokenTtlMinutes `
         -MailHost $mailHost `

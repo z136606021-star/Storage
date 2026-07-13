@@ -13,6 +13,7 @@ DROP TABLE IF EXISTS experience_record;
 DROP TABLE IF EXISTS experience_type;
 DROP TABLE IF EXISTS sys_customer;
 DROP TABLE IF EXISTS password_reset_token;
+DROP TABLE IF EXISTS email_verification_code;
 DROP TABLE IF EXISTS jwt_revoked_token;
 DROP TABLE IF EXISTS sys_file;
 DROP TABLE IF EXISTS sys_role_menu;
@@ -25,6 +26,7 @@ CREATE TABLE sys_user (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(64) NOT NULL,
     password_hash VARCHAR(128) NOT NULL,
+    token_version INT NOT NULL DEFAULT 0,
     display_name VARCHAR(64) NOT NULL,
     email VARCHAR(128) NULL,
     phone VARCHAR(32) NULL,
@@ -94,6 +96,17 @@ CREATE TABLE sys_file (
     uploader_id BIGINT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_test_file_uploader FOREIGN KEY (uploader_id) REFERENCES sys_user (id) ON DELETE SET NULL
+);
+
+CREATE TABLE email_verification_code (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    purpose VARCHAR(32) NOT NULL,
+    code_hash VARCHAR(64) NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    used_at TIMESTAMP NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_test_email_verification_user FOREIGN KEY (user_id) REFERENCES sys_user (id) ON DELETE CASCADE
 );
 
 CREATE TABLE jwt_revoked_token (
@@ -303,33 +316,43 @@ INSERT INTO sys_role (id, code, name, status) VALUES
 (2, 'USER', '普通用户', 1);
 
 INSERT INTO sys_menu (id, parent_id, name, permission, path, component_key, icon, sort_order, visible) VALUES
+(10, NULL, '个人中心', 'platform:personal:read', '/platform/personal', 'views/platform/PersonalCenterView.vue', 'HomeOutlined', 1, 1),
 (110, NULL, '仓库管理', NULL, NULL, NULL, 'InboxOutlined', 10, 1),
 (111, 110, '物料台账', 'warehouse:material-ledger:read', '/warehouse/material-ledger', 'views/warehouse/MaterialLedgerView.vue', NULL, 10, 1),
-(2, NULL, '物料台账写', 'warehouse:material-ledger:write', NULL, NULL, NULL, 11, 0),
-(3, NULL, '菜单管理', 'system:menu:read', '/system/menus', 'components/system/MenuManagePanel.vue', NULL, 30, 0),
-(4, NULL, '菜单写', 'system:menu:write', NULL, NULL, NULL, 31, 0),
+(114, 110, '配置管理', NULL, NULL, NULL, NULL, 40, 1),
+(115, 114, 'Bin位管理', 'warehouse:bin:read', '/warehouse/config/bin', 'views/warehouse/config/BinManageView.vue', NULL, 10, 1),
+(116, 114, '物料清单管理', 'warehouse:bom:read', '/warehouse/config/bom', 'views/warehouse/config/BomManageView.vue', NULL, 20, 1),
+(2, 111, '物料台账写', 'warehouse:material-ledger:write', NULL, NULL, NULL, 11, 0),
+(3, NULL, '菜单管理隐藏', 'system:menu:read', '/system/menus-hidden', 'components/system/MenuManagePanel.vue', NULL, 30, 0),
+(4, 203, '菜单写旧', 'system:menu:write', NULL, NULL, NULL, 31, 0),
 (5, NULL, '项目中心读', 'platform:project:read', '/platform/project', 'views/platform/ShellPlaceholderView.vue', NULL, 40, 0),
 (6, 110, '菜单隐藏子页', 'system:menu:child', 'child', 'views/platform/ShellPlaceholderView.vue', NULL, 32, 0),
 (7, NULL, '经验库', 'platform:experience:read', '/platform/experience', 'views/experience/ExperienceLibraryView.vue', NULL, 50, 0),
-(8, NULL, '经验库写', 'platform:experience:write', NULL, NULL, NULL, 51, 0),
+(8, 7, '经验库写', 'platform:experience:write', NULL, NULL, NULL, 51, 0),
 (9, NULL, '文件上传', 'platform:file:upload', NULL, NULL, NULL, 52, 0),
-(10, NULL, '设计指引', 'platform:design:read', '/platform/design', 'views/design/DesignGuideView.vue', NULL, 60, 0),
-(11, NULL, '设计指引写', 'platform:design:write', NULL, NULL, NULL, 61, 0),
+(12, NULL, '设计指引', 'platform:design:read', '/platform/design', 'views/design/DesignGuideView.vue', NULL, 60, 0),
+(13, 12, '设计指引写', 'platform:design:write', NULL, NULL, NULL, 61, 0),
 (200, NULL, '系统管理', NULL, NULL, NULL, 'SettingOutlined', 20, 1),
 (201, 200, '用户管理', 'system:user:read', '/system/users', 'views/system/UserManageView.vue', NULL, 10, 1),
 (202, 200, '角色管理', 'system:role:read', '/system/roles', 'components/system/RoleManagePanel.vue', NULL, 20, 1),
 (203, 200, '菜单管理', 'system:menu:read', '/system/menus', 'components/system/MenuManagePanel.vue', NULL, 30, 1),
 (204, 200, '客户管理', 'system:customer:read', '/system/customers', 'views/system/CustomerManageView.vue', NULL, 40, 1),
-(214, NULL, '用户写', 'system:user:write', NULL, NULL, NULL, 214, 0),
-(224, NULL, '角色写', 'system:role:write', NULL, NULL, NULL, 224, 0),
-(234, NULL, '菜单写', 'system:menu:write', NULL, NULL, NULL, 234, 0),
-(244, NULL, '客户写', 'system:customer:write', NULL, NULL, NULL, 244, 0);
+(214, 201, '用户写', 'system:user:write', NULL, NULL, NULL, 214, 0),
+(224, 202, '角色写', 'system:role:write', NULL, NULL, NULL, 224, 0),
+(234, 203, '菜单写', 'system:menu:write', NULL, NULL, NULL, 234, 0),
+(244, 204, '客户写', 'system:customer:write', NULL, NULL, NULL, 244, 0);
 
-UPDATE sys_menu SET menu_type = 'CATALOG' WHERE id IN (110, 200);
+UPDATE sys_menu SET menu_type = 'TOP' WHERE id IN (10, 110, 200);
+UPDATE sys_menu SET menu_type = 'SUB' WHERE id IN (111, 114, 115, 116, 201, 202, 203, 204, 3, 6, 7, 12, 5);
+UPDATE sys_menu SET menu_type = 'BUTTON' WHERE id IN (2, 4, 8, 9, 13, 214, 224, 234, 244);
 
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES
+(1, 10),
 (1, 110),
 (1, 111),
+(1, 114),
+(1, 115),
+(1, 116),
 (1, 2),
 (1, 3),
 (1, 4),
@@ -338,8 +361,8 @@ INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 (1, 7),
 (1, 8),
 (1, 9),
-(1, 10),
-(1, 11),
+(1, 12),
+(1, 13),
 (1, 200),
 (1, 201),
 (1, 202),

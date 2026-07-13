@@ -25,6 +25,8 @@ const emit = defineEmits<{
 const formRef = ref<FormInstance>()
 const submitting = ref(false)
 
+const IMAGE_CONTENT_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+
 const {
   fileList,
   isUploading,
@@ -36,7 +38,7 @@ const {
   beforeUpload,
   handleRemove,
   resolveObjectKeys,
-} = useControlledFileUpload()
+} = useControlledFileUpload({ allowedTypes: IMAGE_CONTENT_TYPES })
 
 const defaultForm = (): WarehouseBomSavePayload => ({
   category: '',
@@ -85,17 +87,9 @@ function buildItems(record: WarehouseBom | null): ControlledUploadItem[] {
 async function loadUploadPolicy() {
   try {
     const policy = await fetchUploadPolicy()
-    setPolicy({
-      ...policy,
-      allowedContentTypes: policy.imageContentTypes.length
-        ? policy.imageContentTypes
-        : policy.allowedContentTypes.filter((type) => type.startsWith('image/')),
-    })
+    setPolicy(policy)
   } catch {
-    setPolicy({
-      allowedContentTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
-      imageContentTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
-    })
+    // keep composable defaults
   }
 }
 

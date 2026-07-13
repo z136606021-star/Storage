@@ -2,6 +2,7 @@ package com.storage.system.role.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.storage.common.exception.BusinessException;
+import com.storage.system.menu.MenuTreeUtils;
 import com.storage.system.menu.entity.SysMenu;
 import com.storage.system.menu.mapper.SysMenuMapper;
 import com.storage.system.role.dto.SysRoleSaveDTO;
@@ -125,7 +126,12 @@ public class SysRoleServiceImpl implements SysRoleService {
 
     private void replaceRoleMenus(Long roleId, List<Long> menuIds) {
         sysMenuMapper.deleteRoleMenusByRoleId(roleId);
-        for (Long menuId : menuIds) {
+        if (menuIds == null || menuIds.isEmpty()) {
+            return;
+        }
+        List<SysMenu> allMenus = sysMenuMapper.selectList(null);
+        Set<Long> expandedMenuIds = MenuTreeUtils.expandWithAncestors(menuIds, allMenus);
+        for (Long menuId : expandedMenuIds.stream().sorted().toList()) {
             sysMenuMapper.insertRoleMenu(roleId, menuId);
         }
     }

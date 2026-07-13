@@ -18,13 +18,9 @@ export interface ControlledUploadItem {
   errorMessage?: string
 }
 
-interface PendingUpload {
-  uid: string
-  file: File
-}
-
 export interface UseControlledFileUploadOptions {
   policy?: Partial<FileUploadPolicy>
+  /** When set, only these MIME types are accepted (e.g. BOM images). */
   allowedTypes?: string[]
   uploadFn?: (file: File) => Promise<FileUploadResult>
   mapResult?: (result: FileUploadResult) => Partial<ControlledUploadItem>
@@ -41,18 +37,11 @@ export function useControlledFileUpload(options: UseControlledFileUploadOptions 
   })
   const items = ref<ControlledUploadItem[]>([])
   const originFiles = new Map<string, File>()
-  const pendingQueue: PendingUpload[] = []
-  let activeUploads = 0
 
-  const allowedTypes = computed(
-    () => options.allowedTypes ?? policy.value.allowedContentTypes,
-  )
+  const allowedTypes = computed(() => options.allowedTypes ?? null)
   const maxCount = computed(() => policy.value.maxFilesPerRecord)
   const maxSizeBytes = computed(() => policy.value.maxSizeBytes)
-  const concurrency = computed(() => policy.value.uploadConcurrency)
-  const isUploading = computed(() =>
-    items.value.some((item) => item.status === 'uploading') || pendingQueue.length > 0,
-  )
+  const isUploading = computed(() => items.value.some((item) => item.status === 'uploading'))
   const canAddMore = computed(() => items.value.length < maxCount.value)
 
   const fileList = computed<UploadFile[]>(() =>
@@ -75,7 +64,7 @@ export function useControlledFileUpload(options: UseControlledFileUploadOptions 
   }
 
   function validateFile(file: File): string | null {
-    if (!allowedTypes.value.includes(file.type)) {
+    if (allowedTypes.value && !allowedTypes.value.includes(file.type)) {
       return '文件类型不支持'
     }
     return null
@@ -93,7 +82,6 @@ export function useControlledFileUpload(options: UseControlledFileUploadOptions 
   function clearItems() {
     items.value = []
     originFiles.clear()
-    pendingQueue.length = 0
   }
 
   function setItems(nextItems: ControlledUploadItem[]) {
@@ -107,15 +95,15 @@ export function useControlledFileUpload(options: UseControlledFileUploadOptions 
       .map((item) => item.objectKey as string)
   }
 
-  async function uploadOne(task: PendingUpload) {
+  async function uploadOne(uid: string, file: File) {
     const upload = options.uploadFn ?? uploadFile
-    updateItem(task.uid, { status: 'uploading', errorMessage: undefined })
+    updateItem(uid, { status: 'uploading', errorMessage: undefined })
     try {
-      const result = await upload(task.file)
+      const result = await upload(file)
       const mapped = options.mapResult?.(result) ?? {}
-      updateItem(task.uid, {
+      updateItem(uid, {
         status: 'done',
-        name: result.originalName || task.file.name,
+        name: result.originalName || file.name,
         url: result.url,
         objectKey: result.objectKey,
         contentType: result.contentType,
@@ -125,25 +113,11 @@ export function useControlledFileUpload(options: UseControlledFileUploadOptions 
       })
     } catch (error) {
       const errorMessage = getErrorMessage(error, '上传失败')
-      updateItem(task.uid, {
+      updateItem(uid, {
         status: 'error',
         errorMessage,
       })
-      message.error(`${task.file.name} 上传失败：${errorMessage}`)
-    }
-  }
-
-  function pumpQueue() {
-    while (activeUploads < concurrency.value && pendingQueue.length > 0) {
-      const task = pendingQueue.shift()
-      if (!task) {
-        return
-      }
-      activeUploads += 1
-      void uploadOne(task).finally(() => {
-        activeUploads -= 1
-        pumpQueue()
-      })
+      message.error(`${file.name} 上传失败：${errorMessage}`)
     }
   }
 
@@ -170,8 +144,7 @@ export function useControlledFileUpload(options: UseControlledFileUploadOptions 
         contentType: file.type,
       },
     ]
-    pendingQueue.push({ uid, file })
-    pumpQueue()
+    void uploadOne(uid, file)
     return true
   }
 
@@ -191,8 +164,7 @@ export function useControlledFileUpload(options: UseControlledFileUploadOptions 
       message.error(validationError)
       return
     }
-    pendingQueue.push({ uid, file })
-    pumpQueue()
+    void uploadOne(uid, file)
   }
 
   function handleRemove(file: UploadFile) {

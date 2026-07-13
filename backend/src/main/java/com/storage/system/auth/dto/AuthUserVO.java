@@ -12,4 +12,6 @@ public class AuthUserVO {
     private String username;
 
     private String displayName;
+
+    private String maskedEmail;
 }

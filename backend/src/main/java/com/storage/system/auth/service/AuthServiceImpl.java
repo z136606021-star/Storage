@@ -1,22 +1,28 @@
 package com.storage.system.auth.service;
 
 import com.storage.common.exception.BusinessException;
+import com.storage.common.util.EmailMaskUtils;
+import com.storage.system.auth.config.PasswordVerificationProperties;
+import com.storage.system.auth.dto.AuthSessionVO;
+import com.storage.system.auth.dto.AuthUserVO;
+import com.storage.system.auth.dto.ChangePasswordByCurrentPasswordDTO;
+import com.storage.system.auth.dto.ChangePasswordByVerificationCodeDTO;
+import com.storage.system.auth.dto.ForgotPasswordDTO;
+import com.storage.system.auth.dto.ForgotPasswordResetDTO;
+import com.storage.system.auth.dto.JwtClaims;
+import com.storage.system.auth.dto.LoginRequestDTO;
+import com.storage.system.auth.dto.RegisterRequestDTO;
+import com.storage.system.auth.entity.EmailVerificationCode;
+import com.storage.system.auth.entity.PasswordResetToken;
+import com.storage.system.auth.mapper.EmailVerificationCodeMapper;
+import com.storage.system.auth.mapper.PasswordResetTokenMapper;
+import com.storage.system.auth.shiro.UserRealm;
 import com.storage.system.menu.mapper.SysMenuMapper;
 import com.storage.system.role.entity.SysRole;
 import com.storage.system.role.mapper.SysRoleMapper;
 import com.storage.system.user.entity.SysUser;
 import com.storage.system.user.mapper.SysUserMapper;
 import com.storage.system.auth.config.PasswordResetProperties;
-import com.storage.system.auth.dto.AuthSessionVO;
-import com.storage.system.auth.dto.AuthUserVO;
-import com.storage.system.auth.dto.ForgotPasswordDTO;
-import com.storage.system.auth.dto.ForgotPasswordResetDTO;
-import com.storage.system.auth.dto.JwtClaims;
-import com.storage.system.auth.dto.LoginRequestDTO;
-import com.storage.system.auth.dto.RegisterRequestDTO;
-import com.storage.system.auth.entity.PasswordResetToken;
-import com.storage.system.auth.mapper.PasswordResetTokenMapper;
-import com.storage.system.auth.shiro.UserRealm;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.apache.shiro.SecurityUtils;
@@ -42,19 +48,25 @@ public class AuthServiceImpl implements AuthService {
     private static final String FORGOT_PASSWORD_IDENTITY_ERROR = "账号或邮箱不正确，或账号未绑定邮箱";
     private static final String RESET_PASSWORD_TOKEN_ERROR = "重置链接无效或已过期";
     private static final String LOGIN_IDENTITY_ERROR = "账号或密码错误";
+    private static final String VERIFICATION_CODE_ERROR = "验证码无效或已过期";
+    private static final String CHANGE_PASSWORD_PURPOSE = "CHANGE_PASSWORD";
 
     private final SysUserMapper sysUserMapper;
     private final SysRoleMapper sysRoleMapper;
     private final SysMenuMapper sysMenuMapper;
     private final PasswordResetTokenMapper passwordResetTokenMapper;
+    private final EmailVerificationCodeMapper emailVerificationCodeMapper;
     private final PasswordResetMailService passwordResetMailService;
+    private final PasswordVerificationMailService passwordVerificationMailService;
     private final PasswordResetProperties passwordResetProperties;
+    private final PasswordVerificationProperties passwordVerificationProperties;
     private final BCryptPasswordEncoder passwordEncoder;
     private final UserRealm userRealm;
     private final JwtService jwtService;
     private final JwtRevocationService jwtRevocationService;
     private final LoginFailureLimiter loginFailureLimiter;
     private final ForgotPasswordFailureLimiter forgotPasswordFailureLimiter;
+    private final PasswordVerificationFailureLimiter passwordVerificationFailureLimiter;
     private final SecureRandom secureRandom = new SecureRandom();
 
     @Override
@@ -91,6 +103,7 @@ public class AuthServiceImpl implements AuthService {
         user.setUsername(request.getUsername());
         user.setDisplayName(request.getDisplayName());
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        user.setTokenVersion(0);
         if (StringUtils.hasText(request.getEmail())) {
             String email = request.getEmail().trim();
             if (!email.matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")) {
@@ -165,12 +178,81 @@ public class AuthServiceImpl implements AuthService {
         if (user == null || user.getStatus() == null || user.getStatus() != 1) {
             throw new BusinessException(RESET_PASSWORD_TOKEN_ERROR);
         }
-        user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
-        sysUserMapper.updateById(user);
+        updatePasswordAndInvalidateSessions(user, request.getNewPassword());
 
         token.setUsedAt(LocalDateTime.now());
         passwordResetTokenMapper.updateById(token);
         forgotPasswordFailureLimiter.resetForgotPassword(user.getUsername());
+    }
+
+    @Override
+    @Transactional
+    public void changePasswordByCurrentPassword(ChangePasswordByCurrentPasswordDTO request) {
+        SysUser user = requireCurrentUser();
+        validatePasswordChange(request.getNewPassword(), request.getConfirmPassword());
+        if (!userRealm.matchesPassword(request.getCurrentPassword(), user.getPasswordHash())) {
+            throw new BusinessException("原密码不正确");
+        }
+        if (userRealm.matchesPassword(request.getNewPassword(), user.getPasswordHash())) {
+            throw new BusinessException("新密码不能与原密码相同");
+        }
+        updatePasswordAndInvalidateSessions(user, request.getNewPassword());
+    }
+
+    @Override
+    @Transactional
+    public void sendPasswordVerificationCode() {
+        SysUser user = requireCurrentUser();
+        if (!StringUtils.hasText(user.getEmail())) {
+            throw new BusinessException("当前账号未绑定邮箱，无法发送验证码");
+        }
+
+        EmailVerificationCode latest = emailVerificationCodeMapper.selectLatestByUserAndPurpose(user.getId(), CHANGE_PASSWORD_PURPOSE);
+        if (latest != null && latest.getCreatedAt() != null) {
+            LocalDateTime cooldownUntil = latest.getCreatedAt().plusSeconds(passwordVerificationProperties.getSendCooldownSeconds());
+            if (cooldownUntil.isAfter(LocalDateTime.now())) {
+                throw new BusinessException("发送过于频繁，请稍后再试");
+            }
+        }
+
+        String rawCode = generateVerificationCode();
+        EmailVerificationCode code = new EmailVerificationCode();
+        code.setUserId(user.getId());
+        code.setPurpose(CHANGE_PASSWORD_PURPOSE);
+        code.setCodeHash(hashToken(rawCode));
+        code.setExpiresAt(LocalDateTime.now().plusMinutes(passwordVerificationProperties.getTtlMinutes()));
+        emailVerificationCodeMapper.insert(code);
+
+        passwordVerificationMailService.sendVerificationCode(user, rawCode);
+    }
+
+    @Override
+    @Transactional
+    public void changePasswordByVerificationCode(ChangePasswordByVerificationCodeDTO request) {
+        SysUser user = requireCurrentUser();
+        if (!StringUtils.hasText(user.getEmail())) {
+            throw new BusinessException("当前账号未绑定邮箱，无法使用验证码修改密码");
+        }
+        validatePasswordChange(request.getNewPassword(), request.getConfirmPassword());
+        passwordVerificationFailureLimiter.assertAllowedVerify(user.getId());
+
+        EmailVerificationCode code = emailVerificationCodeMapper.selectValidForUpdate(
+                user.getId(),
+                CHANGE_PASSWORD_PURPOSE,
+                hashToken(request.getVerificationCode().trim())
+        );
+        if (code == null) {
+            passwordVerificationFailureLimiter.recordVerifyFailure(user.getId());
+            throw new BusinessException(VERIFICATION_CODE_ERROR);
+        }
+        if (userRealm.matchesPassword(request.getNewPassword(), user.getPasswordHash())) {
+            throw new BusinessException("新密码不能与原密码相同");
+        }
+
+        updatePasswordAndInvalidateSessions(user, request.getNewPassword());
+        code.setUsedAt(LocalDateTime.now());
+        emailVerificationCodeMapper.updateById(code);
+        passwordVerificationFailureLimiter.resetVerifyFailures(user.getId());
     }
 
     @Override
@@ -192,6 +274,27 @@ public class AuthServiceImpl implements AuthService {
         return null;
     }
 
+    private SysUser requireCurrentUser() {
+        SysUser user = currentUser();
+        if (user == null) {
+            throw new BusinessException("未登录");
+        }
+        return user;
+    }
+
+    private void validatePasswordChange(String newPassword, String confirmPassword) {
+        if (!newPassword.equals(confirmPassword)) {
+            throw new BusinessException("两次输入的新密码不一致");
+        }
+    }
+
+    private void updatePasswordAndInvalidateSessions(SysUser user, String rawPassword) {
+        user.setPasswordHash(passwordEncoder.encode(rawPassword));
+        int nextVersion = user.getTokenVersion() == null ? 1 : user.getTokenVersion() + 1;
+        user.setTokenVersion(nextVersion);
+        sysUserMapper.updateById(user);
+    }
+
     private AuthSessionVO buildSession(SysUser user, String accessToken) {
         List<String> roles = sysUserMapper.selectRoleCodesByUserId(user.getId());
         List<String> permissions = sysUserMapper.selectPermissionsByUserId(user.getId());
@@ -200,6 +303,7 @@ public class AuthServiceImpl implements AuthService {
                         .id(user.getId())
                         .username(user.getUsername())
                         .displayName(user.getDisplayName())
+                        .maskedEmail(EmailMaskUtils.mask(user.getEmail()))
                         .build())
                 .roles(roles)
                 .permissions(permissions)
@@ -213,6 +317,13 @@ public class AuthServiceImpl implements AuthService {
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
+    private String generateVerificationCode() {
+        int bound = (int) Math.pow(10, passwordVerificationProperties.getCodeLength());
+        int floor = bound / 10;
+        int code = secureRandom.nextInt(bound - floor) + floor;
+        return String.valueOf(code);
+    }
+
     private String hashToken(String rawToken) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
@@ -221,5 +332,4 @@ public class AuthServiceImpl implements AuthService {
             throw new IllegalStateException("SHA-256 algorithm is unavailable", ex);
         }
     }
-
 }

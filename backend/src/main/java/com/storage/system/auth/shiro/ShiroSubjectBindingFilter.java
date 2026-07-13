@@ -58,7 +58,7 @@ public class ShiroSubjectBindingFilter implements Filter {
             if (jwtRevocationService.isRevoked(claims.jti())) {
                 throw new JwtAuthenticationException("JWT 已失效", null);
             }
-            subject.login(new JwtAuthenticationToken(token, claims.userId()));
+            subject.login(new JwtAuthenticationToken(token, claims));
         } catch (AuthenticationException ex) {
             subject.logout();
         }

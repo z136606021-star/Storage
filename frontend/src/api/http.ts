@@ -32,14 +32,43 @@ http.interceptors.response.use(
 )
 
 export function getErrorMessage(error: unknown, fallback: string): string {
-  if (axios.isAxiosError(error) && error.response?.data) {
-    const data = error.response.data as { message?: string; error?: string }
-    if (data.message) {
-      return String(data.message)
+  if (!axios.isAxiosError(error)) {
+    return fallback
+  }
+
+  if (error.code === 'ECONNABORTED') {
+    return '上传超时，请检查网络或稍后重试'
+  }
+
+  if (!error.response) {
+    return '网络连接失败，请检查网络或代理配置'
+  }
+
+  const status = error.response.status
+  if (status === 413) {
+    return '文件超过服务器允许大小（HTTP 413）'
+  }
+  if (status === 502 || status === 504) {
+    return `网关错误（HTTP ${status}），可能是上游代理超时或不可用`
+  }
+
+  const data = error.response.data
+  if (data && typeof data === 'object') {
+    const payload = data as { message?: string; error?: string }
+    if (payload.message) {
+      return String(payload.message)
     }
-    if (data.error) {
-      return String(data.error)
+    if (payload.error) {
+      return String(payload.error)
     }
   }
+
+  if (typeof data === 'string' && data.trim()) {
+    const normalized = data.toLowerCase()
+    if (normalized.includes('413') || normalized.includes('too large') || normalized.includes('request entity too large')) {
+      return '文件超过代理允许大小（HTTP 413）'
+    }
+  }
+
   return fallback
 }

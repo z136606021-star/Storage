@@ -51,7 +51,8 @@ class SysMenuControllerIntegrationTest {
     void createVisibleRouteMenu_withoutComponentKey_returns400() throws Exception {
         String token = loginAsAdmin("menuadmin1");
         SysMenuSaveDTO dto = new SysMenuSaveDTO();
-        dto.setMenuType("MENU");
+        dto.setMenuType("SUB");
+        dto.setParentId(110L);
         dto.setName("动态菜单");
         dto.setPermission("dynamic:menu:read");
         dto.setPath("/dynamic/menu");
@@ -70,7 +71,8 @@ class SysMenuControllerIntegrationTest {
     void createHiddenActionMenu_withoutComponentKey_returnsCreatedMenu() throws Exception {
         String token = loginAsAdmin("menuadmin2");
         SysMenuSaveDTO dto = new SysMenuSaveDTO();
-        dto.setMenuType("MENU");
+        dto.setMenuType("BUTTON");
+        dto.setParentId(111L);
         dto.setName("隐藏动作权限");
         dto.setPermission("dynamic:menu:write");
         dto.setVisible(0);
@@ -92,10 +94,10 @@ class SysMenuControllerIntegrationTest {
         mockMvc.perform(get("/api/menus/nav-tree")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].key").value("110"))
-                .andExpect(jsonPath("$[0].icon").value("InboxOutlined"))
-                .andExpect(jsonPath("$[0].children[0].componentKey").value("views/warehouse/MaterialLedgerView.vue"))
-                .andExpect(jsonPath("$[0].children[0].permission").value("warehouse:material-ledger:read"));
+                .andExpect(jsonPath("$[1].key").value("110"))
+                .andExpect(jsonPath("$[1].icon").value("InboxOutlined"))
+                .andExpect(jsonPath("$[1].children[0].componentKey").value("views/warehouse/MaterialLedgerView.vue"))
+                .andExpect(jsonPath("$[1].children[0].permission").value("warehouse:material-ledger:read"));
     }
 
     @Test
@@ -112,7 +114,7 @@ class SysMenuControllerIntegrationTest {
         var root = objectMapper.readTree(response);
         var rootKeys = new java.util.ArrayList<String>();
         root.forEach(node -> rootKeys.add(node.get("key").asText()));
-        assertThat(rootKeys).containsExactly("110", "200");
+        assertThat(rootKeys).containsExactly("10", "110", "200");
         assertThat(response).doesNotContain("\"label\":\"经验库\"");
         assertThat(response).doesNotContain("\"label\":\"设计指引\"");
     }
@@ -156,6 +158,93 @@ class SysMenuControllerIntegrationTest {
             assertThat(child.hasNonNull("children")).isFalse();
             assertThat(child.get("path").asText()).startsWith("/system/");
         }
+    }
+
+    @Test
+    void navTree_returnsConfigManagementGroupWithChildren() throws Exception {
+        String token = loginAsAdmin("menuadmin7");
+
+        String response = mockMvc.perform(get("/api/menus/nav-tree")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        assertThat(response).contains("\"label\":\"配置管理\"");
+        assertThat(response).contains("views/warehouse/config/BinManageView.vue");
+        assertThat(response).contains("views/warehouse/config/BomManageView.vue");
+    }
+
+    @Test
+    void navTree_hidesGroupSubWhenNoChildPermission() throws Exception {
+        SysUser user = new SysUser();
+        user.setUsername("ledgeronly");
+        user.setDisplayName("仅台账用户");
+        user.setEmail("ledgeronly@example.com");
+        user.setPasswordHash(passwordEncoder.encode("oldpass"));
+        user.setStatus(1);
+        sysUserMapper.insert(user);
+        sysMenuMapper.insertUserRole(user.getId(), 2L);
+
+        LoginRequestDTO login = new LoginRequestDTO();
+        login.setUsername("ledgeronly");
+        login.setPassword("oldpass");
+        String token = objectMapper.readTree(mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(login)))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString()).get("accessToken").asText();
+
+        String response = mockMvc.perform(get("/api/menus/nav-tree")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        assertThat(response).doesNotContain("\"label\":\"配置管理\"");
+        assertThat(response).contains("warehouse:material-ledger:read");
+    }
+
+    @Test
+    void createGroupSub_withoutPermissionAndRoute_returnsCreated() throws Exception {
+        String token = loginAsAdmin("menuadmin8");
+        SysMenuSaveDTO dto = new SysMenuSaveDTO();
+        dto.setMenuType("SUB");
+        dto.setParentId(110L);
+        dto.setName("测试分组");
+        dto.setVisible(1);
+        dto.setSortOrder(99);
+
+        mockMvc.perform(post("/api/system/menus")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("测试分组"))
+                .andExpect(jsonPath("$.permission").doesNotExist());
+    }
+
+    @Test
+    void createGroupSub_withPathButNoPermission_returns400() throws Exception {
+        String token = loginAsAdmin("menuadmin9");
+        SysMenuSaveDTO dto = new SysMenuSaveDTO();
+        dto.setMenuType("SUB");
+        dto.setParentId(110L);
+        dto.setName("非法分组");
+        dto.setPath("/warehouse/config/test");
+        dto.setVisible(1);
+        dto.setSortOrder(99);
+
+        mockMvc.perform(post("/api/system/menus")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("分组子菜单不能填写路由或组件路径"));
     }
 
     private String loginAsAdmin(String username) throws Exception {

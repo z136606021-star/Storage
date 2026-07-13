@@ -1,28 +1,38 @@
 package com.storage.infrastructure.file.service;
 
+import com.storage.common.exception.BusinessException;
 import com.storage.infrastructure.file.config.FileUploadProperties;
 import com.storage.infrastructure.file.config.MinioProperties;
-import com.storage.common.exception.BusinessException;
 import com.storage.infrastructure.file.entity.SysFile;
 import com.storage.infrastructure.file.mapper.SysFileMapper;
+import io.minio.GetObjectResponse;
 import io.minio.MinioClient;
+import io.minio.PutObjectArgs;
+import okhttp3.Headers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
 
-import java.util.List;
+import java.io.ByteArrayInputStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class FileStorageServiceTest {
+
+    private static final byte[] PNG_HEADER = {
+            (byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A
+    };
 
     @Mock
     private MinioClient minioClient;
@@ -40,19 +50,6 @@ class FileStorageServiceTest {
         FileUploadProperties fileUploadProperties = new FileUploadProperties();
         fileUploadProperties.setMaxSizeBytes(5368709120L);
         fileUploadProperties.setMaxFilesPerRecord(20);
-        fileUploadProperties.setUploadConcurrency(3);
-        fileUploadProperties.setAllowedContentTypes(List.of(
-                "image/jpeg",
-                "image/png",
-                "image/webp",
-                "image/gif",
-                "application/pdf",
-                "application/msword",
-                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                "application/vnd.ms-excel",
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                "text/plain"
-        ));
 
         fileStorageService = new FileStorageServiceImpl(
                 minioClient,
@@ -68,20 +65,65 @@ class FileStorageServiceTest {
 
         assertThat(policy.getMaxSizeBytes()).isEqualTo(5368709120L);
         assertThat(policy.getMaxFilesPerRecord()).isEqualTo(20);
-        assertThat(policy.getUploadConcurrency()).isEqualTo(3);
-        assertThat(policy.getImageContentTypes()).contains("image/png");
     }
 
     @Test
     void assertImageFile_rejectsNonImageRecord() {
-        SysFile record = new SysFile();
-        record.setObjectKey("2026-07-08/demo.txt");
-        record.setContentType("text/plain");
+        SysFile record = imageRecord("2026-07-08/demo.txt", "text/plain");
         when(sysFileMapper.selectOne(any())).thenReturn(record);
 
-        assertThatThrownBy(() -> fileStorageService.assertImageFile("2026-07-08/demo.txt"))
+        assertThatThrownBy(() -> fileStorageService.assertImageFile(record.getObjectKey()))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("图片文件不存在或类型不支持");
+        verifyNoInteractions(minioClient);
+    }
+
+    @Test
+    void assertImageFile_rejectsForgedPngContent() throws Exception {
+        SysFile record = imageRecord("2026-07-08/forged.png", "image/png");
+        when(sysFileMapper.selectOne(any())).thenReturn(record);
+        when(minioClient.getObject(any())).thenReturn(getObjectResponse("not a png".getBytes()));
+
+        assertThatThrownBy(() -> fileStorageService.assertImageFile(record.getObjectKey()))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("图片文件不存在或类型不支持");
+    }
+
+    @Test
+    void assertImageFile_acceptsRealPngHeader() throws Exception {
+        SysFile record = imageRecord("2026-07-08/demo.png", "image/png");
+        when(sysFileMapper.selectOne(any())).thenReturn(record);
+        when(minioClient.getObject(any())).thenReturn(getObjectResponse(PNG_HEADER));
+
+        fileStorageService.assertImageFile(record.getObjectKey());
+
+        verify(minioClient).getObject(any());
+    }
+
+    @Test
+    void loadImage_rejectsForgedPngContent() throws Exception {
+        SysFile record = imageRecord("2026-07-08/forged.png", "image/png");
+        when(sysFileMapper.selectOne(any())).thenReturn(record);
+        when(minioClient.getObject(any())).thenReturn(getObjectResponse("not a png".getBytes()));
+
+        assertThatThrownBy(() -> fileStorageService.loadImage(record.getObjectKey()))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("文件类型不支持预览");
+    }
+
+    @Test
+    void loadImage_acceptsRealPngHeaderAndReturnsFreshStream() throws Exception {
+        SysFile record = imageRecord("2026-07-08/demo.png", "image/png");
+        record.setOriginalName("demo.png");
+        record.setSizeBytes((long) PNG_HEADER.length);
+        when(sysFileMapper.selectOne(any())).thenReturn(record);
+        when(minioClient.getObject(any())).thenAnswer(invocation -> getObjectResponse(PNG_HEADER));
+
+        var result = fileStorageService.loadImage(record.getObjectKey());
+
+        assertThat(result.contentType()).isEqualTo("image/png");
+        assertThat(result.inputStream().readAllBytes()).containsExactly(PNG_HEADER);
+        verify(minioClient, org.mockito.Mockito.times(2)).getObject(any());
     }
 
     @Test
@@ -93,12 +135,10 @@ class FileStorageServiceTest {
 
     @Test
     void loadImage_withNonImageFile_rejectsBeforeMinioCall() {
-        SysFile record = new SysFile();
-        record.setObjectKey("2026-07-08/demo.txt");
-        record.setContentType("text/plain");
+        SysFile record = imageRecord("2026-07-08/demo.txt", "text/plain");
         when(sysFileMapper.selectOne(any())).thenReturn(record);
 
-        assertThatThrownBy(() -> fileStorageService.loadImage("2026-07-08/demo.txt"))
+        assertThatThrownBy(() -> fileStorageService.loadImage(record.getObjectKey()))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage("文件类型不支持预览");
         verifyNoInteractions(minioClient);
@@ -108,7 +148,6 @@ class FileStorageServiceTest {
     void upload_withOversizedFile_rejectsBeforeMinioCall() {
         FileUploadProperties smallLimitProperties = new FileUploadProperties();
         smallLimitProperties.setMaxSizeBytes(1024);
-        smallLimitProperties.setAllowedContentTypes(List.of("image/png"));
         MinioProperties minioProperties = new MinioProperties();
         minioProperties.setBucket("storage");
         FileStorageService smallLimitService = new FileStorageServiceImpl(
@@ -121,8 +160,8 @@ class FileStorageServiceTest {
         byte[] content = new byte[1025];
         MockMultipartFile file = new MockMultipartFile(
                 "file",
-                "large.png",
-                "image/png",
+                "large.bin",
+                "application/octet-stream",
                 content
         );
 
@@ -133,47 +172,57 @@ class FileStorageServiceTest {
     }
 
     @Test
-    void upload_withUnsupportedContentType_rejectsBeforeMinioCall() {
+    void upload_withArbitraryContentType_remainsAllowed() throws Exception {
+        when(minioClient.putObject(any())).thenReturn(mock(io.minio.ObjectWriteResponse.class));
         MockMultipartFile file = new MockMultipartFile(
                 "file",
-                "app.exe",
-                "application/x-msdownload",
+                "archive.custom",
+                "application/x-custom-binary",
                 "demo".getBytes()
         );
 
-        assertThatThrownBy(() -> fileStorageService.upload(file, null))
-                .isInstanceOf(BusinessException.class)
-                .hasMessage("文件类型不支持");
-        verifyNoInteractions(minioClient, sysFileMapper);
+        var result = fileStorageService.upload(file, 1L);
+
+        ArgumentCaptor<PutObjectArgs> putArgs = ArgumentCaptor.forClass(PutObjectArgs.class);
+        ArgumentCaptor<SysFile> record = ArgumentCaptor.forClass(SysFile.class);
+        verify(minioClient).putObject(putArgs.capture());
+        verify(sysFileMapper).insert(record.capture());
+        assertThat(putArgs.getValue().contentType()).isEqualTo("application/x-custom-binary");
+        assertThat(record.getValue().getContentType()).isEqualTo("application/x-custom-binary");
+        assertThat(result.getContentType()).isEqualTo("application/x-custom-binary");
     }
 
     @Test
-    void upload_withForgedPdfContentType_rejectsBeforeMinioCall() {
-        MockMultipartFile file = new MockMultipartFile(
-                "file",
-                "fake.pdf",
-                "application/pdf",
-                "not a pdf".getBytes()
-        );
+    void upload_withNullContentType_normalizesEveryStoredValue() throws Exception {
+        when(minioClient.putObject(any())).thenReturn(mock(io.minio.ObjectWriteResponse.class));
+        MockMultipartFile file = new MockMultipartFile("file", "app.bin", null, "demo".getBytes());
 
-        assertThatThrownBy(() -> fileStorageService.upload(file, null))
-                .isInstanceOf(BusinessException.class)
-                .hasMessage("文件内容与类型不匹配");
-        verifyNoInteractions(minioClient, sysFileMapper);
+        var result = fileStorageService.upload(file, null);
+
+        ArgumentCaptor<PutObjectArgs> putArgs = ArgumentCaptor.forClass(PutObjectArgs.class);
+        ArgumentCaptor<SysFile> record = ArgumentCaptor.forClass(SysFile.class);
+        verify(minioClient).putObject(putArgs.capture());
+        verify(sysFileMapper).insert(record.capture());
+        assertThat(putArgs.getValue().contentType()).isEqualTo("application/octet-stream");
+        assertThat(record.getValue().getContentType()).isEqualTo("application/octet-stream");
+        assertThat(result.getContentType()).isEqualTo("application/octet-stream");
+        assertThat(result.getOriginalName()).isEqualTo("app.bin");
     }
 
-    @Test
-    void upload_withForgedImageContentType_rejectsBeforeMinioCall() {
-        MockMultipartFile file = new MockMultipartFile(
-                "file",
-                "fake.png",
-                "image/png",
-                "not a real png".getBytes()
-        );
+    private SysFile imageRecord(String objectKey, String contentType) {
+        SysFile record = new SysFile();
+        record.setObjectKey(objectKey);
+        record.setContentType(contentType);
+        return record;
+    }
 
-        assertThatThrownBy(() -> fileStorageService.upload(file, null))
-                .isInstanceOf(BusinessException.class)
-                .hasMessage("文件内容与类型不匹配");
-        verifyNoInteractions(minioClient, sysFileMapper);
+    private GetObjectResponse getObjectResponse(byte[] content) {
+        return new GetObjectResponse(
+                Headers.of(),
+                "storage",
+                null,
+                "object-key",
+                new ByteArrayInputStream(content)
+        );
     }
 }

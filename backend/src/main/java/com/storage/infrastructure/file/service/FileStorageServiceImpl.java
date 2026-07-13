@@ -1,14 +1,14 @@
 package com.storage.infrastructure.file.service;
 
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.storage.common.exception.BusinessException;
 import com.storage.infrastructure.file.config.FileUploadProperties;
 import com.storage.infrastructure.file.config.MinioProperties;
 import com.storage.infrastructure.file.dto.FileContentVO;
 import com.storage.infrastructure.file.dto.FileUploadPolicyVO;
 import com.storage.infrastructure.file.dto.FileUploadVO;
 import com.storage.infrastructure.file.entity.SysFile;
-import com.storage.common.exception.BusinessException;
 import com.storage.infrastructure.file.mapper.SysFileMapper;
-import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import io.minio.GetObjectArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
@@ -21,14 +21,15 @@ import java.io.InputStream;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
-import java.util.Arrays;
-import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class FileStorageServiceImpl implements FileStorageService {
+
+    private static final String DEFAULT_CONTENT_TYPE = "application/octet-stream";
+    private static final int IMAGE_SIGNATURE_LENGTH = 12;
 
     private final MinioClient minioClient;
     private final MinioProperties minioProperties;
@@ -44,22 +45,24 @@ public class FileStorageServiceImpl implements FileStorageService {
 
         String originalName = file.getOriginalFilename() == null ? "file" : file.getOriginalFilename();
         String objectKey = buildObjectKey(originalName);
+        String contentType = normalizeContentType(file.getContentType());
 
         try (InputStream inputStream = file.getInputStream()) {
             minioClient.putObject(PutObjectArgs.builder()
                     .bucket(minioProperties.getBucket())
                     .object(objectKey)
                     .stream(inputStream, file.getSize(), -1)
-                    .contentType(file.getContentType())
+                    .contentType(contentType)
                     .build());
         } catch (Exception ex) {
-            throw new BusinessException("文件上传失败，请确认 MinIO 服务已启动");
+            String detail = ex.getMessage() == null ? ex.getClass().getSimpleName() : ex.getMessage();
+            throw new BusinessException("文件上传失败：" + detail);
         }
 
         SysFile record = new SysFile();
         record.setObjectKey(objectKey);
         record.setOriginalName(originalName);
-        record.setContentType(file.getContentType());
+        record.setContentType(contentType);
         record.setSizeBytes(file.getSize());
         record.setUploaderId(uploaderId);
         sysFileMapper.insert(record);
@@ -68,7 +71,7 @@ public class FileStorageServiceImpl implements FileStorageService {
                 .id(record.getId())
                 .objectKey(objectKey)
                 .originalName(originalName)
-                .contentType(file.getContentType())
+                .contentType(contentType)
                 .sizeBytes(file.getSize())
                 .url(resolveAccessUrl(objectKey))
                 .build();
@@ -76,20 +79,9 @@ public class FileStorageServiceImpl implements FileStorageService {
 
     @Override
     public FileUploadPolicyVO uploadPolicy() {
-        List<String> allowedContentTypes = fileUploadProperties.getAllowedContentTypes().stream()
-                .filter(StringUtils::hasText)
-                .map(type -> type.trim().toLowerCase(Locale.ROOT))
-                .distinct()
-                .toList();
-        List<String> imageContentTypes = allowedContentTypes.stream()
-                .filter(type -> type.startsWith("image/"))
-                .toList();
         return FileUploadPolicyVO.builder()
                 .maxSizeBytes(fileUploadProperties.getMaxSizeBytes())
                 .maxFilesPerRecord(fileUploadProperties.getMaxFilesPerRecord())
-                .uploadConcurrency(fileUploadProperties.getUploadConcurrency())
-                .allowedContentTypes(allowedContentTypes)
-                .imageContentTypes(imageContentTypes)
                 .build();
     }
 
@@ -105,10 +97,10 @@ public class FileStorageServiceImpl implements FileStorageService {
     @Override
     public FileContentVO loadImage(String objectKey) {
         SysFile record = findFileRecord(objectKey);
-        if (!StringUtils.hasText(record.getContentType())
-                || !record.getContentType().toLowerCase(Locale.ROOT).startsWith("image/")) {
+        if (!isImageContentType(record.getContentType())) {
             throw new BusinessException("文件类型不支持预览");
         }
+        validateImageSignature(record, "文件类型不支持预览");
         return loadObject(record);
     }
 
@@ -127,12 +119,11 @@ public class FileStorageServiceImpl implements FileStorageService {
         SysFile record = sysFileMapper.selectOne(Wrappers.<SysFile>lambdaQuery()
                 .eq(SysFile::getObjectKey, objectKey == null ? "" : objectKey.trim())
                 .last("LIMIT 1"));
-        if (record == null) {
-            throw new BusinessException("图片文件不存在或类型不支持: " + objectKey);
+        String errorMessage = "图片文件不存在或类型不支持: " + objectKey;
+        if (record == null || !isImageContentType(record.getContentType())) {
+            throw new BusinessException(errorMessage);
         }
-        if (!isImageContentType(record.getContentType())) {
-            throw new BusinessException("图片文件不存在或类型不支持: " + objectKey);
-        }
+        validateImageSignature(record, errorMessage);
     }
 
     @Override
@@ -156,14 +147,11 @@ public class FileStorageServiceImpl implements FileStorageService {
 
     private FileContentVO loadObject(SysFile record) {
         try {
-            InputStream inputStream = minioClient.getObject(GetObjectArgs.builder()
-                    .bucket(minioProperties.getBucket())
-                    .object(record.getObjectKey())
-                    .build());
+            InputStream inputStream = openObject(record.getObjectKey());
             return new FileContentVO(
                     inputStream,
                     record.getOriginalName(),
-                    record.getContentType(),
+                    normalizeContentType(record.getContentType()),
                     record.getSizeBytes()
             );
         } catch (Exception ex) {
@@ -171,9 +159,66 @@ public class FileStorageServiceImpl implements FileStorageService {
         }
     }
 
+    private void validateImageSignature(SysFile record, String errorMessage) {
+        byte[] header = new byte[IMAGE_SIGNATURE_LENGTH];
+        int length = 0;
+        try (InputStream inputStream = openObject(record.getObjectKey())) {
+            while (length < header.length) {
+                int read = inputStream.read(header, length, header.length - length);
+                if (read < 0) {
+                    break;
+                }
+                length += read;
+            }
+        } catch (Exception ex) {
+            throw new BusinessException(errorMessage);
+        }
+        if (!matchesImageSignature(record.getContentType(), header, length)) {
+            throw new BusinessException(errorMessage);
+        }
+    }
+
+    private boolean matchesImageSignature(String contentType, byte[] header, int length) {
+        String normalized = contentType.trim().toLowerCase(Locale.ROOT);
+        return switch (normalized) {
+            case "image/jpeg" -> length >= 3
+                    && unsigned(header[0]) == 0xFF && unsigned(header[1]) == 0xD8 && unsigned(header[2]) == 0xFF;
+            case "image/png" -> length >= 8
+                    && unsigned(header[0]) == 0x89 && header[1] == 0x50 && header[2] == 0x4E && header[3] == 0x47
+                    && header[4] == 0x0D && header[5] == 0x0A && header[6] == 0x1A && header[7] == 0x0A;
+            case "image/webp" -> length >= 12
+                    && header[0] == 'R' && header[1] == 'I' && header[2] == 'F' && header[3] == 'F'
+                    && header[8] == 'W' && header[9] == 'E' && header[10] == 'B' && header[11] == 'P';
+            case "image/gif" -> length >= 6
+                    && header[0] == 'G' && header[1] == 'I' && header[2] == 'F' && header[3] == '8'
+                    && (header[4] == '7' || header[4] == '9') && header[5] == 'a';
+            default -> false;
+        };
+    }
+
     private boolean isImageContentType(String contentType) {
-        return StringUtils.hasText(contentType)
-                && contentType.trim().toLowerCase(Locale.ROOT).startsWith("image/");
+        if (!StringUtils.hasText(contentType)) {
+            return false;
+        }
+        return switch (contentType.trim().toLowerCase(Locale.ROOT)) {
+            case "image/jpeg", "image/png", "image/webp", "image/gif" -> true;
+            default -> false;
+        };
+    }
+
+    private int unsigned(byte value) {
+        return value & 0xFF;
+    }
+
+    private InputStream openObject(String objectKey) throws Exception {
+        return minioClient.getObject(GetObjectArgs.builder()
+                .bucket(minioProperties.getBucket())
+                .object(objectKey)
+                .build());
+    }
+
+    private String normalizeContentType(String contentType) {
+        return StringUtils.hasText(contentType) ? contentType.trim() : DEFAULT_CONTENT_TYPE;
     }
 
     private String buildObjectKey(String originalName) {
@@ -186,69 +231,5 @@ public class FileStorageServiceImpl implements FileStorageService {
         if (maxSizeBytes > 0 && file.getSize() > maxSizeBytes) {
             throw new BusinessException("文件大小超过限制");
         }
-
-        String contentType = file.getContentType();
-        if (!StringUtils.hasText(contentType)) {
-            throw new BusinessException("文件类型不正确");
-        }
-
-        String normalizedContentType = contentType.trim().toLowerCase(Locale.ROOT);
-        boolean allowed = fileUploadProperties.getAllowedContentTypes().stream()
-                .filter(StringUtils::hasText)
-                .map(type -> type.trim().toLowerCase(Locale.ROOT))
-                .anyMatch(type -> type.equals(normalizedContentType));
-        if (!allowed) {
-            throw new BusinessException("文件类型不支持");
-        }
-        validateContentSignature(file, normalizedContentType);
     }
-
-    private void validateContentSignature(MultipartFile file, String normalizedContentType) {
-        try (InputStream inputStream = file.getInputStream()) {
-            byte[] header = inputStream.readNBytes(12);
-            boolean valid = switch (normalizedContentType) {
-                case "image/jpeg" -> startsWith(header, new byte[] {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF});
-                case "image/png" -> startsWith(header, new byte[] {
-                        (byte) 0x89, 0x50, 0x4E, 0x47,
-                        0x0D, 0x0A, 0x1A, 0x0A
-                });
-                case "image/webp" -> startsWith(header, "RIFF".getBytes(StandardCharsets.US_ASCII))
-                        && header.length >= 12
-                        && Arrays.equals(Arrays.copyOfRange(header, 8, 12), "WEBP".getBytes(StandardCharsets.US_ASCII));
-                case "image/gif" -> startsWith(header, "GIF87a".getBytes(StandardCharsets.US_ASCII))
-                        || startsWith(header, "GIF89a".getBytes(StandardCharsets.US_ASCII));
-                case "application/pdf" -> startsWith(header, "%PDF".getBytes(StandardCharsets.US_ASCII));
-                case "application/msword", "application/vnd.ms-excel" -> startsWith(header, new byte[] {
-                        (byte) 0xD0, (byte) 0xCF, 0x11, (byte) 0xE0
-                });
-                case "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ->
-                        startsWith(header, new byte[] {0x50, 0x4B, 0x03, 0x04})
-                                || startsWith(header, new byte[] {0x50, 0x4B, 0x05, 0x06})
-                                || startsWith(header, new byte[] {0x50, 0x4B, 0x07, 0x08});
-                case "text/plain" -> true;
-                default -> false;
-            };
-            if (!valid) {
-                throw new BusinessException("文件内容与类型不匹配");
-            }
-        } catch (BusinessException ex) {
-            throw ex;
-        } catch (Exception ex) {
-            throw new BusinessException("文件类型校验失败");
-        }
-    }
-
-    private boolean startsWith(byte[] content, byte[] prefix) {
-        if (content.length < prefix.length) {
-            return false;
-        }
-        for (int i = 0; i < prefix.length; i++) {
-            if (content[i] != prefix[i]) {
-                return false;
-            }
-        }
-        return true;
-    }
-
 }

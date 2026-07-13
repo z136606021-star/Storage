@@ -18,6 +18,7 @@ import CrudListPage from '@/components/common/CrudListPage.vue'
 import { useWritePermission } from '@/composables/useWritePermission'
 import { useExcelImportExport } from '@/composables/useExcelImportExport'
 import type { SysMenu, SysRole, SysRoleSave } from '@/types/system'
+import { buildMenuAuthTreeNodes } from '@/utils/menuAuthTree'
 import { confirmDelete } from '@/utils/confirmDelete'
 import { displayValue } from '@/utils/format'
 
@@ -74,8 +75,8 @@ const filteredData = computed(() => {
   return dataSource.value.filter((role) => role.id === queryForm.roleId)
 })
 
-const menuTreeData = computed(() => mapMenuTree(menuTree.value))
-const viewMenuTreeData = computed(() => mapMenuTree(menuTree.value))
+const menuTreeData = computed(() => buildMenuAuthTreeNodes(menuTree.value))
+const viewMenuTreeData = computed(() => buildMenuAuthTreeNodes(menuTree.value))
 
 const columns = [
   { title: '角色编码', dataIndex: 'code', key: 'code' },
@@ -83,14 +84,6 @@ const columns = [
   { title: '状态', key: 'status', width: 100 },
   { title: '操作', key: 'actions', width: 200 },
 ]
-
-function mapMenuTree(menus: SysMenu[]): Array<{ title: string; key: number; children?: ReturnType<typeof mapMenuTree> }> {
-  return menus.map((menu) => ({
-    title: `${menu.name}${menu.permission ? ` (${menu.permission})` : ''}`,
-    key: menu.id,
-    children: menu.children?.length ? mapMenuTree(menu.children) : undefined,
-  }))
-}
 
 async function loadMenus() {
   const { data } = await fetchMenuTree()

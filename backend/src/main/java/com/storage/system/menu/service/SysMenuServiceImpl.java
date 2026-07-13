@@ -2,6 +2,8 @@ package com.storage.system.menu.service;
 
 import com.storage.common.exception.BusinessException;
 import com.storage.system.auth.service.AuthService;
+import com.storage.system.menu.MenuTreeUtils;
+import com.storage.system.menu.MenuTypes;
 import com.storage.system.menu.dto.NavMenuNodeVO;
 import com.storage.system.menu.dto.SysMenuSaveDTO;
 import com.storage.system.menu.dto.SysMenuVO;
@@ -50,7 +52,10 @@ public class SysMenuServiceImpl implements SysMenuService {
 
         Map<Long, SysMenu> allMenusById = sysMenuMapper.selectList(null).stream()
                 .collect(Collectors.toMap(SysMenu::getId, menu -> menu));
-        Set<Long> expandedMenuIds = expandMenuIdsWithAncestors(assignedMenus, allMenusById);
+        Set<Long> expandedMenuIds = MenuTreeUtils.expandWithAncestors(
+                assignedMenus.stream().map(SysMenu::getId).toList(),
+                allMenusById
+        );
 
         List<SysMenu> routeMenus = allMenusById.values().stream()
                 .filter(menu -> expandedMenuIds.contains(menu.getId()))
@@ -74,18 +79,6 @@ public class SysMenuServiceImpl implements SysMenuService {
             }
         }
         return result;
-    }
-
-    private Set<Long> expandMenuIdsWithAncestors(List<SysMenu> assignedMenus, Map<Long, SysMenu> allMenusById) {
-        Set<Long> expandedIds = new HashSet<>();
-        for (SysMenu menu : assignedMenus) {
-            Long currentId = menu.getId();
-            while (currentId != null && expandedIds.add(currentId)) {
-                SysMenu current = allMenusById.get(currentId);
-                currentId = current != null ? current.getParentId() : null;
-            }
-        }
-        return expandedIds;
     }
 
     @Override
@@ -121,7 +114,7 @@ public class SysMenuServiceImpl implements SysMenuService {
     }
 
     private NavMenuNodeVO buildNavNode(SysMenu menu, Map<Long, List<SysMenu>> childrenMap, Set<String> permissions) {
-        String menuType = menu.getMenuType() == null ? "MENU" : menu.getMenuType();
+        String menuType = menu.getMenuType() == null ? MenuTypes.SUB : menu.getMenuType();
         List<SysMenu> children = childrenMap.getOrDefault(menu.getId(), List.of());
         List<NavMenuNodeVO> childNodes = new ArrayList<>();
         for (SysMenu child : children) {
@@ -131,22 +124,33 @@ public class SysMenuServiceImpl implements SysMenuService {
             }
         }
 
-        if ("CATALOG".equals(menuType)) {
+        if (MenuTypes.isTop(menuType)) {
+            if (!childNodes.isEmpty()) {
+                return buildGroupNavNode(menu, childNodes);
+            }
+            if (StringUtils.hasText(menu.getPermission())
+                    && permissions.contains(menu.getPermission())
+                    && StringUtils.hasText(menu.getPath())) {
+                return NavMenuNodeVO.builder()
+                        .key(String.valueOf(menu.getId()))
+                        .label(menu.getName())
+                        .path(menu.getPath())
+                        .permission(menu.getPermission())
+                        .componentKey(menu.getComponentKey())
+                        .icon(menu.getIcon())
+                        .visible(menu.getVisible())
+                        .build();
+            }
+            return null;
+        }
+
+        if (!StringUtils.hasText(menu.getPermission())) {
             if (childNodes.isEmpty()) {
                 return null;
             }
-            return NavMenuNodeVO.builder()
-                    .key(String.valueOf(menu.getId()))
-                    .label(menu.getName())
-                    .icon(menu.getIcon())
-                    .permission(menu.getPermission())
-                    .componentKey(menu.getComponentKey())
-                    .visible(menu.getVisible())
-                    .children(childNodes)
-                    .build();
+            return buildGroupNavNode(menu, childNodes);
         }
-
-        if (!StringUtils.hasText(menu.getPermission()) || !permissions.contains(menu.getPermission())) {
+        if (!permissions.contains(menu.getPermission())) {
             return null;
         }
         return NavMenuNodeVO.builder()
@@ -161,7 +165,20 @@ public class SysMenuServiceImpl implements SysMenuService {
                 .build();
     }
 
+    private NavMenuNodeVO buildGroupNavNode(SysMenu menu, List<NavMenuNodeVO> childNodes) {
+        return NavMenuNodeVO.builder()
+                .key(String.valueOf(menu.getId()))
+                .label(menu.getName())
+                .icon(menu.getIcon())
+                .visible(menu.getVisible())
+                .children(childNodes)
+                .build();
+    }
+
     private boolean includeInNavTree(SysMenu menu) {
+        if (MenuTypes.isButton(menu.getMenuType())) {
+            return false;
+        }
         if (menu.getVisible() != null && menu.getVisible() == 1) {
             return true;
         }
@@ -183,18 +200,50 @@ public class SysMenuServiceImpl implements SysMenuService {
     }
 
     private void validateMenu(SysMenuSaveDTO dto, Long excludeId) {
-        if (!List.of("CATALOG", "MENU").contains(dto.getMenuType())) {
-            throw new BusinessException("菜单类型无效");
+        if (!List.of(MenuTypes.TOP, MenuTypes.SUB, MenuTypes.BUTTON).contains(dto.getMenuType())) {
+            throw new BusinessException("菜单类型无效，仅支持 TOP、SUB、BUTTON");
         }
-        if ("MENU".equals(dto.getMenuType()) && !StringUtils.hasText(dto.getPermission())) {
-            throw new BusinessException("菜单类型为 MENU 时必须填写权限标识");
+
+        SysMenu parent = null;
+        if (dto.getParentId() != null) {
+            parent = sysMenuMapper.selectById(dto.getParentId());
+            if (parent == null) {
+                throw new BusinessException("父菜单不存在");
+            }
         }
-        if ("MENU".equals(dto.getMenuType())
-                && Integer.valueOf(1).equals(dto.getVisible())
-                && StringUtils.hasText(dto.getPath())
-                && !StringUtils.hasText(dto.getComponentKey())) {
-            throw new BusinessException("可见路由菜单必须填写组件路径");
+
+        if (MenuTypes.TOP.equals(dto.getMenuType())) {
+            if (dto.getParentId() != null) {
+                throw new BusinessException("一级菜单不能有父级");
+            }
+        } else if (dto.getParentId() == null) {
+            throw new BusinessException("子菜单和按钮权限必须选择父级");
         }
+
+        if (MenuTypes.BUTTON.equals(dto.getMenuType())) {
+            if (!StringUtils.hasText(dto.getPermission())) {
+                throw new BusinessException("按钮权限必须填写权限标识");
+            }
+            if (StringUtils.hasText(dto.getPath()) || StringUtils.hasText(dto.getComponentKey())) {
+                throw new BusinessException("按钮权限不能填写路由或组件路径");
+            }
+            if (parent != null && MenuTypes.isButton(parent.getMenuType())) {
+                throw new BusinessException("按钮权限只能挂在页面子菜单下");
+            }
+        }
+
+        if (MenuTypes.SUB.equals(dto.getMenuType())) {
+            if (!StringUtils.hasText(dto.getPermission())) {
+                if (StringUtils.hasText(dto.getPath()) || StringUtils.hasText(dto.getComponentKey())) {
+                    throw new BusinessException("分组子菜单不能填写路由或组件路径");
+                }
+            } else if (Integer.valueOf(1).equals(dto.getVisible())
+                    && StringUtils.hasText(dto.getPath())
+                    && !StringUtils.hasText(dto.getComponentKey())) {
+                throw new BusinessException("可见路由菜单必须填写组件路径");
+            }
+        }
+
         if (StringUtils.hasText(dto.getPermission())) {
             long count = excludeId == null
                     ? sysMenuMapper.countByPermission(dto.getPermission())
@@ -202,9 +251,6 @@ public class SysMenuServiceImpl implements SysMenuService {
             if (count > 0) {
                 throw new BusinessException("权限标识已存在");
             }
-        }
-        if (dto.getParentId() != null && sysMenuMapper.selectById(dto.getParentId()) == null) {
-            throw new BusinessException("父菜单不存在");
         }
     }
 

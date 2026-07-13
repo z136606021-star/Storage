@@ -2,6 +2,7 @@ export interface AuthUser {
   id: number
   username: string
   displayName: string
+  maskedEmail?: string | null
 }
 
 export interface AuthSession {
@@ -25,4 +26,16 @@ export interface ForgotPasswordRequest {
 export interface ResetPasswordRequest {
   token: string
   newPassword: string
+}
+
+export interface ChangePasswordByCurrentPasswordRequest {
+  currentPassword: string
+  newPassword: string
+  confirmPassword: string
+}
+
+export interface ChangePasswordByVerificationCodeRequest {
+  verificationCode: string
+  newPassword: string
+  confirmPassword: string
 }

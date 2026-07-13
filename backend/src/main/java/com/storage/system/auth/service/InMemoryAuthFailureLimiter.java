@@ -10,15 +10,18 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 @Service
-public class InMemoryAuthFailureLimiter implements LoginFailureLimiter, ForgotPasswordFailureLimiter {
+public class InMemoryAuthFailureLimiter implements LoginFailureLimiter, ForgotPasswordFailureLimiter, PasswordVerificationFailureLimiter {
 
     private static final int FORGOT_PASSWORD_MAX_FAILURES = 5;
     private static final Duration FORGOT_PASSWORD_FAILURE_WINDOW = Duration.ofMinutes(15);
     private static final int LOGIN_MAX_FAILURES = 5;
     private static final Duration LOGIN_FAILURE_WINDOW = Duration.ofMinutes(15);
+    private static final int VERIFY_PASSWORD_MAX_FAILURES = 5;
+    private static final Duration VERIFY_PASSWORD_FAILURE_WINDOW = Duration.ofMinutes(15);
 
     private final ConcurrentMap<String, Failures> forgotPasswordFailures = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, Failures> loginFailures = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, Failures> passwordVerificationFailures = new ConcurrentHashMap<>();
 
     @Override
     public void assertAllowed(String username) {
@@ -53,6 +56,26 @@ public class InMemoryAuthFailureLimiter implements LoginFailureLimiter, ForgotPa
     @Override
     public void resetForgotPassword(String username) {
         forgotPasswordFailures.remove(normalize(username));
+    }
+
+    @Override
+    public void assertAllowedVerify(Long userId) {
+        assertAllowed(
+                passwordVerificationFailures,
+                String.valueOf(userId),
+                VERIFY_PASSWORD_MAX_FAILURES,
+                "验证码尝试次数过多，请 15 分钟后再试"
+        );
+    }
+
+    @Override
+    public void recordVerifyFailure(Long userId) {
+        recordFailure(passwordVerificationFailures, String.valueOf(userId), VERIFY_PASSWORD_FAILURE_WINDOW);
+    }
+
+    @Override
+    public void resetVerifyFailures(Long userId) {
+        passwordVerificationFailures.remove(String.valueOf(userId));
     }
 
     private void assertAllowed(

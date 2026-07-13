@@ -20,6 +20,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
 
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -109,6 +110,16 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> handleImportFormat(ImportFormatException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(Map.of("message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(MultipartException.class)
+    public ResponseEntity<Map<String, String>> handleMultipart(MultipartException ex) {
+        Throwable cause = ex.getCause();
+        if (cause instanceof MaxUploadSizeExceededException maxUploadSizeExceededException) {
+            return handleMaxUploadSize(maxUploadSizeExceededException);
+        }
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(Map.of("message", "文件上传请求解析失败，请检查文件大小或请求格式"));
     }
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)

@@ -8,6 +8,10 @@ spring:
       schema-locations: classpath:db/schema-test.sql
   flyway:
     enabled: false
+  servlet:
+    multipart:
+      max-file-size: 5368709120
+      max-request-size: 5505025024
   datasource:
     url: jdbc:h2:mem:storage_test;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1
     driver-class-name: org.h2.Driver
@@ -42,8 +46,6 @@ storage:
   file-upload:
     max-size-bytes: 5368709120
     max-files-per-record: 20
-    upload-concurrency: 3
-    allowed-content-types: image/jpeg,image/png,image/webp,image/gif,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain
 
 logging:
   level:

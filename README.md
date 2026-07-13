@@ -1,6 +1,6 @@
 # 仓库管理系统
 
-项目管理平台中 **仓库管理** 与 **系统管理** 模块（当前侧栏仅展示这两个顶层入口，其余平台模块菜单数据保留但隐藏）；仓库域包含物料台账、物料出入库、安全库存、库存统计、配置管理（Bin位/物料清单）等能力。
+项目管理平台中 **个人中心**、**仓库管理** 与 **系统管理** 模块（个人中心为侧栏首位；其余平台模块菜单数据保留但隐藏）；个人中心首版提供账号信息与修改密码（原密码 / 邮箱验证码）；仓库域包含物料台账、物料出入库、安全库存、库存统计、配置管理（Bin位/物料清单）等能力。
 
 ## 技术栈
 
@@ -216,6 +216,8 @@ npm run dev
 **页面入口**：
 
 - 默认打开 `/login`（当前为 Shiro + JWT 鉴权，前端通过 Pinia + localStorage 保存 access token）；注册 Tab：`/login?tab=register`；忘记密码申请 Tab：`/login?tab=forgot`；邮件链接重置 Tab：`/login?tab=reset&token=...`
+- **个人中心**（侧栏首位）：账号信息、原密码改密、绑定邮箱验证码改密；改密成功后递增 `sys_user.token_version`，该用户所有旧 JWT 立即失效并需重新登录
+- 登录态改密 API：`PUT /api/auth/password`（原密码）、`POST /api/auth/password/verification-code`（发码）、`PUT /api/auth/password/by-verification-code`（验码改密）；验证码仅发往当前用户绑定邮箱，默认 6 位、10 分钟有效、60 秒发送冷却
 - 支持开放注册，新用户默认 `USER` 角色（仅物料台账只读）；注册账号 3-32 字符、密码至少 6 位
 - 注册支持可选邮箱；忘记密码通过账号 + 邮箱申请邮件一次性链接，链接默认 30 分钟有效，后端统一错误提示并限流（同一账号 15 分钟最多 5 次失败）
 - 邮件配置通过 `.env` 预留：`APP_PUBLIC_BASE_URL`、`PASSWORD_RESET_TOKEN_TTL_MINUTES`、`MAIL_HOST`、`MAIL_PORT`、`MAIL_USERNAME`、`MAIL_PASSWORD`、`MAIL_FROM`、`MAIL_SMTP_AUTH`、`MAIL_SMTP_STARTTLS_ENABLE`；Gmail 默认 `smtp.gmail.com:587` + STARTTLS，`MAIL_PASSWORD` 使用 Google 应用专用密码
@@ -228,9 +230,11 @@ npm run dev
 
 - 业务路由由后端菜单树驱动：`sys_menu.path` 决定路由路径，`permission` 决定访问权限，`component_key` 存前端模块路径并决定懒加载组件。
 - 登录后默认页优先进入库存统计（`warehouse:stats:read`）；无该权限时回退到用户第一个可访问页面。
-- 当前侧栏仅展示 **仓库管理**、**系统管理** 两个顶层模块；设计指引、经验库等平台模块菜单记录保留但隐藏，便于后续继续开发。
-- 前端固定路由仅保留登录、根布局和必要重定向；登录或刷新恢复后由 Pinia menu store 拉取 `/api/menus/nav-tree` 并动态注册业务路由。
-- 菜单管理维护“组件路径”；可见且有路由路径的 `MENU` 必须填写组件路径，隐藏动作权限可不填写。
+- 当前侧栏展示 **个人中心**、**仓库管理**、**系统管理** 三个顶层模块；设计指引、经验库等平台模块菜单记录保留但隐藏，便于后续继续开发。
+- 菜单类型为 **一级菜单（TOP）**、**子菜单（SUB）**、**按钮权限（BUTTON）**；按钮权限挂在页面子菜单下，不进入侧栏导航树。
+- 子菜单可无 `permission` 作纯分组（如「配置管理」），侧栏仅展示其下已授权子页面；可见且有路由的页面子菜单必须填写权限标识与组件路径。
+- 角色授权采用 **仅向上继承**：勾选子菜单或按钮时自动补齐全部祖先；勾选一级菜单不会自动授予其全部子权限。
+- 菜单管理维护“组件路径”；可见且有路由路径的页面子菜单必须填写组件路径，分组子菜单与按钮权限不能填写路由或组件路径。
 - 组件路径以 `views/` 或 `components/` 开头，例如 `views/warehouse/MaterialLedgerView.vue`、`components/system/MenuManagePanel.vue`；前端通过 `import.meta.glob` 解析可路由模块，不再维护人工组件映射表。
 
 ### 样式约定（Less）
@@ -261,7 +265,7 @@ curl -X POST http://localhost:8080/api/files/upload \
 
 先调用 `POST /api/auth/login` 获取 `accessToken`，再用 Bearer token 携带凭证上传。MinIO API 默认映射到 `http://localhost:9000`；MinIO Console 不作为固定交付入口，若部署侧需要控制台可单独配置新版兼容的 console 监听参数。
 
-物料清单图片可在 **配置管理 → 物料清单** 新增/编辑弹窗中上传多张图片（JPG/PNG/WebP/GIF，每条记录最多 20 张，浏览器并发 3）；经验库附件可上传图片、PDF、Word、Excel、文本文件（每条记录最多 20 个）。前端通过 `GET /api/files/upload-policy` 读取运行时上传策略，不在浏览器侧拦截文件大小。后端会校验大小、MIME 白名单，并对图片/PDF/Office 文件做内容签名校验；图片支持预览，普通附件通过下载接口获取。Compose/Nginx 部署默认 `client_max_body_size 5g`，后端默认单文件上限 5GB（`UPLOAD_MAX_SIZE_BYTES=5368709120`）。物料清单 Excel 导入/导出不含图片列。
+物料清单图片可在 **配置管理 → 物料清单** 新增/编辑弹窗中上传多张图片（JPG/PNG/WebP/GIF，每条记录最多 20 张）；经验库附件支持任意类型文件（每条记录最多 20 个）。前端通过 `GET /api/files/upload-policy` 读取运行时上传策略，不在浏览器侧拦截文件大小或限制并发。后端通用附件仅校验大小与鉴权；BOM 图片在保存时继续校验图片 MIME，图片支持预览，普通附件通过下载接口获取。Compose/Nginx 部署默认 `client_max_body_size` 对齐 `UPLOAD_MAX_REQUEST_SIZE_BYTES`（当前默认 5.125 GiB），后端 Spring multipart 与业务层默认单文件上限 5 GiB（`UPLOAD_MAX_SIZE_BYTES=5368709120`）。修改 `application.yml` 或 `frontend/nginx.conf` 后需显式重建 Docker 镜像；若公司上游网关另有请求体限制，须同步放宽。物料清单 Excel 导入/导出不含图片列。
 
 ## 经验库
 
@@ -414,9 +418,9 @@ flowchart TD
 - `POST /api/auth/register` 是否对公网开放须由部署侧显式评估；忘记密码接口已改为邮件一次性链接，但仍需配合 HTTPS、可信前端域名与限流策略
 - 忘记密码 token 仅明文出现在邮件链接中，数据库保存 SHA-256 哈希，默认 30 分钟过期且使用后失效；失败限流为单实例内存级（15 分钟 5 次），多实例生产需迁移到 Redis/网关限流
 - Google SMTP 默认按 Gmail 直连预留：`smtp.gmail.com:587` + STARTTLS；`MAIL_PASSWORD` 使用 Google 应用专用密码，不提交真实邮箱密码。公司 Workspace relay 可通过环境变量切换到 `smtp-relay.gmail.com`
-- 当前鉴权主路径为 Shiro + JWT；access token 存储在前端 localStorage。`POST /api/auth/logout` 会将当前 Bearer token 的 `jti` 写入服务端黑名单，登出后同 token 无法继续访问受保护 API。生产环境需启用 HTTPS，`JWT_SECRET` 必须使用部署侧强密钥，并持续防护 XSS 风险；如需第三方前端跨域直连后端，应优先在 Nginx/网关层显式配置跨域策略
+- 当前鉴权主路径为 Shiro + JWT；access token 存储在前端 localStorage。JWT 携带 `token_version` 声明，改密后会递增用户版本并使旧 token 失效。`POST /api/auth/logout` 会将当前 Bearer token 的 `jti` 写入服务端黑名单，登出后同 token 无法继续访问受保护 API。生产环境需启用 HTTPS，`JWT_SECRET` 必须使用部署侧强密钥，并持续防护 XSS 风险；如需第三方前端跨域直连后端，应优先在 Nginx/网关层显式配置跨域策略
 - 默认管理员密码自动重置能力仅建议本地排障开启，生产应关闭该初始化开关，避免启动时回退弱密码
-- 文件上传以后端校验为准：当前默认允许 JPG/PNG/WebP/GIF、PDF、Word、Excel、文本文件，单文件默认 ≤5GB、每条记录最多 20 个附件、浏览器并发 3；图片/PDF/Office 文件校验内容签名，前端不做文件大小预检。Compose/Nginx 部署需保证 `frontend/nginx.conf` 的 `client_max_body_size` 不小于后端 `UPLOAD_MAX_SIZE_BYTES`（当前默认 5GB）。
+- 文件上传以后端校验为准：通用内网附件允许任意类型，单文件默认 ≤5 GiB、每条记录最多 20 个附件；BOM 图片与图片预览继续校验图片 MIME，Excel 导入继续校验表格格式；前端不做文件大小预检，也不做应用级并发队列。Compose/Nginx 部署需保证 `frontend/nginx.conf` 的 `client_max_body_size` 不小于后端 `UPLOAD_MAX_REQUEST_SIZE_BYTES`（当前默认 5.125 GiB），且修改配置后需显式重建镜像。
 - GitHub Actions CI：[`CI workflow`](https://github.com/z136606021-star/Storage/blob/main/.github/workflows/ci.yml)（后端测试 + 前端测试/构建）
 
 后端测试：`cd backend && mvn test "-Dspring.profiles.active=test"`

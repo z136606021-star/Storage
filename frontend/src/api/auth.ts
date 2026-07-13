@@ -1,5 +1,12 @@
 import { http } from '@/api/http'
-import type { AuthSession, ForgotPasswordRequest, LoginRequest, ResetPasswordRequest } from '@/types/auth'
+import type {
+  AuthSession,
+  ChangePasswordByCurrentPasswordRequest,
+  ChangePasswordByVerificationCodeRequest,
+  ForgotPasswordRequest,
+  LoginRequest,
+  ResetPasswordRequest,
+} from '@/types/auth'
 import type { RegisterRequest } from '@/types/system'
 
 export function login(data: LoginRequest) {
@@ -24,4 +31,16 @@ export function forgotPassword(data: ForgotPasswordRequest) {
 
 export function resetPassword(data: ResetPasswordRequest) {
   return http.post<void>('/auth/reset-password', data)
+}
+
+export function changePasswordByCurrentPassword(data: ChangePasswordByCurrentPasswordRequest) {
+  return http.put<void>('/auth/password', data)
+}
+
+export function sendPasswordVerificationCode() {
+  return http.post<void>('/auth/password/verification-code')
+}
+
+export function changePasswordByVerificationCode(data: ChangePasswordByVerificationCodeRequest) {
+  return http.put<void>('/auth/password/by-verification-code', data)
 }

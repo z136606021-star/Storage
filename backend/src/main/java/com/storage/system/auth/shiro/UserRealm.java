@@ -48,6 +48,13 @@ public class UserRealm extends AuthorizingRealm {
         if (user == null || user.getStatus() == null || user.getStatus() != 1) {
             throw new UnknownAccountException("账号或密码错误");
         }
+        if (token instanceof JwtAuthenticationToken jwtToken) {
+            int currentVersion = user.getTokenVersion() == null ? 0 : user.getTokenVersion();
+            int claimVersion = jwtToken.getClaims().tokenVersion() == null ? 0 : jwtToken.getClaims().tokenVersion();
+            if (currentVersion != claimVersion) {
+                throw new JwtAuthenticationException("JWT 已失效", null);
+            }
+        }
         Object credentials = token instanceof JwtAuthenticationToken
                 ? token.getCredentials()
                 : user.getPasswordHash();

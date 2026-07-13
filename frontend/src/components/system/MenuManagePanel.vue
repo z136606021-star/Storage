@@ -1,11 +1,19 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { Modal, message } from 'ant-design-vue'
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons-vue'
 import { getErrorMessage } from '@/api/http'
 import { createMenu, deleteMenu, fetchMenuTree, updateMenu } from '@/api/system/menu'
 import { useAuth } from '@/composables/useAuth'
 import type { SysMenu, SysMenuSave } from '@/types/system'
+import {
+  allowedParentTypesFor,
+  buildParentOptions,
+  collectDescendantIds,
+  isButtonMenu,
+  isTopMenu,
+  menuTypeLabel,
+} from '@/utils/menuAuthTree'
 import { displayValue } from '@/utils/format'
 
 const auth = useAuth()
@@ -16,10 +24,11 @@ const menuTree = ref<SysMenu[]>([])
 const modalOpen = ref(false)
 const editingId = ref<number | null>(null)
 const selectedMenuId = ref<number | null>(null)
+const createMode = ref<'top' | 'sub' | 'button'>('top')
 
 const formState = reactive<SysMenuSave>({
   parentId: null,
-  menuType: 'MENU',
+  menuType: 'TOP',
   name: '',
   permission: '',
   path: '',
@@ -31,59 +40,46 @@ const formState = reactive<SysMenuSave>({
 
 const columns = [
   { title: '菜单名称', dataIndex: 'name', key: 'name', width: 200 },
-  { title: '类型', key: 'menuType', width: 90 },
+  { title: '类型', key: 'menuType', width: 110 },
   { title: '权限标识', dataIndex: 'permission', key: 'permission', ellipsis: true },
   { title: '路由', dataIndex: 'path', key: 'path', ellipsis: true, width: 180 },
   { title: '组件路径', dataIndex: 'componentKey', key: 'componentKey', ellipsis: true, width: 220 },
   { title: '显示', key: 'visible', width: 70 },
   { title: '排序', dataIndex: 'sortOrder', key: 'sortOrder', width: 70 },
-  { title: '操作', key: 'actions', width: 200 },
+  { title: '操作', key: 'actions', width: 240 },
 ]
+
+const showParentSelector = computed(() => formState.menuType !== 'TOP' && formState.menuType !== 'CATALOG')
+
+const isGroupSubMode = computed(() => {
+  return formState.menuType === 'SUB' && !formState.permission?.trim()
+})
+
+const isPageSubMode = computed(() => {
+  return formState.menuType === 'SUB' && Boolean(formState.permission?.trim())
+})
 
 const parentTreeData = computed(() => {
   const excludeIds = editingId.value ? collectDescendantIds(menuTree.value, editingId.value) : new Set<number>()
   if (editingId.value) {
     excludeIds.add(editingId.value)
   }
-  return [{ title: '（根节点）', value: null, children: buildParentOptions(menuTree.value, excludeIds) }]
+  return buildParentOptions(menuTree.value, excludeIds, allowedParentTypesFor(formState.menuType))
 })
 
-function collectDescendantIds(menus: SysMenu[], rootId: number): Set<number> {
-  const ids = new Set<number>()
-  const collectChildren = (node: SysMenu) => {
-    ids.add(node.id)
-    for (const child of node.children ?? []) {
-      collectChildren(child)
+watch(
+  () => formState.menuType,
+  (menuType) => {
+    if (menuType === 'TOP' || menuType === 'CATALOG') {
+      formState.parentId = null
     }
-  }
-  const findAndCollect = (nodes: SysMenu[]): boolean => {
-    for (const node of nodes) {
-      if (node.id === rootId) {
-        collectChildren(node)
-        return true
-      }
-      if (node.children?.length && findAndCollect(node.children)) {
-        return true
-      }
+    if (menuType === 'BUTTON') {
+      formState.path = ''
+      formState.componentKey = ''
+      formState.visible = 0
     }
-    return false
-  }
-  findAndCollect(menus)
-  return ids
-}
-
-function buildParentOptions(
-  menus: SysMenu[],
-  excludeIds: Set<number>,
-): Array<{ title: string; value: number; children?: ReturnType<typeof buildParentOptions> }> {
-  return menus
-    .filter((menu) => !excludeIds.has(menu.id))
-    .map((menu) => ({
-      title: menu.name,
-      value: menu.id,
-      children: menu.children?.length ? buildParentOptions(menu.children, excludeIds) : undefined,
-    }))
-}
+  },
+)
 
 async function loadData() {
   loading.value = true
@@ -97,21 +93,28 @@ async function loadData() {
   }
 }
 
-function resetForm(parentId: number | null = null) {
+function resetForm(parentId: number | null = null, menuType: SysMenuSave['menuType'] = 'TOP') {
   formState.parentId = parentId
-  formState.menuType = 'MENU'
+  formState.menuType = menuType
   formState.name = ''
   formState.permission = ''
   formState.path = ''
   formState.componentKey = ''
   formState.icon = ''
-  formState.visible = 1
+  formState.visible = menuType === 'BUTTON' ? 0 : 1
   formState.sortOrder = 0
   editingId.value = null
 }
 
-function openCreate(parentId: number | null = null) {
-  resetForm(parentId)
+function openCreateTop() {
+  createMode.value = 'top'
+  resetForm(null, 'TOP')
+  modalOpen.value = true
+}
+
+function openCreate(parentId: number | null, menuType: SysMenuSave['menuType']) {
+  createMode.value = menuType === 'BUTTON' ? 'button' : menuType === 'TOP' ? 'top' : 'sub'
+  resetForm(parentId, menuType)
   modalOpen.value = true
 }
 
@@ -129,8 +132,8 @@ function openEdit(record: SysMenu) {
   modalOpen.value = true
 }
 
-function openCreateChild(record: SysMenu) {
-  openCreate(record.id)
+function openCreateChild(record: SysMenu, menuType: SysMenuSave['menuType']) {
+  openCreate(record.id, menuType)
 }
 
 async function handleSubmit() {
@@ -138,12 +141,23 @@ async function handleSubmit() {
     message.warning('请输入菜单名称')
     return
   }
-  if (formState.menuType === 'MENU' && !formState.permission?.trim()) {
-    message.warning('菜单类型为 MENU 时必须填写权限标识')
+  if (isButtonMenu(formState.menuType) && !formState.permission?.trim()) {
+    message.warning('按钮权限必须填写权限标识')
     return
   }
+  if (isPageSubMode.value && !formState.permission?.trim()) {
+    message.warning('页面子菜单必须填写权限标识')
+    return
+  }
+  if (isGroupSubMode.value) {
+    if (formState.path?.trim() || formState.componentKey?.trim()) {
+      message.warning('分组子菜单不能填写路由或组件路径')
+      return
+    }
+  }
   if (
-    formState.menuType === 'MENU'
+    !isButtonMenu(formState.menuType)
+    && !isGroupSubMode.value
     && formState.visible === 1
     && formState.path?.trim()
     && !formState.componentKey?.trim()
@@ -151,13 +165,17 @@ async function handleSubmit() {
     message.warning('可见路由菜单必须填写组件路径')
     return
   }
+  if (!isTopMenu(formState.menuType) && formState.parentId == null) {
+    message.warning('请选择父级菜单')
+    return
+  }
   const payload: SysMenuSave = {
-    parentId: formState.parentId,
+    parentId: isTopMenu(formState.menuType) ? null : formState.parentId,
     menuType: formState.menuType,
     name: formState.name.trim(),
-    permission: formState.permission?.trim() || undefined,
-    path: formState.path?.trim() || undefined,
-    componentKey: formState.componentKey?.trim() || undefined,
+    permission: isGroupSubMode.value ? undefined : formState.permission?.trim() || undefined,
+    path: isButtonMenu(formState.menuType) || isGroupSubMode.value ? undefined : formState.path?.trim() || undefined,
+    componentKey: isButtonMenu(formState.menuType) || isGroupSubMode.value ? undefined : formState.componentKey?.trim() || undefined,
     icon: formState.icon?.trim() || undefined,
     visible: formState.visible,
     sortOrder: formState.sortOrder,
@@ -213,15 +231,21 @@ onMounted(loadData)
   <div class="page">
     <div class="action-bar">
       <a-space>
-        <a-button v-if="canWrite()" type="primary" class="btn-add" @click="openCreate()">
-          <PlusOutlined />新增根菜单
+        <a-button v-if="canWrite()" type="primary" class="btn-add" @click="openCreateTop()">
+          <PlusOutlined />新增一级菜单
         </a-button>
         <a-button
           v-if="canWrite() && selectedMenuId"
           type="primary"
-          @click="openCreate(selectedMenuId)"
+          @click="openCreate(selectedMenuId, 'SUB')"
         >
           <PlusOutlined />新增子菜单
+        </a-button>
+        <a-button
+          v-if="canWrite() && selectedMenuId"
+          @click="openCreate(selectedMenuId, 'BUTTON')"
+        >
+          <PlusOutlined />新增按钮权限
         </a-button>
         <a-button @click="loadData"><ReloadOutlined />刷新</a-button>
       </a-space>
@@ -239,7 +263,7 @@ onMounted(loadData)
     >
       <template #bodyCell="{ column, record }">
         <template v-if="column.key === 'menuType'">
-          {{ (record as SysMenu).menuType === 'CATALOG' ? '目录' : '菜单' }}
+          {{ menuTypeLabel((record as SysMenu).menuType) }}
         </template>
         <template v-else-if="column.key === 'permission'">
           {{ displayValue((record as SysMenu).permission) }}
@@ -255,8 +279,21 @@ onMounted(loadData)
         </template>
         <template v-else-if="column.key === 'actions'">
           <a-space>
-            <a-button type="link" size="small" @click.stop="openCreateChild(record as SysMenu)">
+            <a-button
+              v-if="isTopMenu((record as SysMenu).menuType)"
+              type="link"
+              size="small"
+              @click.stop="openCreateChild(record as SysMenu, 'SUB')"
+            >
               子菜单
+            </a-button>
+            <a-button
+              v-else-if="!isButtonMenu((record as SysMenu).menuType)"
+              type="link"
+              size="small"
+              @click.stop="openCreateChild(record as SysMenu, 'BUTTON')"
+            >
+              按钮
             </a-button>
             <template v-if="canWrite()">
               <a-button type="link" size="small" @click.stop="openEdit(record as SysMenu)">编辑</a-button>
@@ -278,33 +315,43 @@ onMounted(loadData)
       @ok="handleSubmit"
     >
       <a-form layout="vertical">
-        <a-form-item label="父菜单">
+        <a-form-item label="菜单类型" required>
+          <a-radio-group v-model:value="formState.menuType" :disabled="Boolean(editingId)">
+            <a-radio value="TOP">一级菜单</a-radio>
+            <a-radio value="SUB">子菜单</a-radio>
+            <a-radio value="BUTTON">按钮权限</a-radio>
+          </a-radio-group>
+          <div v-if="formState.menuType === 'SUB'" class="form-hint">
+            无权限标识的子菜单仅作分组，需在其下挂载具体页面子菜单
+          </div>
+        </a-form-item>
+        <a-form-item v-if="showParentSelector" label="父菜单" required>
           <a-tree-select
             v-model:value="formState.parentId"
             :tree-data="parentTreeData"
-            allow-clear
-            placeholder="留空为根节点"
+            placeholder="请选择父级菜单"
             tree-default-expand-all
             style="width: 100%"
           />
         </a-form-item>
-        <a-form-item label="菜单类型" required>
-          <a-radio-group v-model:value="formState.menuType">
-            <a-radio value="CATALOG">目录（CATALOG）</a-radio>
-            <a-radio value="MENU">菜单（MENU）</a-radio>
-          </a-radio-group>
-        </a-form-item>
         <a-form-item label="菜单名称" required>
           <a-input v-model:value="formState.name" placeholder="显示名称" />
         </a-form-item>
-        <a-form-item v-if="formState.menuType === 'MENU'" label="权限标识" required>
-          <a-input v-model:value="formState.permission" placeholder="填写权限标识" />
+        <a-form-item
+          v-if="!isTopMenu(formState.menuType) && !isButtonMenu(formState.menuType)"
+          label="权限标识"
+          :required="isPageSubMode"
+        >
+          <a-input
+            v-model:value="formState.permission"
+            :placeholder="isGroupSubMode ? '留空表示仅作分组' : '填写权限标识'"
+          />
         </a-form-item>
-        <a-form-item label="路由路径">
-          <a-input v-model:value="formState.path" placeholder="从菜单管理维护前端路由，动作权限可留空" />
+        <a-form-item v-if="!isButtonMenu(formState.menuType) && !isGroupSubMode" label="路由路径">
+          <a-input v-model:value="formState.path" placeholder="从菜单管理维护前端路由" />
         </a-form-item>
         <a-form-item
-          v-if="formState.menuType === 'MENU' && formState.path?.trim()"
+          v-if="!isButtonMenu(formState.menuType) && !isGroupSubMode && formState.path?.trim()"
           label="组件路径"
           :required="formState.visible === 1"
         >
@@ -313,10 +360,10 @@ onMounted(loadData)
             placeholder="如 views/warehouse/MaterialLedgerView.vue"
           />
         </a-form-item>
-        <a-form-item label="图标">
+        <a-form-item v-if="!isButtonMenu(formState.menuType)" label="图标">
           <a-input v-model:value="formState.icon" placeholder="Ant Design 图标名，如 SettingOutlined" />
         </a-form-item>
-        <a-form-item label="侧栏显示" required>
+        <a-form-item v-if="!isButtonMenu(formState.menuType)" label="侧栏显示" required>
           <a-switch v-model:checked="formState.visible" :checked-value="1" :un-checked-value="0" />
         </a-form-item>
         <a-form-item label="排序" required>
@@ -342,6 +389,12 @@ onMounted(loadData)
 
 .btn-add {
   .btn-success-primary();
+}
+
+.form-hint {
+  margin-top: @spacing-xs;
+  color: @color-text-secondary;
+  font-size: @font-size-sm;
 }
 
 :deep(.row-selected) {

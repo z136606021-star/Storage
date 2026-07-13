@@ -20,6 +20,7 @@ import { useWritePermission } from '@/composables/useWritePermission'
 import { useExcelImportExport } from '@/composables/useExcelImportExport'
 import { usePaginatedCrudList } from '@/composables/usePaginatedCrudList'
 import type { SysMenu, SysRole, SysUser, SysUserSave } from '@/types/system'
+import { buildMenuAuthTreeNodes } from '@/utils/menuAuthTree'
 import { confirmDelete } from '@/utils/confirmDelete'
 import { displayValue } from '@/utils/format'
 
@@ -106,15 +107,7 @@ const columns = [
   { title: '操作', key: 'actions', width: 180, fixed: 'right' as const },
 ]
 
-const permissionTreeData = computed(() => mapMenuTree(permissionMenuTree.value))
-
-function mapMenuTree(menus: SysMenu[]): Array<{ title: string; key: number; children?: ReturnType<typeof mapMenuTree> }> {
-  return menus.map((menu) => ({
-    title: menu.name,
-    key: menu.id,
-    children: menu.children?.length ? mapMenuTree(menu.children) : undefined,
-  }))
-}
+const permissionTreeData = computed(() => buildMenuAuthTreeNodes(permissionMenuTree.value))
 
 function buildSavePayload(): SysUserSave {
   if (!formState.roleIds.length) {
