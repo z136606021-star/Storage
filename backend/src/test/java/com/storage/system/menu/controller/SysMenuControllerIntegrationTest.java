@@ -92,8 +92,29 @@ class SysMenuControllerIntegrationTest {
         mockMvc.perform(get("/api/menus/nav-tree")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].componentKey").value("views/warehouse/MaterialLedgerView.vue"))
-                .andExpect(jsonPath("$[0].permission").value("warehouse:material-ledger:read"));
+                .andExpect(jsonPath("$[0].key").value("110"))
+                .andExpect(jsonPath("$[0].icon").value("InboxOutlined"))
+                .andExpect(jsonPath("$[0].children[0].componentKey").value("views/warehouse/MaterialLedgerView.vue"))
+                .andExpect(jsonPath("$[0].children[0].permission").value("warehouse:material-ledger:read"));
+    }
+
+    @Test
+    void navTree_returnsOnlyWarehouseAndSystemTopLevelModules() throws Exception {
+        String token = loginAsAdmin("menuadmin6");
+
+        String response = mockMvc.perform(get("/api/menus/nav-tree")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        var root = objectMapper.readTree(response);
+        var rootKeys = new java.util.ArrayList<String>();
+        root.forEach(node -> rootKeys.add(node.get("key").asText()));
+        assertThat(rootKeys).containsExactly("110", "200");
+        assertThat(response).doesNotContain("\"label\":\"经验库\"");
+        assertThat(response).doesNotContain("\"label\":\"设计指引\"");
     }
 
     @Test

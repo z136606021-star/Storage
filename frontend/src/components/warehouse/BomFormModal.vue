@@ -222,7 +222,7 @@ async function handleSubmit() {
             <div class="upload-text">上传</div>
           </div>
         </a-upload>
-        <div class="upload-hint">最多 {{ maxCount }} 张，单张不超过 50MB，支持多选上传</div>
+        <div class="upload-hint">最多 {{ maxCount }} 张，支持多选上传</div>
       </a-form-item>
     </a-form>
   </a-modal>

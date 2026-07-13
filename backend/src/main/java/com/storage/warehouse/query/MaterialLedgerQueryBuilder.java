@@ -45,7 +45,7 @@ public final class MaterialLedgerQueryBuilder {
 
     applyStockStatus(wrapper, query.getStockStatus());
 
-    wrapper.orderByAsc(MaterialLedger::getId);
+    wrapper.last("ORDER BY (last_operated_at IS NULL) ASC, last_operated_at DESC, id DESC");
     return wrapper;
   }
 

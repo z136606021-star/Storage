@@ -172,11 +172,16 @@ public class MaterialIoServiceImpl extends ServiceImpl<MaterialIoRecordMapper, M
         }
         materialStockMutationService.validateOutbound(targetLedger, ioType, dto.getQuantity());
         materialStockMutationService.applyEffect(targetLedger, ioType, dto.getQuantity(), false);
+        if (dto.getUnitPrice() != null) {
+            targetLedger.setUnitPrice(dto.getUnitPrice());
+        }
+        syncLastOperatedAt(targetLedger);
         materialLedgerMapper.updateById(targetLedger);
 
         dto.setPurpose(purpose);
         dto.setProjectRef(projectRef);
         materialIoConverter.applyUpdateDto(existing, dto);
+        existing.setUnitPrice(unitPrice);
         updateById(existing);
 
         OperatorInfo operator = operatorResolver.findById(existing.getOperatorUserId());
@@ -194,7 +199,10 @@ public class MaterialIoServiceImpl extends ServiceImpl<MaterialIoRecordMapper, M
         MaterialLedger ledger = materialLedgerMapper.selectByIdForUpdate(existing.getMaterialLedgerId());
         if (ledger != null) {
             materialStockMutationService.reverseEffect(ledger, existing);
+            removeById(id);
+            syncLastOperatedAt(ledger);
             materialLedgerMapper.updateById(ledger);
+            return;
         }
         removeById(id);
     }
@@ -234,7 +242,9 @@ public class MaterialIoServiceImpl extends ServiceImpl<MaterialIoRecordMapper, M
         }
         materialStockMutationService.validateOutbound(ledger, dto.getIoType(), dto.getQuantity());
         materialStockMutationService.applyEffect(ledger, dto.getIoType(), dto.getQuantity(), false);
-        materialLedgerMapper.updateById(ledger);
+        if (dto.getUnitPrice() != null) {
+            ledger.setUnitPrice(dto.getUnitPrice());
+        }
 
         BigDecimal unitPrice = resolveUnitPrice(dto.getUnitPrice(), ledger);
         MaterialIoRecord entity = materialIoConverter.toNewEntity(
@@ -249,6 +259,8 @@ public class MaterialIoServiceImpl extends ServiceImpl<MaterialIoRecordMapper, M
                 operatedAt
         );
         save(entity);
+        syncLastOperatedAt(ledger);
+        materialLedgerMapper.updateById(ledger);
         return entity;
     }
 
@@ -344,5 +356,16 @@ public class MaterialIoServiceImpl extends ServiceImpl<MaterialIoRecordMapper, M
             return requested;
         }
         return ledger.getUnitPrice();
+    }
+
+    private void syncLastOperatedAt(MaterialLedger ledger) {
+        MaterialIoRecord latest = materialIoRecordMapper.selectOne(
+                Wrappers.<MaterialIoRecord>lambdaQuery()
+                        .eq(MaterialIoRecord::getMaterialLedgerId, ledger.getId())
+                        .orderByDesc(MaterialIoRecord::getOperatedAt)
+                        .orderByDesc(MaterialIoRecord::getId)
+                        .last("LIMIT 1")
+        );
+        ledger.setLastOperatedAt(latest != null ? latest.getOperatedAt() : null);
     }
 }

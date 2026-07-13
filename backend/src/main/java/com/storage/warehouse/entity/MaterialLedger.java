@@ -31,6 +31,8 @@ public class MaterialLedger {
 
     private BigDecimal unitPrice;
 
+    private LocalDateTime lastOperatedAt;
+
     private String remark;
 
     private LocalDateTime createdAt;

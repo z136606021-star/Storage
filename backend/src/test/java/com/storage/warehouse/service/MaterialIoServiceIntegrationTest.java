@@ -13,6 +13,7 @@ import com.storage.warehouse.dto.MaterialIoQueryDTO;
 import com.storage.warehouse.dto.MaterialIoRecordVO;
 import com.storage.warehouse.dto.MaterialIoSaveDTO;
 import com.storage.warehouse.dto.MaterialIoUpdateDTO;
+import com.storage.warehouse.dto.MaterialQueryDTO;
 import com.storage.warehouse.mapper.MaterialIoRecordMapper;
 import com.storage.warehouse.entity.MaterialLedger;
 import com.storage.warehouse.mapper.MaterialLedgerMapper;
@@ -40,6 +41,9 @@ class MaterialIoServiceIntegrationTest {
 
     @Autowired
     private MaterialIoService materialIoService;
+
+    @Autowired
+    private MaterialLedgerService materialLedgerService;
 
     @Autowired
     private MaterialLedgerMapper materialLedgerMapper;
@@ -124,6 +128,18 @@ class MaterialIoServiceIntegrationTest {
 
         assertThat(created.getUnitPrice()).isEqualByComparingTo("15.25");
         assertThat(currentStock()).isEqualTo(8);
+        assertThat(materialLedgerMapper.selectById(ledgerId).getUnitPrice()).isEqualByComparingTo("15.25");
+    }
+
+    @Test
+    void batchCreate_withoutUnitPrice_keepsLedgerPrice() {
+        MaterialIoBatchSaveDTO batch = new MaterialIoBatchSaveDTO();
+        batch.setIoType("OUT");
+        batch.setItems(List.of(batchItem(ledgerId, 2)));
+
+        materialIoService.batchCreate(batch);
+
+        assertThat(materialLedgerMapper.selectById(ledgerId).getUnitPrice()).isEqualByComparingTo("9.90");
     }
 
     @Test
@@ -138,6 +154,78 @@ class MaterialIoServiceIntegrationTest {
 
         assertThat(updated.getUnitPrice()).isEqualByComparingTo("18.00");
         assertThat(currentStock()).isEqualTo(8);
+        assertThat(materialLedgerMapper.selectById(ledgerId).getUnitPrice()).isEqualByComparingTo("18.00");
+    }
+
+    @Test
+    void update_withoutUnitPrice_keepsLedgerPrice() {
+        MaterialIoRecordVO created = materialIoService.batchCreate(outboundBatch(ledgerId, 2)).get(0);
+
+        MaterialIoUpdateDTO update = new MaterialIoUpdateDTO();
+        update.setQuantity(2);
+        materialIoService.update(created.getId(), update);
+
+        assertThat(materialLedgerMapper.selectById(ledgerId).getUnitPrice()).isEqualByComparingTo("9.90");
+    }
+
+    @Test
+    void delete_doesNotRollbackLedgerPrice() {
+        MaterialIoBatchItemDTO item = batchItem(ledgerId, 2);
+        item.setUnitPrice(new BigDecimal("21.00"));
+        MaterialIoBatchSaveDTO batch = new MaterialIoBatchSaveDTO();
+        batch.setIoType("OUT");
+        batch.setItems(List.of(item));
+        MaterialIoRecordVO created = materialIoService.batchCreate(batch).get(0);
+
+        materialIoService.delete(created.getId());
+
+        assertThat(materialLedgerMapper.selectById(ledgerId).getUnitPrice()).isEqualByComparingTo("21.00");
+    }
+
+    @Test
+    void batchCreate_updatesLastOperatedAtOnLedger() {
+        materialIoService.batchCreate(outboundBatch(ledgerId, 2));
+
+        MaterialLedger ledger = materialLedgerMapper.selectById(ledgerId);
+        assertThat(ledger.getLastOperatedAt()).isNotNull();
+        assertThat(ledger.getLastOperatedAt()).isBeforeOrEqualTo(LocalDateTime.now().plusSeconds(2));
+    }
+
+    @Test
+    void ledgerPage_ordersByLastOperatedAtDesc() {
+        MaterialLedger older = new MaterialLedger();
+        older.setCategory("耗材");
+        older.setGenericName("排序测试");
+        older.setBrand("品牌A");
+        older.setName("旧记录");
+        older.setModel("OLD-001");
+        older.setBinLocation("1-1-2");
+        older.setStockQuantity(10);
+        materialLedgerMapper.insert(older);
+
+        MaterialLedger newer = new MaterialLedger();
+        newer.setCategory("耗材");
+        newer.setGenericName("排序测试");
+        newer.setBrand("品牌A");
+        newer.setName("新记录");
+        newer.setModel("NEW-001");
+        newer.setBinLocation("2-3-4");
+        newer.setStockQuantity(10);
+        materialLedgerMapper.insert(newer);
+
+        materialIoService.batchCreate(outboundBatch(ledgerId, 1));
+        materialIoService.batchCreate(outboundBatch(newer.getId(), 1));
+
+        MaterialQueryDTO query = new MaterialQueryDTO();
+        query.setCategory("耗材");
+        query.setGenericName("排序测试");
+        query.setPage(1);
+        query.setPageSize(20);
+
+        var page = materialLedgerService.page(query);
+
+        assertThat(page.getRecords()).hasSizeGreaterThanOrEqualTo(2);
+        assertThat(page.getRecords().get(0).getId()).isEqualTo(newer.getId());
     }
 
     @Test

@@ -212,6 +212,7 @@ CREATE TABLE material_ledger (
     bin_location VARCHAR(32) NOT NULL,
     stock_quantity INT NOT NULL DEFAULT 0,
     unit_price DECIMAL(10, 2) NULL,
+    last_operated_at TIMESTAMP NULL,
     remark VARCHAR(255) NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -301,32 +302,34 @@ INSERT INTO sys_role (id, code, name, status) VALUES
 (1, 'ADMIN', '系统管理员', 1),
 (2, 'USER', '普通用户', 1);
 
-INSERT INTO sys_menu (id, parent_id, name, permission, path, component_key, sort_order, visible) VALUES
-(1, NULL, '物料台账', 'warehouse:material-ledger:read', '/warehouse/material-ledger', 'views/warehouse/MaterialLedgerView.vue', 10, 1),
-(2, NULL, '物料台账写', 'warehouse:material-ledger:write', NULL, NULL, 11, 0),
-(3, NULL, '菜单管理', 'system:menu:read', '/system/menus', 'components/system/MenuManagePanel.vue', 30, 1),
-(4, NULL, '菜单写', 'system:menu:write', NULL, NULL, 31, 0),
-(5, NULL, '项目中心读', 'platform:project:read', '/platform/project', 'views/platform/ShellPlaceholderView.vue', 40, 0),
-(6, 3, '菜单隐藏子页', 'system:menu:child', 'child', 'views/platform/ShellPlaceholderView.vue', 32, 0),
-(7, NULL, '经验库', 'platform:experience:read', '/platform/experience', 'views/experience/ExperienceLibraryView.vue', 50, 1),
-(8, NULL, '经验库写', 'platform:experience:write', NULL, NULL, 51, 0),
-(9, NULL, '文件上传', 'platform:file:upload', NULL, NULL, 52, 0),
-(10, NULL, '设计指引', 'platform:design:read', '/platform/design', 'views/design/DesignGuideView.vue', 60, 1),
-(11, NULL, '设计指引写', 'platform:design:write', NULL, NULL, 61, 0),
-(200, NULL, '系统管理', NULL, NULL, NULL, 90, 1),
-(201, 200, '用户管理', 'system:user:read', '/system/users', 'views/system/UserManageView.vue', 10, 1),
-(202, 200, '角色管理', 'system:role:read', '/system/roles', 'components/system/RoleManagePanel.vue', 20, 1),
-(203, 200, '菜单管理', 'system:menu:read', '/system/menus', 'components/system/MenuManagePanel.vue', 30, 1),
-(204, 200, '客户管理', 'system:customer:read', '/system/customers', 'views/system/CustomerManageView.vue', 40, 1),
-(214, NULL, '用户写', 'system:user:write', NULL, NULL, 214, 0),
-(224, NULL, '角色写', 'system:role:write', NULL, NULL, 224, 0),
-(234, NULL, '菜单写', 'system:menu:write', NULL, NULL, 234, 0),
-(244, NULL, '客户写', 'system:customer:write', NULL, NULL, 244, 0);
+INSERT INTO sys_menu (id, parent_id, name, permission, path, component_key, icon, sort_order, visible) VALUES
+(110, NULL, '仓库管理', NULL, NULL, NULL, 'InboxOutlined', 10, 1),
+(111, 110, '物料台账', 'warehouse:material-ledger:read', '/warehouse/material-ledger', 'views/warehouse/MaterialLedgerView.vue', NULL, 10, 1),
+(2, NULL, '物料台账写', 'warehouse:material-ledger:write', NULL, NULL, NULL, 11, 0),
+(3, NULL, '菜单管理', 'system:menu:read', '/system/menus', 'components/system/MenuManagePanel.vue', NULL, 30, 0),
+(4, NULL, '菜单写', 'system:menu:write', NULL, NULL, NULL, 31, 0),
+(5, NULL, '项目中心读', 'platform:project:read', '/platform/project', 'views/platform/ShellPlaceholderView.vue', NULL, 40, 0),
+(6, 110, '菜单隐藏子页', 'system:menu:child', 'child', 'views/platform/ShellPlaceholderView.vue', NULL, 32, 0),
+(7, NULL, '经验库', 'platform:experience:read', '/platform/experience', 'views/experience/ExperienceLibraryView.vue', NULL, 50, 0),
+(8, NULL, '经验库写', 'platform:experience:write', NULL, NULL, NULL, 51, 0),
+(9, NULL, '文件上传', 'platform:file:upload', NULL, NULL, NULL, 52, 0),
+(10, NULL, '设计指引', 'platform:design:read', '/platform/design', 'views/design/DesignGuideView.vue', NULL, 60, 0),
+(11, NULL, '设计指引写', 'platform:design:write', NULL, NULL, NULL, 61, 0),
+(200, NULL, '系统管理', NULL, NULL, NULL, 'SettingOutlined', 20, 1),
+(201, 200, '用户管理', 'system:user:read', '/system/users', 'views/system/UserManageView.vue', NULL, 10, 1),
+(202, 200, '角色管理', 'system:role:read', '/system/roles', 'components/system/RoleManagePanel.vue', NULL, 20, 1),
+(203, 200, '菜单管理', 'system:menu:read', '/system/menus', 'components/system/MenuManagePanel.vue', NULL, 30, 1),
+(204, 200, '客户管理', 'system:customer:read', '/system/customers', 'views/system/CustomerManageView.vue', NULL, 40, 1),
+(214, NULL, '用户写', 'system:user:write', NULL, NULL, NULL, 214, 0),
+(224, NULL, '角色写', 'system:role:write', NULL, NULL, NULL, 224, 0),
+(234, NULL, '菜单写', 'system:menu:write', NULL, NULL, NULL, 234, 0),
+(244, NULL, '客户写', 'system:customer:write', NULL, NULL, NULL, 244, 0);
 
-UPDATE sys_menu SET menu_type = 'CATALOG' WHERE id = 200;
+UPDATE sys_menu SET menu_type = 'CATALOG' WHERE id IN (110, 200);
 
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES
-(1, 1),
+(1, 110),
+(1, 111),
 (1, 2),
 (1, 3),
 (1, 4),
@@ -346,7 +349,7 @@ INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 (1, 224),
 (1, 234),
 (1, 244),
-(2, 1);
+(2, 111);
 
 INSERT INTO experience_type (id, name, status, sort_order) VALUES
 (1, '设计经验', 1, 10),

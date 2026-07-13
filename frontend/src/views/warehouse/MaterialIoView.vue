@@ -25,6 +25,7 @@ import { useExcelImportExport } from '@/composables/useExcelImportExport'
 import { useMaterialLedgerDeepLink } from '@/composables/useMaterialLedgerDeepLink'
 import { useMaterialIoList } from '@/composables/useMaterialIoList'
 import { useMaterialIoRouteDetail } from '@/composables/useMaterialIoRouteDetail'
+import { markMaterialLedgerDirty } from '@/composables/useWarehouseDataInvalidation'
 import { useWritePermission } from '@/composables/useWritePermission'
 import { useAuth } from '@/composables/useAuth'
 import { useMenuStore } from '@/stores/menu'
@@ -128,6 +129,11 @@ function handleViewDetail(record: MaterialIoRecord) {
   })
 }
 
+async function refreshIoAndInvalidateLedger() {
+  markMaterialLedgerDirty()
+  await refreshAll()
+}
+
 function handleReset() {
   resetQueryForm()
   clearDeepLinkOnReset()
@@ -156,7 +162,7 @@ const {
   getTemplateFilename: () => '物料出入库导入模板.xlsx',
   exportSuccessMessage: '导出成功',
   showFirstImportError: true,
-  onAfterImport: refreshAll,
+  onAfterImport: refreshIoAndInvalidateLedger,
 })
 
 const columns = [
@@ -223,7 +229,7 @@ function handleDelete(record: MaterialIoRecord) {
     },
     onSuccess: async () => {
       removeFromSelection(record.id)
-      await refreshAll()
+      await refreshIoAndInvalidateLedger()
     },
   })
 }
@@ -241,7 +247,7 @@ function handleBatchDelete() {
     },
     onSuccess: async () => {
       clearSelection()
-      await refreshAll()
+      await refreshIoAndInvalidateLedger()
     },
   })
 }
@@ -398,7 +404,7 @@ setupIoRouteWatch()
     :record="editingRecord"
     :initial-ledger="editingRecord ? null : materialContext"
     :initial-io-type="pendingInitialIoType"
-    @success="refreshAll"
+    @success="refreshIoAndInvalidateLedger"
   />
 
   <CrudDetailDrawer

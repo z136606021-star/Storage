@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onActivated, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ReloadOutlined, SearchOutlined } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
@@ -16,6 +16,7 @@ import { useCrudDetailDrawer } from '@/composables/useCrudDetailDrawer'
 import { useExcelImportExport } from '@/composables/useExcelImportExport'
 import { useMaterialLedgerList } from '@/composables/useMaterialLedgerList'
 import { useMaterialLedgerRouteDetail } from '@/composables/useMaterialLedgerRouteDetail'
+import { consumeMaterialLedgerDirty } from '@/composables/useWarehouseDataInvalidation'
 import { DEFAULT_LEDGER_STOCK_STATUS, MATERIAL_STOCK_STATUS_OPTIONS } from '@/constants/materialStockStatus'
 import { useAuth } from '@/composables/useAuth'
 import { useMenuStore } from '@/stores/menu'
@@ -40,6 +41,7 @@ const {
   handleBrandChange,
   buildQueryParams,
   handleReset,
+  refreshAll,
   loading,
   dataSource,
   pagination,
@@ -128,6 +130,8 @@ function onBatchExport() {
   handleBatchExport(selectedRowKeys.value.map((key) => Number(key)))
 }
 
+const isFirstActivation = ref(true)
+
 onMounted(async () => {
   try {
     await reloadFilterOptions()
@@ -136,6 +140,16 @@ onMounted(async () => {
   }
   await loadData()
   await initFromRoute()
+})
+
+onActivated(async () => {
+  if (isFirstActivation.value) {
+    isFirstActivation.value = false
+    return
+  }
+  if (consumeMaterialLedgerDirty()) {
+    await refreshAll()
+  }
 })
 
 setupRouteWatch()

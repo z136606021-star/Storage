@@ -30,13 +30,6 @@ export interface UseControlledFileUploadOptions {
   mapResult?: (result: FileUploadResult) => Partial<ControlledUploadItem>
 }
 
-function formatSizeLimit(bytes: number): string {
-  if (bytes >= 1024 * 1024) {
-    return `${Math.round(bytes / (1024 * 1024))}MB`
-  }
-  return `${Math.round(bytes / 1024)}KB`
-}
-
 function createUid(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
 }
@@ -84,9 +77,6 @@ export function useControlledFileUpload(options: UseControlledFileUploadOptions 
   function validateFile(file: File): string | null {
     if (!allowedTypes.value.includes(file.type)) {
       return '文件类型不支持'
-    }
-    if (file.size > maxSizeBytes.value) {
-      return `文件大小不能超过 ${formatSizeLimit(maxSizeBytes.value)}`
     }
     return null
   }

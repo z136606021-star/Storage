@@ -26,12 +26,21 @@ describe('useControlledFileUpload', () => {
     vi.clearAllMocks()
   })
 
-  it('rejects files over max size', () => {
-    const { validateFile } = useControlledFileUpload({
+  it('enqueues files larger than policy max size and relies on backend validation', async () => {
+    const uploadFn = vi.fn().mockRejectedValue(new Error('文件大小超过限制'))
+    const { enqueueFile, items } = useControlledFileUpload({
       policy: { maxSizeBytes: 1024 },
+      allowedTypes: ['image/png'],
+      uploadFn,
     })
 
-    expect(validateFile(createFile('large.png', 2048))).toContain('文件大小不能超过')
+    const accepted = enqueueFile(createFile('large.png', 2048))
+    expect(accepted).toBe(true)
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(uploadFn).toHaveBeenCalledTimes(1)
+    expect(items.value[0]?.status).toBe('error')
   })
 
   it('keeps all completed uploads when completions arrive out of order', async () => {
