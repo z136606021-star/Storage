@@ -14,7 +14,7 @@ import {
   updateRole,
 } from '@/api/system/role'
 import { fetchMenuTree } from '@/api/system/menu'
-import CrudToolbar from '@/components/common/CrudToolbar.vue'
+import CrudListPage from '@/components/common/CrudListPage.vue'
 import { useWritePermission } from '@/composables/useWritePermission'
 import { useExcelImportExport } from '@/composables/useExcelImportExport'
 import type { SysMenu, SysRole, SysRoleSave } from '@/types/system'
@@ -170,43 +170,44 @@ onMounted(async () => {
 
 <template>
   <div class="page">
-    <CrudToolbar
-      create-green
-      export-icon="download"
-      :can-write="canWrite"
-      :importing="importing"
-      :exporting="exporting"
-      @create="openCreate"
-      @export="handleExport"
-      @import="handleImport"
-      @download-template="handleDownloadTemplate"
+    <CrudListPage
+      table-key="system.role"
+      :columns="columns"
+      :data-source="filteredData"
+      :loading="loading"
+      :pagination="false"
+      toolbar-create-green
+      toolbar-export-icon="download"
+      :toolbar-can-write="canWrite"
+      :toolbar-importing="importing"
+      :toolbar-exporting="exporting"
+      @toolbar-create="openCreate"
+      @toolbar-export="handleExport"
+      @toolbar-import="handleImport"
+      @toolbar-download-template="handleDownloadTemplate"
     >
-      <template #prepend>
-        <div class="role-toolbar-filters">
-          <span class="role-toolbar-label">角色</span>
-          <a-select
-            v-model:value="queryForm.roleId"
-            allow-clear
-            placeholder="全部"
-            class="role-toolbar-control"
-          >
-            <a-select-option v-for="role in dataSource" :key="role.id" :value="role.id">
-              {{ role.name }}
-            </a-select-option>
-          </a-select>
-          <a-button type="primary" @click="loadData">
-            <template #icon><SearchOutlined /></template>
-            查询
-          </a-button>
-          <a-button @click="resetQuery">
-            <template #icon><ReloadOutlined /></template>
-            重置
-          </a-button>
-        </div>
+      <template #filters>
+        <a-form layout="horizontal" class="filter-form" :label-col="{ flex: '72px' }" :wrapper-col="{ flex: '1' }">
+          <a-row :gutter="[12, 8]" class="filter-row">
+            <a-col :xs="24" :sm="12" :md="8" :lg="8">
+              <a-form-item label="角色" class="filter-item">
+                <a-select v-model:value="queryForm.roleId" allow-clear placeholder="全部" class="filter-control">
+                  <a-select-option v-for="role in dataSource" :key="role.id" :value="role.id">{{ role.name }}</a-select-option>
+                </a-select>
+              </a-form-item>
+            </a-col>
+            <a-col :xs="24" :sm="12" :md="16" :lg="16" class="filter-actions-col">
+              <a-form-item class="filter-item filter-actions">
+                <a-space>
+                  <a-button type="primary" @click="loadData"><template #icon><SearchOutlined /></template>查询</a-button>
+                  <a-button @click="resetQuery"><template #icon><ReloadOutlined /></template>重置</a-button>
+                </a-space>
+              </a-form-item>
+            </a-col>
+          </a-row>
+        </a-form>
       </template>
-    </CrudToolbar>
 
-    <a-table row-key="id" :columns="columns" :data-source="filteredData" :loading="loading" :pagination="false">
       <template #bodyCell="{ column, record }">
         <template v-if="column.key === 'status'">
           <a-tag :color="(record as SysRole).status === 1 ? 'processing' : 'default'">
@@ -231,7 +232,7 @@ onMounted(async () => {
           </a-space>
         </template>
       </template>
-    </a-table>
+    </CrudListPage>
 
     <a-modal
       v-model:open="modalOpen"
@@ -296,24 +297,6 @@ onMounted(async () => {
 .page {
   padding: 0 @spacing-lg @spacing-lg;
   min-height: 100%;
-}
-
-.role-toolbar-filters {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: @spacing-sm;
-  margin-right: @spacing-md;
-}
-
-.role-toolbar-label {
-  flex-shrink: 0;
-  color: @color-text-secondary;
-  font-size: @font-size-sm;
-}
-
-.role-toolbar-control {
-  width: 160px;
 }
 
 .drawer-tree {
