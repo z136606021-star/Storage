@@ -9,5 +9,5 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "storage.file-upload")
 public class FileUploadProperties {
 
-    private long maxSizeBytes = 5L * 1024 * 1024 * 1024;
+    private long maxSizeBytes = 5_505_025_024L;
 }

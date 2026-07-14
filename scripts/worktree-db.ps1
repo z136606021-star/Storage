@@ -171,7 +171,6 @@ function Format-WorktreeEnvContent {
         [string]$ResetAdminPasswordOnStartup = 'true',
         [string]$JwtSecret = 'dev-only-change-this-jwt-secret-at-least-32-bytes',
         [string]$JwtTtlMinutes = '120',
-        [string]$UploadMaxSizeBytes = '5368709120',
         [string]$UploadMaxRequestSizeBytes = '5505025024',
         [string]$AppPublicBaseUrl = '',
         [string]$PasswordResetTokenTtlMinutes = '30',
@@ -218,7 +217,6 @@ SESSION_COOKIE_SECURE=$SessionCookieSecure
 RESET_ADMIN_PASSWORD_ON_STARTUP=$ResetAdminPasswordOnStartup
 JWT_SECRET=$JwtSecret
 JWT_TTL_MINUTES=$JwtTtlMinutes
-UPLOAD_MAX_SIZE_BYTES=$UploadMaxSizeBytes
 UPLOAD_MAX_REQUEST_SIZE_BYTES=$UploadMaxRequestSizeBytes
 
 APP_PUBLIC_BASE_URL=$AppPublicBaseUrl
@@ -299,13 +297,16 @@ function Write-WorktreeEnvFile {
     $resetAdminPasswordOnStartup = Get-EnvOrExistingValue -Existing $existing -Name 'RESET_ADMIN_PASSWORD_ON_STARTUP' -DefaultValue 'true'
     $jwtSecret = Get-EnvOrExistingValue -Existing $existing -Name 'JWT_SECRET' -DefaultValue 'dev-only-change-this-jwt-secret-at-least-32-bytes'
     $jwtTtlMinutes = Get-EnvOrExistingValue -Existing $existing -Name 'JWT_TTL_MINUTES' -DefaultValue '120'
-    $uploadMaxSizeBytes = Get-EnvOrExistingValue -Existing $existing -Name 'UPLOAD_MAX_SIZE_BYTES' -DefaultValue '5368709120'
-    $uploadMaxRequestSizeBytes = Get-EnvOrExistingValue -Existing $existing -Name 'UPLOAD_MAX_REQUEST_SIZE_BYTES' -DefaultValue '5505025024'
-    # Migrate only known historical defaults; preserve custom upload limits.
-    if ($uploadMaxSizeBytes -in @('5242880', '52428800')) {
-        $uploadMaxSizeBytes = '5368709120'
+    $uploadMaxRequestSizeBytes = Get-EnvOrExistingValue -Existing $existing -Name 'UPLOAD_MAX_REQUEST_SIZE_BYTES' -DefaultValue ''
+    if ([string]::IsNullOrWhiteSpace($uploadMaxRequestSizeBytes)) {
+        if ($existing.ContainsKey('UPLOAD_MAX_SIZE_BYTES') -and -not [string]::IsNullOrWhiteSpace($existing['UPLOAD_MAX_SIZE_BYTES'])) {
+            $uploadMaxRequestSizeBytes = $existing['UPLOAD_MAX_SIZE_BYTES']
+        } else {
+            $uploadMaxRequestSizeBytes = '5505025024'
+        }
     }
-    if ($uploadMaxRequestSizeBytes -in @('57671680', '55050240')) {
+    # Migrate only known historical defaults; preserve custom upload limits.
+    if ($uploadMaxRequestSizeBytes -in @('57671680', '55050240', '5242880', '52428800')) {
         $uploadMaxRequestSizeBytes = '5505025024'
     }
     $appPublicBaseUrl = Get-EnvOrExistingValue -Existing $existing -Name 'APP_PUBLIC_BASE_URL' -DefaultValue "http://localhost"
@@ -337,7 +338,6 @@ function Write-WorktreeEnvFile {
         -ResetAdminPasswordOnStartup $resetAdminPasswordOnStartup `
         -JwtSecret $jwtSecret `
         -JwtTtlMinutes $jwtTtlMinutes `
-        -UploadMaxSizeBytes $uploadMaxSizeBytes `
         -UploadMaxRequestSizeBytes $uploadMaxRequestSizeBytes `
         -AppPublicBaseUrl $appPublicBaseUrl `
         -PasswordResetTokenTtlMinutes $passwordResetTokenTtlMinutes `

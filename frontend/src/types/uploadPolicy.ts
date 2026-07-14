@@ -3,5 +3,5 @@ export interface FileUploadPolicy {
 }
 
 export const DEFAULT_UPLOAD_POLICY: FileUploadPolicy = {
-  maxSizeBytes: 5 * 1024 * 1024 * 1024,
+  maxSizeBytes: 5_505_025_024,
 }

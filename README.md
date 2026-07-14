@@ -288,7 +288,7 @@ curl -X POST http://localhost:8080/api/files/upload \
 
 先调用 `POST /api/auth/login` 获取 `accessToken`，再用 Bearer token 携带凭证上传。本地 dev 的 MinIO API 默认映射到 `http://localhost:9000`，Console 默认 `http://localhost:9001`。生产环境由既有 MinIO 承接，无需本项目暴露 MinIO 端口。本地 dev 建议运行 `health-check -Profile dev`，确认 `minio-credentials`、`minio-live`、`minio-from-backend` 均通过后再实际上传小文件验证；生产可运行 `health-check -Profile prod` 检查 backend 到外部 `MINIO_ENDPOINT` 的连通性。
 
-物料清单图片可在 **配置管理 → 物料清单** 新增/编辑弹窗中上传多张图片（JPG/PNG/WebP/GIF）；经验库附件支持任意类型文件。前端通过 `GET /api/files/upload-policy` 读取运行时单文件大小上限，不在浏览器侧拦截文件大小或限制并发。后端通用附件仅校验大小与鉴权；BOM 图片在保存时继续校验图片 MIME，图片支持预览，普通附件通过下载接口获取。Compose/Nginx 部署默认 `client_max_body_size` 对齐 `UPLOAD_MAX_REQUEST_SIZE_BYTES`（当前默认 5.125 GiB），后端 Spring multipart 与业务层默认单文件上限 5 GiB（`UPLOAD_MAX_SIZE_BYTES=5368709120`）。修改 `application.yml` 或 `frontend/nginx.conf` 后需显式重建 Docker 镜像；若公司上游网关另有请求体限制，须同步放宽。物料清单 Excel 导入/导出不含图片列。
+物料清单图片可在 **配置管理 → 物料清单** 新增/编辑弹窗中上传多张图片（JPG/PNG/WebP/GIF）；经验库附件支持任意类型文件。前端通过 `GET /api/files/upload-policy` 读取运行时上传大小上限，不在浏览器侧拦截文件大小或限制并发。后端通用附件仅校验大小与鉴权；BOM 图片在保存时继续校验图片 MIME，图片支持预览，普通附件通过下载接口获取。上传大小统一由 `UPLOAD_MAX_REQUEST_SIZE_BYTES` 控制（默认约 5.125 GiB，指单次 HTTP 请求体上限；当前为单请求单文件，multipart 元数据会占少量空间，实际文件略小于该值）。Spring multipart、业务层与 Nginx `client_max_body_size` 共用该环境变量；修改 `.env` 后重启 backend/frontend 即可，无需手工改 Nginx 配置。若公司上游网关另有请求体限制，须同步放宽。物料清单 Excel 导入/导出不含图片列。
 
 ## 经验库
 
@@ -443,7 +443,7 @@ flowchart TD
 - Google SMTP 默认按 Gmail 直连预留：`smtp.gmail.com:587` + STARTTLS；`MAIL_PASSWORD` 使用 Google 应用专用密码，不提交真实邮箱密码。公司 Workspace relay 可通过环境变量切换到 `smtp-relay.gmail.com`
 - 当前鉴权主路径为 Shiro + JWT；access token 存储在前端 localStorage。JWT 携带 `token_version` 声明，改密后会递增用户版本并使旧 token 失效。`POST /api/auth/logout` 会将当前 Bearer token 的 `jti` 写入服务端黑名单，登出后同 token 无法继续访问受保护 API。生产环境需启用 HTTPS，`JWT_SECRET` 必须使用部署侧强密钥，并持续防护 XSS 风险；如需第三方前端跨域直连后端，应优先在 Nginx/网关层显式配置跨域策略
 - 默认管理员密码自动重置能力仅建议本地排障开启，生产应关闭该初始化开关，避免启动时回退弱密码
-- 文件上传以后端校验为准：通用内网附件允许任意类型，单文件默认 ≤5 GiB；BOM 图片与图片预览继续校验图片 MIME，Excel 导入继续校验表格格式；前端不做文件大小预检，也不做应用级并发队列。Compose/Nginx 部署需保证 `frontend/nginx.conf` 的 `client_max_body_size` 不小于后端 `UPLOAD_MAX_REQUEST_SIZE_BYTES`（当前默认 5.125 GiB），且修改配置后需显式重建镜像。
+- 文件上传以后端校验为准：通用内网附件允许任意类型；上传大小统一由 `UPLOAD_MAX_REQUEST_SIZE_BYTES` 控制（默认约 5.125 GiB 请求体上限，单请求单文件，实际文件略小）；BOM 图片与图片预览继续校验图片 MIME，Excel 导入继续校验表格格式；前端不做文件大小预检，也不做应用级并发队列。Nginx 在容器启动时从同一环境变量渲染 `client_max_body_size`；修改 `.env` 后重启 backend/frontend 即可。
 - GitHub Actions CI：[`CI workflow`](https://github.com/z136606021-star/Storage/blob/main/.github/workflows/ci.yml)（后端测试 + 前端测试/构建）
 
 后端测试：`cd backend && mvn test "-Dspring.profiles.active=test"`

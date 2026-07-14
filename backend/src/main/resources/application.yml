@@ -32,7 +32,7 @@ spring:
             enable: ${MAIL_SMTP_STARTTLS_ENABLE:true}
   servlet:
     multipart:
-      max-file-size: ${UPLOAD_MAX_SIZE_BYTES:5368709120}
+      max-file-size: ${UPLOAD_MAX_REQUEST_SIZE_BYTES:5505025024}
       max-request-size: ${UPLOAD_MAX_REQUEST_SIZE_BYTES:5505025024}
 
 server:
@@ -80,7 +80,7 @@ storage:
     secret-key: ${MINIO_SECRET_KEY:minioadmin123}
     bucket: ${MINIO_BUCKET:storage}
   file-upload:
-    max-size-bytes: ${UPLOAD_MAX_SIZE_BYTES:5368709120}
+    max-size-bytes: ${UPLOAD_MAX_REQUEST_SIZE_BYTES:5505025024}
 
 logging:
   level:

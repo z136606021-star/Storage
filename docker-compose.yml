@@ -27,6 +27,9 @@ services:
     container_name: storage-frontend
     hostname: frontend
     restart: unless-stopped
+    environment:
+      UPLOAD_MAX_REQUEST_SIZE_BYTES: ${UPLOAD_MAX_REQUEST_SIZE_BYTES:-5505025024}
+      NGINX_ENVSUBST_FILTER: UPLOAD_MAX_REQUEST_SIZE_BYTES
     depends_on:
       backend:
         condition: service_healthy
