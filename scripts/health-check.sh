@@ -4,12 +4,17 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+PROFILE_NAME="dev"
 BACKEND_PORT=8080
 FRONTEND_PORT=5173
 failures=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --profile)
+      PROFILE_NAME="${2:?--profile requires dev or prod}"
+      shift 2
+      ;;
     --repo-root)
       ROOT="$(cd "${2:?--repo-root requires a path}" && pwd)"
       shift 2
@@ -28,6 +33,11 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+if [[ "$PROFILE_NAME" != "dev" && "$PROFILE_NAME" != "prod" ]]; then
+  echo "--profile must be dev or prod" >&2
+  exit 2
+fi
 
 # shellcheck source=worktree-db.sh
 source "$SCRIPT_DIR/worktree-db.sh"
@@ -66,7 +76,7 @@ port_listening() {
   return 1
 }
 
-echo "Storage dev health check"
+echo "Storage health check (profile: $PROFILE_NAME)"
 echo "Project root: $ROOT"
 echo
 
@@ -94,7 +104,11 @@ fi
 if [[ -f "$ROOT/.env" ]]; then
   import_worktree_env_file "$ROOT"
   BACKEND_PORT="${BACKEND_PORT:-8080}"
-  FRONTEND_PORT="${FRONTEND_PORT:-5173}"
+  if [[ "$PROFILE_NAME" == "prod" ]]; then
+    FRONTEND_PORT="${APP_PORT:-80}"
+  else
+    FRONTEND_PORT="${FRONTEND_PORT:-5173}"
+  fi
   if [[ "${STORAGE_MYSQL_PORT:-}" == "$PROFILE_MYSQL_PORT" && "${STORAGE_MYSQL_CONTAINER:-}" == "$PROFILE_MYSQL_CONTAINER" && "${STORAGE_BACKEND_CONTAINER:-}" == "$PROFILE_BACKEND_CONTAINER" ]]; then
     check_result .env true "STORAGE_MYSQL_PORT=${STORAGE_MYSQL_PORT:-} mysql=${STORAGE_MYSQL_CONTAINER:-} backend=${STORAGE_BACKEND_CONTAINER:-}"
   else
@@ -113,10 +127,19 @@ else
 fi
 
 if [[ -n "$PROFILE_MINIO_CONTAINER" ]] && container_running "$PROFILE_MINIO_CONTAINER"; then
-  check_result minio-container true "$PROFILE_MINIO_CONTAINER"
-  minio_running=true
+  if [[ "$PROFILE_NAME" == "dev" ]]; then
+    check_result minio-container true "$PROFILE_MINIO_CONTAINER"
+    minio_running=true
+  else
+    check_result minio-container true "skipped (prod uses external MinIO)"
+    minio_running=false
+  fi
 else
-  check_result minio-container false "${PROFILE_MINIO_CONTAINER:-no profile}"
+  if [[ "$PROFILE_NAME" == "dev" ]]; then
+    check_result minio-container false "${PROFILE_MINIO_CONTAINER:-no profile}"
+  else
+    check_result minio-container true "skipped (prod uses external MinIO)"
+  fi
   minio_running=false
 fi
 
@@ -152,31 +175,49 @@ else
   check_result mysql-chinese false "mysql container not running"
 fi
 
-if [[ "$minio_running" == true && "$backend_running" == true ]]; then
-  backend_key="$(docker exec "$PROFILE_BACKEND_CONTAINER" printenv MINIO_ACCESS_KEY 2>/dev/null || true)"
-  minio_key="$(docker exec "$PROFILE_MINIO_CONTAINER" printenv MINIO_ROOT_USER 2>/dev/null || true)"
-  if [[ -n "$backend_key" && "$backend_key" == "$minio_key" ]]; then
-    check_result minio-credentials true "backend=$backend_key minio=$minio_key"
+if [[ "$PROFILE_NAME" == "dev" ]]; then
+  if [[ "$minio_running" == true && "$backend_running" == true ]]; then
+    backend_key="$(docker exec "$PROFILE_BACKEND_CONTAINER" printenv MINIO_ACCESS_KEY 2>/dev/null || true)"
+    minio_key="$(docker exec "$PROFILE_MINIO_CONTAINER" printenv MINIO_ROOT_USER 2>/dev/null || true)"
+    if [[ -n "$backend_key" && "$backend_key" == "$minio_key" ]]; then
+      check_result minio-credentials true "backend=$backend_key minio=$minio_key"
+    else
+      check_result minio-credentials false "backend=${backend_key:-missing} minio=${minio_key:-missing}"
+    fi
+
+    minio_host_port="${STORAGE_MINIO_PORT:-9000}"
+    if curl -fsS "http://127.0.0.1:$minio_host_port/minio/health/live" >/dev/null 2>&1; then
+      check_result minio-live true "http://127.0.0.1:$minio_host_port/minio/health/live"
+    else
+      check_result minio-live false "http://127.0.0.1:$minio_host_port/minio/health/live"
+    fi
+
+    if docker exec "$PROFILE_BACKEND_CONTAINER" curl -fsS "http://minio:9000/minio/health/live" >/dev/null 2>&1; then
+      check_result minio-from-backend true "http://minio:9000/minio/health/live"
+    else
+      check_result minio-from-backend false "http://minio:9000/minio/health/live"
+    fi
   else
-    check_result minio-credentials false "backend=${backend_key:-missing} minio=${minio_key:-missing}"
+    check_result minio-credentials false "backend or minio container not running"
+    check_result minio-live false "minio container not running"
+    check_result minio-from-backend false "backend or minio container not running"
+  fi
+elif [[ "$backend_running" == true ]]; then
+  minio_endpoint="$(docker exec "$PROFILE_BACKEND_CONTAINER" printenv MINIO_ENDPOINT 2>/dev/null || true)"
+  if [[ -n "$minio_endpoint" ]]; then
+    check_result minio-endpoint true "MINIO_ENDPOINT=$minio_endpoint"
+  else
+    check_result minio-endpoint false "MINIO_ENDPOINT missing"
   fi
 
-  minio_host_port="${STORAGE_MINIO_PORT:-9000}"
-  if curl -fsS "http://127.0.0.1:$minio_host_port/minio/health/live" >/dev/null 2>&1; then
-    check_result minio-live true "http://127.0.0.1:$minio_host_port/minio/health/live"
+  if [[ -n "$minio_endpoint" ]] && docker exec "$PROFILE_BACKEND_CONTAINER" curl -fsS "${minio_endpoint%/}/minio/health/live" >/dev/null 2>&1; then
+    check_result minio-from-backend true "$minio_endpoint"
   else
-    check_result minio-live false "http://127.0.0.1:$minio_host_port/minio/health/live"
-  fi
-
-  if docker exec "$PROFILE_BACKEND_CONTAINER" curl -fsS "http://minio:9000/minio/health/live" >/dev/null 2>&1; then
-    check_result minio-from-backend true "http://minio:9000/minio/health/live"
-  else
-    check_result minio-from-backend false "http://minio:9000/minio/health/live"
+    check_result minio-from-backend false "${minio_endpoint:-backend container not configured}"
   fi
 else
-  check_result minio-credentials false "backend or minio container not running"
-  check_result minio-live false "minio container not running"
-  check_result minio-from-backend false "backend or minio container not running"
+  check_result minio-endpoint false "backend container not running"
+  check_result minio-from-backend false "backend container not running"
 fi
 
 backend_status="$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:$BACKEND_PORT/api/auth/me" || true)"

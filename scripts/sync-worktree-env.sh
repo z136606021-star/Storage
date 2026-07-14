@@ -14,13 +14,14 @@ load_current_worktree_profile "$ROOT"
 env_path="$ROOT/.env"
 
 cat <<EOF
-Worktree DB profile synced.
+Worktree DB profile synced (local Docker MinIO).
   Branch:   $WORKTREE_BRANCH
   Path:     $ROOT
   MySQL:    localhost:$STORAGE_MYSQL_PORT (container: $STORAGE_MYSQL_CONTAINER)
-  MinIO:    http://localhost:$STORAGE_MINIO_PORT
+  MinIO:    http://localhost:$STORAGE_MINIO_PORT (local container only)
   Compose:  $COMPOSE_PROJECT_NAME
   Wrote:    $env_path
 
-Next: docker compose --env-file .env up -d
+Next (dev): docker compose --env-file .env -f docker-compose.yml -f docker-compose-dev.yml up -d
+Production uses an existing .env with external MINIO_ENDPOINT; do not run sync-worktree-env for prod.
 EOF

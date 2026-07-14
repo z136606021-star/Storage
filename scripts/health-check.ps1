@@ -1,5 +1,7 @@
-# Read-only dev environment health check (exit 0 = all pass, 1 = any fail)
+# Read-only environment health check (exit 0 = all pass, 1 = any fail)
 param(
+    [ValidateSet('dev', 'prod')]
+    [string]$Profile = 'dev',
     [string]$RepoRoot = (Split-Path -Parent $PSScriptRoot),
     [int]$BackendPort = 8080,
     [int]$FrontendPort = 5173
@@ -53,7 +55,7 @@ function Get-EnvText([string]$Name, [string]$DefaultValue) {
     return $value
 }
 
-Write-Host "Storage dev health check"
+Write-Host "Storage health check (profile: $Profile)"
 Write-Host "Project root: $RepoRoot"
 Write-Host ""
 
@@ -77,7 +79,11 @@ if ($profile -and (Test-Path -LiteralPath $envPath)) {
         $BackendPort = Get-EnvInt 'BACKEND_PORT' $BackendPort
     }
     if (-not $PSBoundParameters.ContainsKey('FrontendPort')) {
-        $FrontendPort = Get-EnvInt 'FRONTEND_PORT' $FrontendPort
+        if ($Profile -eq 'prod') {
+            $FrontendPort = Get-EnvInt 'APP_PORT' 80
+        } else {
+            $FrontendPort = Get-EnvInt 'FRONTEND_PORT' $FrontendPort
+        }
     }
     $envOk = ($env:STORAGE_MYSQL_PORT -eq [string]$profile.MysqlPort) -and
              ($env:STORAGE_MYSQL_CONTAINER -eq $profile.MysqlContainer) -and
@@ -92,7 +98,11 @@ if ($profile) {
     $minioRunning = Test-ContainerRunning $profile.MinioContainer
     $backendRunning = Test-ContainerRunning $profile.BackendContainer
     Write-CheckResult 'mysql-container' $mysqlRunning $profile.MysqlContainer
-    Write-CheckResult 'minio-container' $minioRunning $profile.MinioContainer
+    if ($Profile -eq 'dev') {
+        Write-CheckResult 'minio-container' $minioRunning $profile.MinioContainer
+    } else {
+        Write-CheckResult 'minio-container' $true 'skipped (prod uses external MinIO)'
+    }
     Write-CheckResult 'backend-container' $backendRunning $profile.BackendContainer
 
     $legacyMysql = docker ps -a --filter "name=^/material-ledger-mysql$" --format "{{.Names}}" 2>$null
@@ -120,32 +130,51 @@ if ($profile) {
         Write-CheckResult 'mysql-chinese' $false "mysql container not running"
     }
 
-    if ($minioRunning -and $backendRunning) {
-        $backendKey = (docker exec $profile.BackendContainer printenv MINIO_ACCESS_KEY 2>$null).Trim()
-        $minioKey = (docker exec $profile.MinioContainer printenv MINIO_ROOT_USER 2>$null).Trim()
-        $keysMatch = [bool]$backendKey -and ($backendKey -eq $minioKey)
-        Write-CheckResult 'minio-credentials' $keysMatch "backend=$backendKey minio=$minioKey"
+    if ($Profile -eq 'dev') {
+        if ($minioRunning -and $backendRunning) {
+            $backendKey = (docker exec $profile.BackendContainer printenv MINIO_ACCESS_KEY 2>$null).Trim()
+            $minioKey = (docker exec $profile.MinioContainer printenv MINIO_ROOT_USER 2>$null).Trim()
+            $keysMatch = [bool]$backendKey -and ($backendKey -eq $minioKey)
+            Write-CheckResult 'minio-credentials' $keysMatch "backend=$backendKey minio=$minioKey"
 
-        $minioHostPort = Get-EnvInt 'STORAGE_MINIO_PORT' $profile.MinioPort
-        $minioLive = $false
-        try {
-            Invoke-WebRequest -Uri "http://127.0.0.1:$minioHostPort/minio/health/live" -UseBasicParsing -TimeoutSec 3 -ErrorAction Stop | Out-Null
-            $minioLive = $true
-        } catch {
+            $minioHostPort = Get-EnvInt 'STORAGE_MINIO_PORT' $profile.MinioPort
             $minioLive = $false
+            try {
+                Invoke-WebRequest -Uri "http://127.0.0.1:$minioHostPort/minio/health/live" -UseBasicParsing -TimeoutSec 3 -ErrorAction Stop | Out-Null
+                $minioLive = $true
+            } catch {
+                $minioLive = $false
+            }
+            Write-CheckResult 'minio-live' $minioLive "http://127.0.0.1:$minioHostPort/minio/health/live"
+
+            $minioReachableFromBackend = $false
+            $reachOutput = docker exec $profile.BackendContainer curl -fsS "http://minio:9000/minio/health/live" 2>$null
+            if ($LASTEXITCODE -eq 0) {
+                $minioReachableFromBackend = $true
+            }
+            Write-CheckResult 'minio-from-backend' $minioReachableFromBackend "http://minio:9000/minio/health/live"
+        } else {
+            Write-CheckResult 'minio-credentials' $false "backend or minio container not running"
+            Write-CheckResult 'minio-live' $false "minio container not running"
+            Write-CheckResult 'minio-from-backend' $false "backend or minio container not running"
         }
-        Write-CheckResult 'minio-live' $minioLive "http://127.0.0.1:$minioHostPort/minio/health/live"
+    } elseif ($backendRunning) {
+        $minioEndpoint = (docker exec $profile.BackendContainer printenv MINIO_ENDPOINT 2>$null).Trim()
+        $endpointConfigured = -not [string]::IsNullOrWhiteSpace($minioEndpoint)
+        Write-CheckResult 'minio-endpoint' $endpointConfigured "MINIO_ENDPOINT=$minioEndpoint"
 
         $minioReachableFromBackend = $false
-        $reachOutput = docker exec $profile.BackendContainer curl -fsS "http://minio:9000/minio/health/live" 2>$null
-        if ($LASTEXITCODE -eq 0) {
-            $minioReachableFromBackend = $true
+        if ($endpointConfigured) {
+            $healthUrl = $minioEndpoint.TrimEnd('/') + '/minio/health/live'
+            docker exec $profile.BackendContainer curl -fsS $healthUrl 2>$null | Out-Null
+            if ($LASTEXITCODE -eq 0) {
+                $minioReachableFromBackend = $true
+            }
         }
-        Write-CheckResult 'minio-from-backend' $minioReachableFromBackend "http://minio:9000/minio/health/live"
+        Write-CheckResult 'minio-from-backend' $minioReachableFromBackend $minioEndpoint
     } else {
-        Write-CheckResult 'minio-credentials' $false "backend or minio container not running"
-        Write-CheckResult 'minio-live' $false "minio container not running"
-        Write-CheckResult 'minio-from-backend' $false "backend or minio container not running"
+        Write-CheckResult 'minio-endpoint' $false 'backend container not running'
+        Write-CheckResult 'minio-from-backend' $false 'backend container not running'
     }
 }
 

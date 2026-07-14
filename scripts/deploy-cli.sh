@@ -117,8 +117,35 @@ wait_deploy_ready() {
   wait_http_endpoint "http://localhost:${port}" frontend
 }
 
+assert_prod_env_ready() {
+  local env_path="$ROOT/.env"
+  if [[ ! -f "$env_path" ]]; then
+    echo "Production deploy requires an existing .env at $env_path." >&2
+    echo "Create it from .env.example and set external MINIO_ENDPOINT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY, and MINIO_BUCKET." >&2
+    echo "Production does not auto-generate .env; use sync-worktree-env only for local dev." >&2
+    exit 1
+  fi
+
+  local name value missing=()
+  for name in MINIO_ENDPOINT MINIO_ACCESS_KEY MINIO_SECRET_KEY MINIO_BUCKET; do
+    value="$(read_env_value "$name" "")"
+    if [[ -z "$value" ]]; then
+      missing+=("$name")
+    fi
+  done
+  if [[ "${#missing[@]}" -gt 0 ]]; then
+    echo "Production .env is missing required MinIO settings: ${missing[*]}." >&2
+    echo "Configure external MinIO in .env before deploying prod." >&2
+    exit 1
+  fi
+}
+
 cd "$ROOT"
-write_worktree_env_file "$ROOT" >/dev/null
+if [[ "$PROFILE" == "dev" ]]; then
+  write_worktree_env_file "$ROOT" >/dev/null
+else
+  assert_prod_env_ready
+fi
 
 compose_files=(-f docker-compose.yml)
 if [[ "$PROFILE" == "dev" ]]; then

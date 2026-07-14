@@ -30,9 +30,10 @@
 docker compose --env-file .env -f docker-compose.yml -f docker-compose-dev.yml up -d
 ```
 
-生产部署（最小暴露面）：
+生产部署（最小暴露面，复用既有 MinIO，不启动本项目 MinIO 容器）：
 
 ```bash
+# 先手工维护 .env（含外部 MINIO_ENDPOINT / 凭据 / bucket），再执行：
 docker compose --env-file .env -f docker-compose.yml up -d
 ```
 
@@ -40,20 +41,27 @@ docker compose --env-file .env -f docker-compose.yml up -d
 
 - Windows 双击：`start-dev.cmd`（本地热更新开发：Docker 仅启动 MySQL/MinIO，本机 `npm run dev` + `mvn spring-boot:run`；可加 `-NoOpenBrowser` 跳过打开浏览器）
 - Windows 双击：`dev-up.cmd`（完整 Docker 部署，前端为构建镜像，改代码需 `-Build` 重建）
-- Windows：`.\scripts\deploy-cli.ps1 -Profile dev [-Build]` / `-Profile prod`（dev 部署成功后会自动打开浏览器；可用 `-NoOpenBrowser` 跳过）
+- Windows：`.\scripts\deploy-cli.ps1 -Profile dev [-Build]` / `-Profile prod`（dev 会自动 sync `.env`；prod 要求已有 `.env` 且配置外部 MinIO；dev 部署成功后会自动打开浏览器；可用 `-NoOpenBrowser` 跳过）
 - Linux/macOS/Git Bash：`./scripts/deploy-cli.sh --profile dev [--build]` / `--profile prod`（同上，可用 `--no-open-browser` 跳过；若执行权限丢失可用 `bash scripts/deploy-cli.sh ...`）
 - 启动脚本会等待后端健康检查与前端入口可访问后再打开浏览器，避免服务尚未监听时出现 `localhost` 拒绝连接。
 
 环境自检：
 
 ```powershell
-.\scripts\health-check.ps1
+.\scripts\health-check.ps1 -Profile dev
+```
+
+生产部署自检：
+
+```powershell
+.\scripts\health-check.ps1 -Profile prod
 ```
 
 Linux / macOS / Git Bash：
 
 ```bash
-./scripts/health-check.sh
+./scripts/health-check.sh --profile dev
+./scripts/health-check.sh --profile prod
 ```
 
 遇旧版 `material-ledger-*` 容器冲突时：
@@ -70,20 +78,20 @@ Linux / macOS / Git Bash：
 
 ### 分步启动（进阶）
 
-#### 1. 启动 MySQL 与 MinIO
+#### 1. 启动 MySQL（本地开发含 MinIO）
 
 需已安装 Docker。在项目根目录执行：
 
 ```powershell
 .\scripts\sync-worktree-env.ps1
-docker compose --env-file .env up -d
+docker compose --env-file .env -f docker-compose.yml -f docker-compose-dev.yml up -d
 ```
 
 Linux / macOS / Git Bash 等价命令：
 
 ```bash
 ./scripts/sync-worktree-env.sh
-docker compose --env-file .env up -d
+docker compose --env-file .env -f docker-compose.yml -f docker-compose-dev.yml up -d
 ```
 
 Shell 脚本已在 Git 中提交可执行位；若通过压缩包等方式获取代码导致权限丢失，可先执行 `chmod +x scripts/*.sh`，或直接使用 `bash scripts/<name>.sh`。
@@ -117,7 +125,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\sync-worktree-env.ps1
 | `feat/knowledge-base` | `E:/Storage-worktrees/knowledge-base`（示例） | **3312** | 9050 | 9051 |
 | `feat/design-guidelines` | `E:/Storage-worktrees/design-guidelines`（示例） | **3313** | 9060 | 9061 |
 
-切换 worktree 或分支后务必先执行 `sync-worktree-env.ps1`（Windows）或 `sync-worktree-env.sh`（Linux/macOS/Git Bash），再 `docker compose --env-file .env up -d`。详见 [AGENTS.md](AGENTS.md)「Worktree 数据库隔离」。
+切换 worktree 或分支后务必先执行 `sync-worktree-env.ps1`（Windows）或 `sync-worktree-env.sh`（Linux/macOS/Git Bash），再 `docker compose --env-file .env -f docker-compose.yml -f docker-compose-dev.yml up -d`。详见 [AGENTS.md](AGENTS.md)「Worktree 数据库隔离」。
 
 已有数据库卷升级时，Flyway 通过 `baseline-on-migrate` 兼容历史卷，仅执行新增版本脚本；禁止把 `down -v` / 清空卷作为常规升级路径。`V025` 若检测到重复邮箱会 **安全中止迁移**，需管理员在 DBeaver 保留正确账号邮箱、清空或修正其他重复项后重启后端继续升级。迁移脚本须为 **UTF-8** 编码；迁移失败会阻断启动以避免静默漏表/漏列。
 
@@ -135,9 +143,10 @@ powershell -ExecutionPolicy Bypass -File .\scripts\sync-worktree-env.ps1
 
 默认连接信息见 [.env.example](.env.example)：
 
-- **容器内互联**（Compose DNS + hostname）：`mysql:3306`、`http://minio:9000`、`backend:8080`；backend 不要使用 `http://minio:9090` 或宿主机名访问 MinIO。
-- **容器外管理访问**（宿主机/IP + 映射端口）：MySQL `${STORAGE_MYSQL_PORT}`（默认 `3307`）、MinIO API `${STORAGE_MINIO_PORT}`（默认 `9000`）、MinIO Console `${STORAGE_MINIO_CONSOLE_PORT}`（默认 `9001`）。
-- **显式容器名**（随 `COMPOSE_PROJECT_NAME` 隔离）：`${STORAGE_MYSQL_CONTAINER}`、`${STORAGE_MINIO_CONTAINER}`、`${STORAGE_BACKEND_CONTAINER}`、`${STORAGE_FRONTEND_CONTAINER}`；容器 hostname 固定为 `mysql` / `minio` / `backend` / `frontend`，供容器间访问。
+- **本地 dev 容器内互联**（`docker-compose-dev.yml`）：`mysql:3306`、`http://minio:9000`、`backend:8080`；backend 不要使用 `http://minio:9090` 或宿主机名访问本地 MinIO。
+- **本地 dev 容器外管理访问**（宿主机/IP + 映射端口）：MySQL `${STORAGE_MYSQL_PORT}`（默认 `3307`）、MinIO API `${STORAGE_MINIO_PORT}`（默认 `9000`）、MinIO Console `${STORAGE_MINIO_CONSOLE_PORT}`（默认 `9001`）。
+- **生产**：`docker-compose.yml` 仅部署 MySQL/backend/frontend；对象存储通过 `.env` 中的 `MINIO_ENDPOINT` 连接既有 MinIO，本项目不再发布 MinIO API/Console 端口。
+- **显式容器名**（随 `COMPOSE_PROJECT_NAME` 隔离）：`${STORAGE_MYSQL_CONTAINER}`、`${STORAGE_MINIO_CONTAINER}`（仅 dev）、`${STORAGE_BACKEND_CONTAINER}`、`${STORAGE_FRONTEND_CONTAINER}`；容器 hostname 固定为 `mysql` / `minio`（仅 dev）/ `backend` / `frontend`。
 
 内网部署示例（`COMPOSE_PROJECT_NAME=storage-main`，应用入口 `http://cnhuam0hmcprd01:4600/`）：
 
@@ -145,10 +154,9 @@ powershell -ExecutionPolicy Bypass -File .\scripts\sync-worktree-env.ps1
 |------|------|
 | 应用前端 | `http://cnhuam0hmcprd01:4600/` |
 | DBeaver / MySQL CLI | `cnhuam0hmcprd01:3307`（库 `storage`，用户见 `.env`） |
-| MinIO API | `http://cnhuam0hmcprd01:9000` |
-| MinIO Console | `http://cnhuam0hmcprd01:9001` |
+| MinIO（既有实例，非本项目容器） | 由生产 `.env` 的 `MINIO_ENDPOINT` 配置，backend 容器内可达即可 |
 
-数据库与对象存储数据维护请通过 **DBeaver / MinIO Console 手工操作**；禁止把 `docker compose down -v`、删卷或脚本清库作为常规运维手段。修改 `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` 后需保留数据卷并重建 backend/minio 容器，使 `.env` 与 MinIO 卷内凭据一致；若出现 `access key ID ... does not exist`，通常是凭据不一致而非 hostname 缺失。
+数据库维护请通过 **DBeaver** 手工操作；本地 dev 的对象存储可通过 MinIO Console 维护。禁止把 `docker compose down -v`、删卷或脚本清库作为常规运维手段。本地 dev 修改 `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` 后需保留数据卷并重建 backend/minio 容器，使 `.env` 与 MinIO 卷内凭据一致；若出现 `access key ID ... does not exist`，通常是凭据不一致而非 hostname 缺失。
 
 其他 worktree 端口见上表；以 `scripts/sync-worktree-env.ps1` 或 `scripts/sync-worktree-env.sh` 生成的 `.env` 为准。
 
@@ -161,15 +169,15 @@ powershell -ExecutionPolicy Bypass -File .\scripts\sync-worktree-env.ps1
 - `JWT_SECRET`：JWT HMAC 签名密钥（本地默认仅用于开发，生产必须改为部署侧强密钥）
 - `JWT_TTL_MINUTES`：JWT access token 有效期分钟数（默认 `120`）
 
-`sync-worktree-env.ps1` / `sync-worktree-env.sh` 会按分支重写 MySQL/MinIO 端口、容器名和卷名，但会保留已有 `.env` 或当前进程中的数据库/MinIO 凭据、`BACKEND_PORT` / `FRONTEND_PORT` / `VITE_API_PROXY` / `SESSION_COOKIE_*` / `RESET_ADMIN_PASSWORD_ON_STARTUP` / `JWT_*` / `UPLOAD_*` / `APP_PUBLIC_BASE_URL` / `PASSWORD_RESET_TOKEN_TTL_MINUTES` / `MAIL_*`，便于本地避开端口冲突和使用自定义本地密码。
+`sync-worktree-env.ps1` / `sync-worktree-env.sh` 仅用于本地 dev：按分支重写 MySQL/MinIO 端口、容器名和卷名，但会保留已有 `.env` 或当前进程中的数据库/MinIO 凭据、`BACKEND_PORT` / `FRONTEND_PORT` / `VITE_API_PROXY` / `SESSION_COOKIE_*` / `RESET_ADMIN_PASSWORD_ON_STARTUP` / `JWT_*` / `UPLOAD_*` / `APP_PUBLIC_BASE_URL` / `PASSWORD_RESET_TOKEN_TTL_MINUTES` / `MAIL_*`。生产 `.env` 需手工维护，其中 `MINIO_ENDPOINT` 指向既有 MinIO。
 
 ### 部署交付核验
 
 - Docker Compose 主路径已统一为 `docker compose up -d`；`--build` / `-Build` 仅作为显式重建选项。
 - `--env-file .env` 用于 Compose 变量替换；service 级 `env_file: .env` 用于把 `.env` 注入容器，后端不再在 `environment` 中复制全量变量列表。
 - 前端由 `frontend/Dockerfile` 构建并通过 Nginx 暴露，`/api` 由 Nginx 反向代理到后端服务，Compose 部署不依赖本地 Vite 代理。
-- 容器内数据库与对象存储访问使用 hostname：`mysql:3306`、`http://minio:9000`、`backend:8080`；Compose 仅在必要处覆盖这些容器网络地址，宿主机/DBeaver/Console 才使用映射端口。
-- 生产 `docker-compose.yml` 同样发布 MySQL/MinIO 管理端口（默认 3307/9000/9001），便于内网 DBeaver 与 MinIO Console 运维；应用仍通过 Nginx 入口访问。
+- 本地 dev 容器内数据库与对象存储访问使用 hostname：`mysql:3306`、`http://minio:9000`、`backend:8080`；Compose 仅在 dev 覆盖中写入这些容器网络地址，宿主机/DBeaver/Console 才使用映射端口。
+- 生产 `docker-compose.yml` 仅发布 MySQL 管理端口（默认 `3307`）与应用 Nginx 入口；MinIO 由部署侧既有实例提供，通过 `.env` 注入 `MINIO_ENDPOINT` 与凭据。
 - Nginx 前端入口包含 gzip、hash 静态资源长缓存、`index.html` no-cache、SPA fallback 与 `/api` 反向代理配置。
 - 后端默认不启用全局 CORS；Compose 通过 Nginx 同源代理 `/api/**`，本地 Vite 开发通过 dev proxy 转发 `/api/**`。
 - Linux/macOS/Git Bash 版脚本保持 LF 与可执行位；常规验证可运行 `bash -n scripts/*.sh` 与两套 `docker compose ... config`。
@@ -272,7 +280,7 @@ npm run dev
 
 ### 手动测试文件上传（MinIO）
 
-登录后可用 curl 测试通用上传 API（需先 `docker compose up -d` 启动 MinIO）：
+登录后可用 curl 测试通用上传 API（本地 dev 需先启动含 MinIO 的 dev Compose）：
 
 ```bash
 curl -X POST http://localhost:8080/api/files/upload \
@@ -280,7 +288,7 @@ curl -X POST http://localhost:8080/api/files/upload \
   -F "file=@README.md"
 ```
 
-先调用 `POST /api/auth/login` 获取 `accessToken`，再用 Bearer token 携带凭证上传。MinIO API 默认映射到 `http://localhost:9000`（内网部署示例：`http://cnhuam0hmcprd01:9000`）；MinIO Console 默认 `http://localhost:9001`（内网示例：`http://cnhuam0hmcprd01:9001`）。部署后建议运行 `health-check` 脚本，确认 `minio-credentials`、`minio-live`、`minio-from-backend` 均通过，再实际上传小文件验证。
+先调用 `POST /api/auth/login` 获取 `accessToken`，再用 Bearer token 携带凭证上传。本地 dev 的 MinIO API 默认映射到 `http://localhost:9000`，Console 默认 `http://localhost:9001`。生产环境由既有 MinIO 承接，无需本项目暴露 MinIO 端口。本地 dev 建议运行 `health-check -Profile dev`，确认 `minio-credentials`、`minio-live`、`minio-from-backend` 均通过后再实际上传小文件验证；生产可运行 `health-check -Profile prod` 检查 backend 到外部 `MINIO_ENDPOINT` 的连通性。
 
 物料清单图片可在 **配置管理 → 物料清单** 新增/编辑弹窗中上传多张图片（JPG/PNG/WebP/GIF，每条记录最多 20 张）；经验库附件支持任意类型文件（每条记录最多 20 个）。前端通过 `GET /api/files/upload-policy` 读取运行时上传策略，不在浏览器侧拦截文件大小或限制并发。后端通用附件仅校验大小与鉴权；BOM 图片在保存时继续校验图片 MIME，图片支持预览，普通附件通过下载接口获取。Compose/Nginx 部署默认 `client_max_body_size` 对齐 `UPLOAD_MAX_REQUEST_SIZE_BYTES`（当前默认 5.125 GiB），后端 Spring multipart 与业务层默认单文件上限 5 GiB（`UPLOAD_MAX_SIZE_BYTES=5368709120`）。修改 `application.yml` 或 `frontend/nginx.conf` 后需显式重建 Docker 镜像；若公司上游网关另有请求体限制，须同步放宽。物料清单 Excel 导入/导出不含图片列。
 

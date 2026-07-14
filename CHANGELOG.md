@@ -1,5 +1,6 @@
 # CHANGELOG
 
+| 2026-07-14 | 生产复用外部 MinIO：`docker-compose.yml` 移除 MinIO 服务/卷/端口与 backend 硬编码 endpoint；`docker-compose-dev.yml` 保留本地 MinIO；`deploy-cli` prod 不再自动 sync `.env` 并要求外部 `MINIO_*`；`health-check` 增加 `-Profile dev|prod`；README/.env.example 区分本地与生产 MinIO 配置 |
 | 2026-07-13 | 邮箱找回密码：忘记密码改为仅凭绑定邮箱申请重置链接，移除账号输入；限流键改为邮箱 |
 | 2026-07-13 | 个人手机号维护：个人中心账号信息新增手机号行与齿轮编辑；`PUT /api/auth/me/phone` 供当前用户自行维护可选手机号（无短信验证）；管理员继续在用户管理维护 |
 | 2026-07-13 | 注册安全与账号登录：`sys_user.email` 唯一约束（`V025`，重复邮箱阻断迁移）、注册邮箱验证码（`V026` + `POST /api/auth/register/verification-code`）、账号/邮箱登录、本人完整邮箱展示、账号/显示名称禁止空白 |

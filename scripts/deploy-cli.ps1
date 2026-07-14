@@ -121,9 +121,40 @@ function Assert-DevPortsAvailable {
     }
 }
 
+function Assert-ProdEnvReady {
+    param(
+        [string]$RepoRoot
+    )
+
+    $envPath = Join-Path $RepoRoot '.env'
+    if (-not (Test-Path -LiteralPath $envPath)) {
+        throw @(
+            "Production deploy requires an existing .env at $envPath."
+            "Create it from .env.example and set external MINIO_ENDPOINT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY, and MINIO_BUCKET."
+            "Production does not auto-generate .env; use sync-worktree-env only for local dev."
+        ) -join [Environment]::NewLine
+    }
+
+    $envValues = Read-DotEnvValues -EnvPath $envPath
+    $required = @('MINIO_ENDPOINT', 'MINIO_ACCESS_KEY', 'MINIO_SECRET_KEY', 'MINIO_BUCKET')
+    $missing = @()
+    foreach ($name in $required) {
+        if (-not $envValues.ContainsKey($name) -or [string]::IsNullOrWhiteSpace($envValues[$name])) {
+            $missing += $name
+        }
+    }
+    if ($missing.Count -gt 0) {
+        throw "Production .env is missing required MinIO settings: $($missing -join ', '). Configure external MinIO in .env before deploying prod."
+    }
+}
+
 Set-Location $Root
 $currentProfile = Get-CurrentBranchProfile -RepoRoot $Root
-Write-WorktreeEnvFile -Profile $currentProfile -RepoRoot $Root | Out-Null
+if ($Profile -eq 'dev') {
+    Write-WorktreeEnvFile -Profile $currentProfile -RepoRoot $Root | Out-Null
+} else {
+    Assert-ProdEnvReady -RepoRoot $Root
+}
 $composeArgs = Get-DockerComposeArgs -RepoRoot $Root
 
 $composeFiles = @('-f', 'docker-compose.yml')
