@@ -201,13 +201,6 @@ public class ExperienceRecordServiceImpl implements ExperienceRecordService {
         dto.setActionPlan(trimToNull(dto.getActionPlan()));
         dto.setProjectNames(normalizeTextList(dto.getProjectNames()));
         dto.setAttachmentObjectKeys(normalizeTextList(dto.getAttachmentObjectKeys()));
-        assertAttachmentCount(dto.getAttachmentObjectKeys());
-    }
-
-    private void assertAttachmentCount(List<String> attachmentObjectKeys) {
-        if (attachmentObjectKeys.size() > fileStorageService.uploadPolicy().getMaxFilesPerRecord()) {
-            throw new BusinessException("附件数量不能超过" + fileStorageService.uploadPolicy().getMaxFilesPerRecord() + "个");
-        }
     }
 
     private String trimToNull(String value) {

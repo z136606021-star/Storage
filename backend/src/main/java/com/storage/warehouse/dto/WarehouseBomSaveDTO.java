@@ -33,6 +33,5 @@ public class WarehouseBomSaveDTO {
     @Size(max = 512, message = "图片对象键长度不能超过512")
     private String imageObjectKey;
 
-    @Size(max = 20, message = "图片数量不能超过20张")
     private List<@Size(max = 512, message = "图片对象键长度不能超过512") String> imageObjectKeys;
 }

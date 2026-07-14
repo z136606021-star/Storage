@@ -119,23 +119,6 @@ class WarehouseBomServiceIntegrationTest {
                 .hasMessageContaining("图片文件不存在或类型不支持");
     }
 
-    @Test
-    void create_rejectsMoreThanTwentyImages() {
-        List<String> keys = new ArrayList<>();
-        for (int i = 0; i < 21; i++) {
-            String key = "2026-07-10/image-" + i + ".png";
-            insertImageFile(key);
-            keys.add(key);
-        }
-
-        WarehouseBomSaveDTO dto = baseDto("OR-10");
-        dto.setImageObjectKeys(keys);
-
-        assertThatThrownBy(() -> warehouseBomService.create(dto))
-                .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("图片数量不能超过20张");
-    }
-
     private void insertImageFile(String objectKey) {
         SysFile file = new SysFile();
         file.setObjectKey(objectKey);

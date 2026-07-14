@@ -8,6 +8,4 @@ import lombok.Data;
 public class FileUploadPolicyVO {
 
     private long maxSizeBytes;
-
-    private int maxFilesPerRecord;
 }

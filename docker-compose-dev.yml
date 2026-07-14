@@ -1,13 +1,13 @@
-name: ${COMPOSE_PROJECT_NAME:-storage}-dev
+name: storage-dev
 
 services:
   mysql:
     image: mysql:8.0
-    container_name: ${STORAGE_MYSQL_CONTAINER:-storage-mysql}
+    container_name: storage-mysql
     hostname: mysql
     restart: unless-stopped
     ports:
-      - "${STORAGE_MYSQL_PORT:-3307}:3306"
+      - "3307:3306"
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123}
       MYSQL_DATABASE: ${MYSQL_DB:-storage}
@@ -25,12 +25,12 @@ services:
 
   minio:
     image: minio/minio:latest
-    container_name: ${STORAGE_MINIO_CONTAINER:-storage-minio}
+    container_name: storage-minio
     hostname: minio
     restart: unless-stopped
     ports:
-      - "${STORAGE_MINIO_PORT:-9000}:9000"
-      - "${STORAGE_MINIO_CONSOLE_PORT:-9001}:9001"
+      - "9000:9000"
+      - "9001:9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin123}
@@ -42,7 +42,7 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
-    container_name: ${STORAGE_BACKEND_CONTAINER:-storage-backend}
+    container_name: storage-backend
     hostname: backend
     restart: unless-stopped
     depends_on:
@@ -74,7 +74,7 @@ services:
     build:
       context: .
       dockerfile: frontend/Dockerfile
-    container_name: ${STORAGE_FRONTEND_CONTAINER:-storage-frontend}
+    container_name: storage-frontend
     hostname: frontend
     restart: unless-stopped
     depends_on:

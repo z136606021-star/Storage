@@ -49,7 +49,6 @@ class FileStorageServiceTest {
 
         FileUploadProperties fileUploadProperties = new FileUploadProperties();
         fileUploadProperties.setMaxSizeBytes(5368709120L);
-        fileUploadProperties.setMaxFilesPerRecord(20);
 
         fileStorageService = new FileStorageServiceImpl(
                 minioClient,
@@ -64,7 +63,6 @@ class FileStorageServiceTest {
         var policy = fileStorageService.uploadPolicy();
 
         assertThat(policy.getMaxSizeBytes()).isEqualTo(5368709120L);
-        assertThat(policy.getMaxFilesPerRecord()).isEqualTo(20);
     }
 
     @Test

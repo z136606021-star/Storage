@@ -72,10 +72,7 @@ describe('useControlledFileUpload', () => {
       .mockImplementationOnce(() => first.promise)
       .mockImplementationOnce(() => second.promise)
 
-    const { enqueueFile, items } = useControlledFileUpload({
-      policy: { maxFilesPerRecord: 20 },
-      uploadFn,
-    })
+    const { enqueueFile, items } = useControlledFileUpload({ uploadFn })
 
     enqueueFile(createFile('a.png'))
     enqueueFile(createFile('b.png'))
@@ -114,10 +111,7 @@ describe('useControlledFileUpload', () => {
     const gates = Array.from({ length: 5 }, () => deferred<FileUploadResult>())
     const uploadFn = vi.fn().mockImplementation(() => gates[uploadFn.mock.calls.length - 1].promise)
 
-    const { enqueueFile } = useControlledFileUpload({
-      policy: { maxFilesPerRecord: 20 },
-      uploadFn,
-    })
+    const { enqueueFile } = useControlledFileUpload({ uploadFn })
 
     for (let i = 0; i < 5; i += 1) {
       enqueueFile(createFile(`file-${i}.png`))
@@ -140,10 +134,7 @@ describe('useControlledFileUpload', () => {
       })
       .mockRejectedValueOnce(new Error('network'))
 
-    const { enqueueFile, items, resolveObjectKeys } = useControlledFileUpload({
-      policy: { maxFilesPerRecord: 20 },
-      uploadFn,
-    })
+    const { enqueueFile, items, resolveObjectKeys } = useControlledFileUpload({ uploadFn })
 
     enqueueFile(createFile('ok.png'))
     enqueueFile(createFile('bad.png'))
@@ -153,22 +144,6 @@ describe('useControlledFileUpload', () => {
     expect(items.value.filter((item) => item.status === 'done')).toHaveLength(1)
     expect(items.value.filter((item) => item.status === 'error')).toHaveLength(1)
     expect(resolveObjectKeys()).toEqual(['ok'])
-  })
-
-  it('rejects enqueue when max count reached', () => {
-    const { setItems, enqueueFile, items } = useControlledFileUpload({
-      policy: { maxFilesPerRecord: 2 },
-      allowedTypes: ['image/png'],
-    })
-
-    setItems([
-      { uid: '1', name: 'a.png', status: 'done', objectKey: 'a' },
-      { uid: '2', name: 'b.png', status: 'done', objectKey: 'b' },
-    ])
-
-    const accepted = enqueueFile(createFile('c.png'))
-    expect(accepted).toBe(false)
-    expect(items.value).toHaveLength(2)
   })
 
   it('still validates MIME when allowedTypes is configured', () => {

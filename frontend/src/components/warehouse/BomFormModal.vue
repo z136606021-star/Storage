@@ -30,8 +30,6 @@ const IMAGE_CONTENT_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif
 const {
   fileList,
   isUploading,
-  canAddMore,
-  maxCount,
   setPolicy,
   setItems,
   clearItems,
@@ -211,12 +209,12 @@ async function handleSubmit() {
           :before-upload="beforeUpload"
           @remove="handleRemove"
         >
-          <div v-if="canAddMore" class="upload-placeholder">
+          <div class="upload-placeholder">
             <PlusOutlined />
             <div class="upload-text">上传</div>
           </div>
         </a-upload>
-        <div class="upload-hint">最多 {{ maxCount }} 张，支持多选上传</div>
+        <div class="upload-hint">支持多选上传</div>
       </a-form-item>
     </a-form>
   </a-modal>

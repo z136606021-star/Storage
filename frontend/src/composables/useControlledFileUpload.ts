@@ -39,10 +39,8 @@ export function useControlledFileUpload(options: UseControlledFileUploadOptions 
   const originFiles = new Map<string, File>()
 
   const allowedTypes = computed(() => options.allowedTypes ?? null)
-  const maxCount = computed(() => policy.value.maxFilesPerRecord)
   const maxSizeBytes = computed(() => policy.value.maxSizeBytes)
   const isUploading = computed(() => items.value.some((item) => item.status === 'uploading'))
-  const canAddMore = computed(() => items.value.length < maxCount.value)
 
   const fileList = computed<UploadFile[]>(() =>
     items.value.map((item) => ({
@@ -127,10 +125,6 @@ export function useControlledFileUpload(options: UseControlledFileUploadOptions 
       message.error(`${file.name}：${validationError}`)
       return false
     }
-    if (!canAddMore.value) {
-      message.error(`最多只能上传 ${maxCount.value} 个文件`)
-      return false
-    }
 
     const uid = createUid()
     originFiles.set(uid, file)
@@ -176,8 +170,6 @@ export function useControlledFileUpload(options: UseControlledFileUploadOptions 
     items,
     fileList,
     isUploading,
-    canAddMore,
-    maxCount,
     maxSizeBytes,
     allowedTypes,
     setPolicy,

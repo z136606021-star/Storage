@@ -10,6 +10,4 @@ import org.springframework.stereotype.Component;
 public class FileUploadProperties {
 
     private long maxSizeBytes = 5L * 1024 * 1024 * 1024;
-
-    private int maxFilesPerRecord = 20;
 }

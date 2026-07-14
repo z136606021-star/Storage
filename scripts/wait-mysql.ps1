@@ -10,9 +10,8 @@ $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot 'worktree-db.ps1')
 
 Set-Location $RepoRoot
-$profile = Get-CurrentBranchProfile -RepoRoot $RepoRoot
-$container = $profile.MysqlContainer
-$port = $profile.MysqlPort
+$container = 'storage-mysql'
+$port = 3307
 if (Test-Path -LiteralPath (Join-Path $RepoRoot '.env')) {
     Import-WorktreeEnvFile -RepoRoot $RepoRoot
 }

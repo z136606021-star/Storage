@@ -45,7 +45,6 @@ storage:
     bucket: storage-test
   file-upload:
     max-size-bytes: 5368709120
-    max-files-per-record: 20
 
 logging:
   level:

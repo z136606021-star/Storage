@@ -37,8 +37,6 @@ const downloadingObjectKey = ref<string | null>(null)
 const {
   items,
   isUploading,
-  canAddMore,
-  maxCount,
   setPolicy,
   setItems,
   clearItems,
@@ -284,15 +282,14 @@ async function handleSubmit() {
           <a-upload
             :show-upload-list="false"
             :before-upload="beforeUpload"
-            :disabled="!canAddMore"
             multiple
           >
-            <a-button :disabled="!canAddMore">
+            <a-button>
               <template #icon><UploadOutlined /></template>
               上传
             </a-button>
           </a-upload>
-          <div class="upload-hint">最多 {{ maxCount }} 个，支持任意类型多选上传</div>
+          <div class="upload-hint">支持任意类型多选上传</div>
 
           <div v-if="items.length" class="attachment-list">
             <div v-for="file in items" :key="file.uid" class="attachment-item">

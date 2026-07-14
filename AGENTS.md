@@ -97,12 +97,11 @@
 
 - 连接串、端口、密钥、桶名禁止硬编码在 Java / TypeScript / Vue 业务代码中。
 - 配置 SSOT：
-  - `.env.example`
-  - `scripts/worktree-db.ps1`
-  - `scripts/worktree-db.sh`
+  - `.env.example`（动态连接、凭据、应用端口）
+  - `docker-compose.yml` / `docker-compose-dev.yml`（固定 Compose 基础设施：项目名、容器名、本地 MySQL/MinIO 映射端口）
+  - `scripts/worktree-db.ps1` / `scripts/worktree-db.sh`（分支 → worktree 路径注册；不再向 `.env` 写入 `STORAGE_*`）
   - `backend/src/main/resources/application.yml`
   - `frontend/vite.config.ts`
-  - `docker-compose.yml`
 - 新增配置项时必须同步模板、脚本生成逻辑、应用读取处和文档说明。
 - `docker-compose.yml` / `docker-compose-dev.yml` 必须通过 service 级 `env_file: .env` 注入后端运行配置；Compose 中只保留端口映射、镜像变量名转换（如 `MYSQL_DATABASE`、`MINIO_ROOT_*`）与容器网络覆盖，禁止复制后端全量环境变量列表；healthcheck 禁止明文密码参数。
 - 脚本访问 MySQL 必须读取 `MYSQL_USER`、`MYSQL_PASSWORD`、`MYSQL_DB`，禁止写死 `-pstorage123`。
@@ -151,9 +150,11 @@
 
 ## Worktree 与脚本规则
 
-- 各 worktree 的数据库隔离靠端口、容器名和 Docker 卷；注册表在 `scripts/worktree-db.ps1` 与 `scripts/worktree-db.sh`，两者必须同步。
-- `.env` 不入库；切换分支或 worktree 后必须先同步本地 `.env` 再启动依赖服务。
-- 代码在 Git 合并，数据库卷不合并；不要跨分支共用另一个 worktree 的数据库端口验证。
+- 本地 dev 的 Compose 固定基础设施（项目名、容器名、MySQL/MinIO 映射端口）写死在 `docker-compose-dev.yml`；`.env` 只保留凭据、连接与应用端口等动态项。
+- `scripts/worktree-db.ps1` / `worktree-db.sh` 仍保留分支 → worktree 路径注册，用于脚本校验当前目录；不再向 `.env` 写入 `COMPOSE_PROJECT_NAME` / `STORAGE_*`。
+- `.env` 不入库；切换分支或 worktree 后本地 dev 可先执行 `sync-worktree-env` 同步动态配置。
+- 生产 `.env` 手工维护外部 `MYSQL_*` / `MINIO_*`，禁止对生产运行 `sync-worktree-env`。
+- 代码在 Git 合并，数据库卷不合并；本地多 worktree 共用同一套固定 dev 端口，勿并行启动冲突栈。
 - 禁止在未确认目录、分支、compose project 和卷名时执行会删除卷的操作。
 - Windows PowerShell 脚本与 Bash 脚本是同等维护对象；新增脚本能力时两端尽量同步。
 - Bash 脚本必须保持 LF 行尾并提交可执行位；默认启动入口不得隐式 `--build`，重建镜像必须由用户显式传参。

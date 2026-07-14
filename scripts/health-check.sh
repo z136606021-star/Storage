@@ -80,12 +80,13 @@ echo "Storage health check (profile: $PROFILE_NAME)"
 echo "Project root: $ROOT"
 echo
 
+DEV_MYSQL_CONTAINER='storage-mysql'
+DEV_MINIO_CONTAINER='storage-minio'
+DEV_BACKEND_CONTAINER='storage-backend'
+DEV_MINIO_HOST_PORT=9000
+
 if load_current_worktree_profile "$ROOT"; then
   check_result branch true "branch=$WORKTREE_BRANCH"
-  PROFILE_MYSQL_CONTAINER="$STORAGE_MYSQL_CONTAINER"
-  PROFILE_MINIO_CONTAINER="$STORAGE_MINIO_CONTAINER"
-  PROFILE_BACKEND_CONTAINER="$STORAGE_BACKEND_CONTAINER"
-  PROFILE_MYSQL_PORT="$STORAGE_MYSQL_PORT"
   normalized_root="$(cd "$ROOT" && pwd -P)"
   if [[ "$WORKTREE_PATH" == /* ]]; then
     [[ "$normalized_root" == "$WORKTREE_PATH" ]] && path_ok=true || path_ok=false
@@ -95,10 +96,6 @@ if load_current_worktree_profile "$ROOT"; then
   fi
 else
   check_result branch false "unknown branch or detached HEAD"
-  PROFILE_MYSQL_CONTAINER=""
-  PROFILE_MINIO_CONTAINER=""
-  PROFILE_BACKEND_CONTAINER=""
-  PROFILE_MYSQL_PORT=""
 fi
 
 if [[ -f "$ROOT/.env" ]]; then
@@ -109,45 +106,38 @@ if [[ -f "$ROOT/.env" ]]; then
   else
     FRONTEND_PORT="${FRONTEND_PORT:-5173}"
   fi
-  if [[ "${STORAGE_MYSQL_PORT:-}" == "$PROFILE_MYSQL_PORT" && "${STORAGE_MYSQL_CONTAINER:-}" == "$PROFILE_MYSQL_CONTAINER" && "${STORAGE_BACKEND_CONTAINER:-}" == "$PROFILE_BACKEND_CONTAINER" ]]; then
-    check_result .env true "STORAGE_MYSQL_PORT=${STORAGE_MYSQL_PORT:-} mysql=${STORAGE_MYSQL_CONTAINER:-} backend=${STORAGE_BACKEND_CONTAINER:-}"
+  check_result .env true "found at $ROOT/.env"
+else
+  check_result .env false "missing; run sync-worktree-env.sh for local dev or create prod .env manually"
+fi
+
+if [[ "$PROFILE_NAME" == "dev" ]]; then
+  if container_running "$DEV_MYSQL_CONTAINER"; then
+    check_result mysql-container true "$DEV_MYSQL_CONTAINER"
+    mysql_running=true
   else
-    check_result .env false "STORAGE_MYSQL_PORT=${STORAGE_MYSQL_PORT:-missing} mysql=${STORAGE_MYSQL_CONTAINER:-missing} backend=${STORAGE_BACKEND_CONTAINER:-missing}"
+    check_result mysql-container false "$DEV_MYSQL_CONTAINER"
+    mysql_running=false
   fi
-else
-  check_result .env false "missing; run sync-worktree-env.sh"
-fi
-
-if [[ -n "$PROFILE_MYSQL_CONTAINER" ]] && container_running "$PROFILE_MYSQL_CONTAINER"; then
-  check_result mysql-container true "$PROFILE_MYSQL_CONTAINER"
-  mysql_running=true
-else
-  check_result mysql-container false "${PROFILE_MYSQL_CONTAINER:-no profile}"
-  mysql_running=false
-fi
-
-if [[ -n "$PROFILE_MINIO_CONTAINER" ]] && container_running "$PROFILE_MINIO_CONTAINER"; then
-  if [[ "$PROFILE_NAME" == "dev" ]]; then
-    check_result minio-container true "$PROFILE_MINIO_CONTAINER"
+  if container_running "$DEV_MINIO_CONTAINER"; then
+    check_result minio-container true "$DEV_MINIO_CONTAINER"
     minio_running=true
   else
-    check_result minio-container true "skipped (prod uses external MinIO)"
+    check_result minio-container false "$DEV_MINIO_CONTAINER"
     minio_running=false
   fi
 else
-  if [[ "$PROFILE_NAME" == "dev" ]]; then
-    check_result minio-container false "${PROFILE_MINIO_CONTAINER:-no profile}"
-  else
-    check_result minio-container true "skipped (prod uses external MinIO)"
-  fi
+  check_result mysql-container true "skipped (prod uses external MySQL)"
+  check_result minio-container true "skipped (prod uses external MinIO)"
+  mysql_running=false
   minio_running=false
 fi
 
-if [[ -n "$PROFILE_BACKEND_CONTAINER" ]] && container_running "$PROFILE_BACKEND_CONTAINER"; then
-  check_result backend-container true "$PROFILE_BACKEND_CONTAINER"
+if container_running "$DEV_BACKEND_CONTAINER"; then
+  check_result backend-container true "$DEV_BACKEND_CONTAINER"
   backend_running=true
 else
-  check_result backend-container false "${PROFILE_BACKEND_CONTAINER:-no profile}"
+  check_result backend-container false "$DEV_BACKEND_CONTAINER"
   backend_running=false
 fi
 
@@ -159,11 +149,11 @@ else
   check_result legacy-docker false "run cleanup-legacy-docker.sh (material-ledger-* still exists)"
 fi
 
-if [[ "$mysql_running" == true ]]; then
+if [[ "$PROFILE_NAME" == "dev" && "$mysql_running" == true ]]; then
   MYSQL_USER="${MYSQL_USER:-storage}"
   MYSQL_PASSWORD="${MYSQL_PASSWORD:-storage123}"
   MYSQL_DB="${MYSQL_DB:-storage}"
-  sample="$(docker exec -e "MYSQL_PWD=$MYSQL_PASSWORD" "$PROFILE_MYSQL_CONTAINER" \
+  sample="$(docker exec -e "MYSQL_PWD=$MYSQL_PASSWORD" "$DEV_MYSQL_CONTAINER" \
     mysql "-u$MYSQL_USER" --default-character-set=utf8mb4 "$MYSQL_DB" -N \
     -e "SELECT name FROM sys_menu WHERE id = 111 LIMIT 1;" 2>/dev/null || true)"
   if [[ -n "$sample" && "$sample" != *"?"* ]]; then
@@ -171,28 +161,37 @@ if [[ "$mysql_running" == true ]]; then
   else
     check_result mysql-chinese false "sample=$sample"
   fi
-else
+elif [[ "$PROFILE_NAME" == "dev" ]]; then
   check_result mysql-chinese false "mysql container not running"
+elif [[ "$backend_running" == true ]]; then
+  mysql_host="$(docker exec "$DEV_BACKEND_CONTAINER" printenv MYSQL_HOST 2>/dev/null || true)"
+  mysql_port="$(docker exec "$DEV_BACKEND_CONTAINER" printenv MYSQL_PORT 2>/dev/null || true)"
+  if [[ -n "$mysql_host" && -n "$mysql_port" ]]; then
+    check_result mysql-endpoint true "MYSQL_HOST=$mysql_host MYSQL_PORT=$mysql_port"
+  else
+    check_result mysql-endpoint false "MYSQL_HOST/MYSQL_PORT missing"
+  fi
+else
+  check_result mysql-endpoint false "backend container not running"
 fi
 
 if [[ "$PROFILE_NAME" == "dev" ]]; then
   if [[ "$minio_running" == true && "$backend_running" == true ]]; then
-    backend_key="$(docker exec "$PROFILE_BACKEND_CONTAINER" printenv MINIO_ACCESS_KEY 2>/dev/null || true)"
-    minio_key="$(docker exec "$PROFILE_MINIO_CONTAINER" printenv MINIO_ROOT_USER 2>/dev/null || true)"
+    backend_key="$(docker exec "$DEV_BACKEND_CONTAINER" printenv MINIO_ACCESS_KEY 2>/dev/null || true)"
+    minio_key="$(docker exec "$DEV_MINIO_CONTAINER" printenv MINIO_ROOT_USER 2>/dev/null || true)"
     if [[ -n "$backend_key" && "$backend_key" == "$minio_key" ]]; then
       check_result minio-credentials true "backend=$backend_key minio=$minio_key"
     else
       check_result minio-credentials false "backend=${backend_key:-missing} minio=${minio_key:-missing}"
     fi
 
-    minio_host_port="${STORAGE_MINIO_PORT:-9000}"
-    if curl -fsS "http://127.0.0.1:$minio_host_port/minio/health/live" >/dev/null 2>&1; then
-      check_result minio-live true "http://127.0.0.1:$minio_host_port/minio/health/live"
+    if curl -fsS "http://127.0.0.1:$DEV_MINIO_HOST_PORT/minio/health/live" >/dev/null 2>&1; then
+      check_result minio-live true "http://127.0.0.1:$DEV_MINIO_HOST_PORT/minio/health/live"
     else
-      check_result minio-live false "http://127.0.0.1:$minio_host_port/minio/health/live"
+      check_result minio-live false "http://127.0.0.1:$DEV_MINIO_HOST_PORT/minio/health/live"
     fi
 
-    if docker exec "$PROFILE_BACKEND_CONTAINER" curl -fsS "http://minio:9000/minio/health/live" >/dev/null 2>&1; then
+    if docker exec "$DEV_BACKEND_CONTAINER" curl -fsS "http://minio:9000/minio/health/live" >/dev/null 2>&1; then
       check_result minio-from-backend true "http://minio:9000/minio/health/live"
     else
       check_result minio-from-backend false "http://minio:9000/minio/health/live"
@@ -203,14 +202,14 @@ if [[ "$PROFILE_NAME" == "dev" ]]; then
     check_result minio-from-backend false "backend or minio container not running"
   fi
 elif [[ "$backend_running" == true ]]; then
-  minio_endpoint="$(docker exec "$PROFILE_BACKEND_CONTAINER" printenv MINIO_ENDPOINT 2>/dev/null || true)"
+  minio_endpoint="$(docker exec "$DEV_BACKEND_CONTAINER" printenv MINIO_ENDPOINT 2>/dev/null || true)"
   if [[ -n "$minio_endpoint" ]]; then
     check_result minio-endpoint true "MINIO_ENDPOINT=$minio_endpoint"
   else
     check_result minio-endpoint false "MINIO_ENDPOINT missing"
   fi
 
-  if [[ -n "$minio_endpoint" ]] && docker exec "$PROFILE_BACKEND_CONTAINER" curl -fsS "${minio_endpoint%/}/minio/health/live" >/dev/null 2>&1; then
+  if [[ -n "$minio_endpoint" ]] && docker exec "$DEV_BACKEND_CONTAINER" curl -fsS "${minio_endpoint%/}/minio/health/live" >/dev/null 2>&1; then
     check_result minio-from-backend true "$minio_endpoint"
   else
     check_result minio-from-backend false "${minio_endpoint:-backend container not configured}"

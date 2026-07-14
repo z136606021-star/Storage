@@ -1,43 +1,16 @@
-name: ${COMPOSE_PROJECT_NAME:-storage}
+name: storage
 
 services:
-  mysql:
-    image: mysql:8.0
-    container_name: ${STORAGE_MYSQL_CONTAINER:-storage-mysql}
-    hostname: mysql
-    restart: unless-stopped
-    ports:
-      - "${STORAGE_MYSQL_PORT:-3307}:3306"
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123}
-      MYSQL_DATABASE: ${MYSQL_DB:-storage}
-      MYSQL_USER: ${MYSQL_USER:-storage}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-storage123}
-    volumes:
-      - mysql_data:/var/lib/mysql
-    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
-    healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u$${MYSQL_USER} -p$${MYSQL_PASSWORD}"]
-      interval: 5s
-      timeout: 5s
-      retries: 12
-      start_period: 30s
-
   backend:
     build:
       context: .
       dockerfile: backend/Dockerfile
-    container_name: ${STORAGE_BACKEND_CONTAINER:-storage-backend}
+    container_name: storage-backend
     hostname: backend
     restart: unless-stopped
-    depends_on:
-      mysql:
-        condition: service_healthy
     env_file:
       - .env
     environment:
-      MYSQL_HOST: mysql
-      MYSQL_PORT: 3306
       BACKEND_PORT: 8080
       RESET_ADMIN_PASSWORD_ON_STARTUP: ${RESET_ADMIN_PASSWORD_ON_STARTUP:-false}
     healthcheck:
@@ -51,7 +24,7 @@ services:
     build:
       context: .
       dockerfile: frontend/Dockerfile
-    container_name: ${STORAGE_FRONTEND_CONTAINER:-storage-frontend}
+    container_name: storage-frontend
     hostname: frontend
     restart: unless-stopped
     depends_on:
@@ -59,6 +32,3 @@ services:
         condition: service_healthy
     ports:
       - "${APP_PORT:-80}:80"
-
-volumes:
-  mysql_data:

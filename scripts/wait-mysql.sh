@@ -32,7 +32,8 @@ done
 source "$SCRIPT_DIR/worktree-db.sh"
 
 cd "$ROOT"
-load_current_worktree_profile "$ROOT"
+MYSQL_CONTAINER='storage-mysql'
+MYSQL_HOST_PORT=3307
 if [[ -f "$ROOT/.env" ]]; then
   import_worktree_env_file "$ROOT"
 fi
@@ -43,11 +44,11 @@ MYSQL_DB="${MYSQL_DB:-storage}"
 
 test_mysql_query() {
   local sql="${1:?sql is required}"
-  docker exec -e "MYSQL_PWD=$MYSQL_PASSWORD" "$STORAGE_MYSQL_CONTAINER" \
+  docker exec -e "MYSQL_PWD=$MYSQL_PASSWORD" "$MYSQL_CONTAINER" \
     mysql "-u$MYSQL_USER" --default-character-set=utf8mb4 "$MYSQL_DB" -N -e "$sql" >/tmp/storage-wait-mysql.out 2>/dev/null
 }
 
-echo "Waiting for MySQL ($STORAGE_MYSQL_CONTAINER on port $STORAGE_MYSQL_PORT)..."
+echo "Waiting for MySQL ($MYSQL_CONTAINER on port $MYSQL_HOST_PORT)..."
 deadline=$((SECONDS + TIMEOUT_SECONDS))
 
 while (( SECONDS < deadline )); do
@@ -68,5 +69,5 @@ while (( SECONDS < deadline )); do
   sleep 2
 done
 
-echo "MySQL did not become ready within ${TIMEOUT_SECONDS}s (container: $STORAGE_MYSQL_CONTAINER, port: $STORAGE_MYSQL_PORT)." >&2
+echo "MySQL did not become ready within ${TIMEOUT_SECONDS}s (container: $MYSQL_CONTAINER, port: $MYSQL_HOST_PORT)." >&2
 exit 1

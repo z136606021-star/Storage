@@ -1,5 +1,7 @@
 # CHANGELOG
 
+| 2026-07-14 | 移除每条记录文件数量上限：删除 `UPLOAD_MAX_FILES_PER_RECORD` 与 upload-policy `maxFilesPerRecord`；BOM/经验库不再限制单条记录附件个数，上传安全仅保留单文件大小与 HTTP 请求体大小 |
+| 2026-07-14 | 固定基础设施入 Compose + 生产外部 MySQL：移除 `.env` 中 `COMPOSE_PROJECT_NAME`/`STORAGE_*`；生产 `docker-compose.yml` 去掉 MySQL 容器，仅保留 backend/frontend；dev Compose 写死 3307/9000/9001 与 `storage-*` 容器名；prod 校验外部 `MYSQL_*`/`MINIO_*` |
 | 2026-07-14 | 生产复用外部 MinIO：`docker-compose.yml` 移除 MinIO 服务/卷/端口与 backend 硬编码 endpoint；`docker-compose-dev.yml` 保留本地 MinIO；`deploy-cli` prod 不再自动 sync `.env` 并要求外部 `MINIO_*`；`health-check` 增加 `-Profile dev|prod`；README/.env.example 区分本地与生产 MinIO 配置 |
 | 2026-07-13 | 邮箱找回密码：忘记密码改为仅凭绑定邮箱申请重置链接，移除账号输入；限流键改为邮箱 |
 | 2026-07-13 | 个人手机号维护：个人中心账号信息新增手机号行与齿轮编辑；`PUT /api/auth/me/phone` 供当前用户自行维护可选手机号（无短信验证）；管理员继续在用户管理维护 |

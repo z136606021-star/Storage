@@ -75,16 +75,15 @@ function Wait-DeployReady {
 
 function Assert-DevPortsAvailable {
     param(
-        [string]$RepoRoot,
-        [string]$ComposeProjectName
+        [string]$RepoRoot
     )
 
     $envValues = Read-DotEnvValues -EnvPath (Join-Path $RepoRoot '.env')
     $ports = @(
         Get-EnvOrExistingValue -Existing $envValues -Name 'FRONTEND_PORT' -DefaultValue '5173'
         Get-EnvOrExistingValue -Existing $envValues -Name 'BACKEND_PORT' -DefaultValue '8080'
-        Get-EnvOrExistingValue -Existing $envValues -Name 'STORAGE_MYSQL_PORT' -DefaultValue '3307'
-        Get-EnvOrExistingValue -Existing $envValues -Name 'STORAGE_MINIO_PORT' -DefaultValue '9000'
+        '3307'
+        '9000'
     ) | Sort-Object -Unique
 
     $rows = docker ps --format "{{.Names}}|{{.Ports}}" 2>$null
@@ -100,7 +99,7 @@ function Assert-DevPortsAvailable {
         }
         $name = $parts[0]
         $portText = $parts[1]
-        if ($name -like "$ComposeProjectName-*") {
+        if ($name -like 'storage-*') {
             continue
         }
         foreach ($port in $ports) {
@@ -130,13 +129,16 @@ function Assert-ProdEnvReady {
     if (-not (Test-Path -LiteralPath $envPath)) {
         throw @(
             "Production deploy requires an existing .env at $envPath."
-            "Create it from .env.example and set external MINIO_ENDPOINT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY, and MINIO_BUCKET."
+            "Create it from .env.example and set external MYSQL_* and MINIO_* connection settings."
             "Production does not auto-generate .env; use sync-worktree-env only for local dev."
         ) -join [Environment]::NewLine
     }
 
     $envValues = Read-DotEnvValues -EnvPath $envPath
-    $required = @('MINIO_ENDPOINT', 'MINIO_ACCESS_KEY', 'MINIO_SECRET_KEY', 'MINIO_BUCKET')
+    $required = @(
+        'MYSQL_HOST', 'MYSQL_PORT', 'MYSQL_DB', 'MYSQL_USER', 'MYSQL_PASSWORD',
+        'MINIO_ENDPOINT', 'MINIO_ACCESS_KEY', 'MINIO_SECRET_KEY', 'MINIO_BUCKET'
+    )
     $missing = @()
     foreach ($name in $required) {
         if (-not $envValues.ContainsKey($name) -or [string]::IsNullOrWhiteSpace($envValues[$name])) {
@@ -144,7 +146,7 @@ function Assert-ProdEnvReady {
         }
     }
     if ($missing.Count -gt 0) {
-        throw "Production .env is missing required MinIO settings: $($missing -join ', '). Configure external MinIO in .env before deploying prod."
+        throw "Production .env is missing required connection settings: $($missing -join ', '). Configure external MySQL and MinIO in .env before deploying prod."
     }
 }
 
@@ -160,7 +162,7 @@ $composeArgs = Get-DockerComposeArgs -RepoRoot $Root
 $composeFiles = @('-f', 'docker-compose.yml')
 if ($Profile -eq 'dev') {
     $composeFiles += @('-f', 'docker-compose-dev.yml')
-    Assert-DevPortsAvailable -RepoRoot $Root -ComposeProjectName $currentProfile.ComposeProjectName
+    Assert-DevPortsAvailable -RepoRoot $Root
 }
 
 $upArgs = @('up', '-d')

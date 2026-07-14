@@ -120,8 +120,8 @@ $envValues = Read-DotEnvValues -EnvPath (Join-Path $Root '.env')
 
 $backendPort = [int](Get-EnvOrExistingValue -Existing $envValues -Name 'BACKEND_PORT' -DefaultValue '8080')
 $frontendPort = [int](Get-EnvOrExistingValue -Existing $envValues -Name 'FRONTEND_PORT' -DefaultValue '5173')
-$mysqlHostPort = Get-EnvOrExistingValue -Existing $envValues -Name 'STORAGE_MYSQL_PORT' -DefaultValue '3307'
-$minioHostPort = Get-EnvOrExistingValue -Existing $envValues -Name 'STORAGE_MINIO_PORT' -DefaultValue '9000'
+$mysqlHostPort = '3307'
+$minioHostPort = '9000'
 
 $composeArgs = Get-DockerComposeArgs -RepoRoot $Root
 $composeFiles = @('-f', 'docker-compose.yml', '-f', 'docker-compose-dev.yml')
@@ -214,7 +214,7 @@ foreach ($name in @(
         'MINIO_ACCESS_KEY', 'MINIO_SECRET_KEY', 'MINIO_BUCKET',
         'RESET_ADMIN_PASSWORD_ON_STARTUP', 'JWT_SECRET', 'JWT_TTL_MINUTES',
         'SESSION_COOKIE_HTTP_ONLY', 'SESSION_COOKIE_SECURE',
-        'UPLOAD_MAX_SIZE_BYTES', 'UPLOAD_MAX_REQUEST_SIZE_BYTES', 'UPLOAD_MAX_FILES_PER_RECORD',
+        'UPLOAD_MAX_SIZE_BYTES', 'UPLOAD_MAX_REQUEST_SIZE_BYTES',
         'PASSWORD_RESET_TOKEN_TTL_MINUTES',
         'MAIL_HOST', 'MAIL_PORT', 'MAIL_USERNAME', 'MAIL_PASSWORD', 'MAIL_FROM',
         'MAIL_SMTP_AUTH', 'MAIL_SMTP_STARTTLS_ENABLE'

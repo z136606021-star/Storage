@@ -81,7 +81,6 @@ storage:
     bucket: ${MINIO_BUCKET:storage}
   file-upload:
     max-size-bytes: ${UPLOAD_MAX_SIZE_BYTES:5368709120}
-    max-files-per-record: ${UPLOAD_MAX_FILES_PER_RECORD:20}
 
 logging:
   level:

@@ -30,10 +30,10 @@
 docker compose --env-file .env -f docker-compose.yml -f docker-compose-dev.yml up -d
 ```
 
-生产部署（最小暴露面，复用既有 MinIO，不启动本项目 MinIO 容器）：
+生产部署（最小暴露面，复用既有 MySQL/MinIO，不启动本项目数据库与对象存储容器）：
 
 ```bash
-# 先手工维护 .env（含外部 MINIO_ENDPOINT / 凭据 / bucket），再执行：
+# 先手工维护 .env（含外部 MYSQL_* / MINIO_* 连接与凭据），再执行：
 docker compose --env-file .env -f docker-compose.yml up -d
 ```
 
@@ -41,7 +41,7 @@ docker compose --env-file .env -f docker-compose.yml up -d
 
 - Windows 双击：`start-dev.cmd`（本地热更新开发：Docker 仅启动 MySQL/MinIO，本机 `npm run dev` + `mvn spring-boot:run`；可加 `-NoOpenBrowser` 跳过打开浏览器）
 - Windows 双击：`dev-up.cmd`（完整 Docker 部署，前端为构建镜像，改代码需 `-Build` 重建）
-- Windows：`.\scripts\deploy-cli.ps1 -Profile dev [-Build]` / `-Profile prod`（dev 会自动 sync `.env`；prod 要求已有 `.env` 且配置外部 MinIO；dev 部署成功后会自动打开浏览器；可用 `-NoOpenBrowser` 跳过）
+- Windows：`.\scripts\deploy-cli.ps1 -Profile dev [-Build]` / `-Profile prod`（dev 会自动 sync `.env`；prod 要求已有 `.env` 且配置外部 MySQL/MinIO；dev 部署成功后会自动打开浏览器；可用 `-NoOpenBrowser` 跳过）
 - Linux/macOS/Git Bash：`./scripts/deploy-cli.sh --profile dev [--build]` / `--profile prod`（同上，可用 `--no-open-browser` 跳过；若执行权限丢失可用 `bash scripts/deploy-cli.sh ...`）
 - 启动脚本会等待后端健康检查与前端入口可访问后再打开浏览器，避免服务尚未监听时出现 `localhost` 拒绝连接。
 
@@ -102,7 +102,7 @@ Shell 脚本已在 Git 中提交可执行位；若通过压缩包等方式获取
 powershell -ExecutionPolicy Bypass -File .\scripts\sync-worktree-env.ps1
 ```
 
-`sync-worktree-env.ps1` / `sync-worktree-env.sh` 会根据**当前 git 分支**生成本地 `.env`（不入库），为各 worktree 分配独立端口、容器名与数据卷。
+`sync-worktree-env.ps1` / `sync-worktree-env.sh` 会根据**当前 git 分支**生成本地 `.env`（不入库），仅保留凭据、应用端口、JWT/Mail/Upload 等动态配置；Compose 固定基础设施（项目名、容器名、MySQL/MinIO 映射端口）已写死在 `docker-compose-dev.yml`。
 
 将自动创建 `storage` 数据库；**表结构与系统初始化数据由后端启动时 Flyway 迁移**（`backend/src/main/resources/db/migration/`），首次启动会执行 `V001__baseline_schema.sql` 并写入 `flyway_schema_history`。
 
@@ -113,17 +113,17 @@ powershell -ExecutionPolicy Bypass -File .\scripts\sync-worktree-env.ps1
 - 已有真实业务数据的数据库升级时不会被清空；若库中仍混有历史演示数据且已不满足纯种子条件，需人工识别并清理。
 - 单元 / 集成测试继续使用 H2 + `schema-test.sql` 独立夹具，不受运行时迁移清理影响。
 
-**Git worktree 端口分配**（逻辑库名均为 `storage`，隔离靠端口 + 独立 Docker 卷）：
+**本地 dev 固定端口**（写死在 `docker-compose-dev.yml`，所有 worktree 共用同一套本地栈）：
 
-| 分支 | Worktree 路径 | MySQL | MinIO API | MinIO Console |
-|------|---------------|-------|-----------|---------------|
-| `main` | `E:/Storage`（Windows 示例；Linux/macOS 可为实际 clone 路径） | **3307** | 9000 | 9001 |
-| `feat/material-ledger` | `E:/Storage-worktrees/material-ledger`（示例） | **3308** | 9010 | 9011 |
-| `feat/material-io` | `E:/Storage-worktrees/material-io`（示例） | **3309** | 9020 | 9021 |
-| `feat/safety-stock` | `E:/Storage-worktrees/safety-stock`（示例） | **3310** | 9030 | 9031 |
-| `feat/config-mgmt` | `E:/Storage-worktrees/config-mgmt`（示例） | **3311** | 9040 | 9041 |
-| `feat/knowledge-base` | `E:/Storage-worktrees/knowledge-base`（示例） | **3312** | 9050 | 9051 |
-| `feat/design-guidelines` | `E:/Storage-worktrees/design-guidelines`（示例） | **3313** | 9060 | 9061 |
+| 用途 | 宿主机端口 | 容器名 |
+|------|-----------|--------|
+| MySQL | **3307** | `storage-mysql` |
+| MinIO API | **9000** | `storage-minio` |
+| MinIO Console | **9001** | `storage-minio` |
+| Backend（dev Compose） | `.env` 中 `BACKEND_PORT`（默认 8080） | `storage-backend` |
+| Frontend（dev Compose） | `.env` 中 `FRONTEND_PORT`（默认 5173） | `storage-frontend` |
+
+`scripts/worktree-db.ps1` / `worktree-db.sh` 仍保留分支 → worktree 路径注册，用于脚本校验当前目录；不再通过 `.env` 分配端口/容器名。
 
 切换 worktree 或分支后务必先执行 `sync-worktree-env.ps1`（Windows）或 `sync-worktree-env.sh`（Linux/macOS/Git Bash），再 `docker compose --env-file .env -f docker-compose.yml -f docker-compose-dev.yml up -d`。详见 [AGENTS.md](AGENTS.md)「Worktree 数据库隔离」。
 
@@ -143,24 +143,22 @@ powershell -ExecutionPolicy Bypass -File .\scripts\sync-worktree-env.ps1
 
 默认连接信息见 [.env.example](.env.example)：
 
-- **本地 dev 容器内互联**（`docker-compose-dev.yml`）：`mysql:3306`、`http://minio:9000`、`backend:8080`；backend 不要使用 `http://minio:9090` 或宿主机名访问本地 MinIO。
-- **本地 dev 容器外管理访问**（宿主机/IP + 映射端口）：MySQL `${STORAGE_MYSQL_PORT}`（默认 `3307`）、MinIO API `${STORAGE_MINIO_PORT}`（默认 `9000`）、MinIO Console `${STORAGE_MINIO_CONSOLE_PORT}`（默认 `9001`）。
-- **生产**：`docker-compose.yml` 仅部署 MySQL/backend/frontend；对象存储通过 `.env` 中的 `MINIO_ENDPOINT` 连接既有 MinIO，本项目不再发布 MinIO API/Console 端口。
-- **显式容器名**（随 `COMPOSE_PROJECT_NAME` 隔离）：`${STORAGE_MYSQL_CONTAINER}`、`${STORAGE_MINIO_CONTAINER}`（仅 dev）、`${STORAGE_BACKEND_CONTAINER}`、`${STORAGE_FRONTEND_CONTAINER}`；容器 hostname 固定为 `mysql` / `minio`（仅 dev）/ `backend` / `frontend`。
+- **本地 dev 容器内互联**（`docker-compose-dev.yml`）：`mysql:3306`、`http://minio:9000`、`backend:8080`。
+- **本地 dev 容器外管理访问**（写死在 Compose）：MySQL `3307`、MinIO API `9000`、MinIO Console `9001`；容器名 `storage-mysql` / `storage-minio` / `storage-backend` / `storage-frontend`。
+- **生产**：`docker-compose.yml` 仅部署 backend/frontend；MySQL 与 MinIO 均通过 `.env` 中的 `MYSQL_*` / `MINIO_*` 连接既有实例，本项目不再发布数据库或对象存储端口。
+- **`.env` 只放动态项**：连接地址与凭据、应用端口（`APP_PORT` / `BACKEND_PORT` / `FRONTEND_PORT`）、JWT/Mail/Upload 等；固定 Compose 基础设施不在 `.env` 中维护。
 
-内网部署示例（`COMPOSE_PROJECT_NAME=storage-main`，应用入口 `http://cnhuam0hmcprd01:4600/`）：
+内网部署示例（应用入口 `http://cnhuam0hmcprd01:4600/`）：
 
 | 用途 | 地址 |
 |------|------|
-| 应用前端 | `http://cnhuam0hmcprd01:4600/` |
-| DBeaver / MySQL CLI | `cnhuam0hmcprd01:3307`（库 `storage`，用户见 `.env`） |
+| 应用前端 | `http://cnhuam0hmcprd01:4600/`（由 `.env` 中 `APP_PORT` 决定） |
+| MySQL（既有实例，非本项目容器） | 由生产 `.env` 的 `MYSQL_HOST` / `MYSQL_PORT` 配置，backend 容器内可达即可 |
 | MinIO（既有实例，非本项目容器） | 由生产 `.env` 的 `MINIO_ENDPOINT` 配置，backend 容器内可达即可 |
 
-数据库维护请通过 **DBeaver** 手工操作；本地 dev 的对象存储可通过 MinIO Console 维护。禁止把 `docker compose down -v`、删卷或脚本清库作为常规运维手段。本地 dev 修改 `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` 后需保留数据卷并重建 backend/minio 容器，使 `.env` 与 MinIO 卷内凭据一致；若出现 `access key ID ... does not exist`，通常是凭据不一致而非 hostname 缺失。
+数据库维护请通过 **DBeaver** 手工操作；本地 dev 的对象存储可通过 MinIO Console（`http://localhost:9001`）维护。禁止把 `docker compose down -v`、删卷或脚本清库作为常规运维手段。本地 dev 修改 `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` 后需保留数据卷并重建 backend/minio 容器，使 `.env` 与 MinIO 卷内凭据一致；若出现 `access key ID ... does not exist`，通常是凭据不一致而非 hostname 缺失。
 
-其他 worktree 端口见上表；以 `scripts/sync-worktree-env.ps1` 或 `scripts/sync-worktree-env.sh` 生成的 `.env` 为准。
-
-应用端口（各 worktree 通常相同，见 `.env`）：
+应用端口（见 `.env`）：
 
 - `BACKEND_PORT`：后端 HTTP 端口（默认 `8080`）
 - `FRONTEND_PORT`：Vite 开发端口（默认 `5173`）
@@ -169,15 +167,15 @@ powershell -ExecutionPolicy Bypass -File .\scripts\sync-worktree-env.ps1
 - `JWT_SECRET`：JWT HMAC 签名密钥（本地默认仅用于开发，生产必须改为部署侧强密钥）
 - `JWT_TTL_MINUTES`：JWT access token 有效期分钟数（默认 `120`）
 
-`sync-worktree-env.ps1` / `sync-worktree-env.sh` 仅用于本地 dev：按分支重写 MySQL/MinIO 端口、容器名和卷名，但会保留已有 `.env` 或当前进程中的数据库/MinIO 凭据、`BACKEND_PORT` / `FRONTEND_PORT` / `VITE_API_PROXY` / `SESSION_COOKIE_*` / `RESET_ADMIN_PASSWORD_ON_STARTUP` / `JWT_*` / `UPLOAD_*` / `APP_PUBLIC_BASE_URL` / `PASSWORD_RESET_TOKEN_TTL_MINUTES` / `MAIL_*`。生产 `.env` 需手工维护，其中 `MINIO_ENDPOINT` 指向既有 MinIO。
+`sync-worktree-env.ps1` / `sync-worktree-env.sh` 仅用于本地 dev：生成本地 `.env` 中的凭据与应用端口等动态项，并保留已有 JWT/Mail/Upload 配置。生产 `.env` 需手工维护，其中 `MYSQL_*` / `MINIO_*` 指向既有 MySQL 与 MinIO。
 
 ### 部署交付核验
 
 - Docker Compose 主路径已统一为 `docker compose up -d`；`--build` / `-Build` 仅作为显式重建选项。
 - `--env-file .env` 用于 Compose 变量替换；service 级 `env_file: .env` 用于把 `.env` 注入容器，后端不再在 `environment` 中复制全量变量列表。
 - 前端由 `frontend/Dockerfile` 构建并通过 Nginx 暴露，`/api` 由 Nginx 反向代理到后端服务，Compose 部署不依赖本地 Vite 代理。
-- 本地 dev 容器内数据库与对象存储访问使用 hostname：`mysql:3306`、`http://minio:9000`、`backend:8080`；Compose 仅在 dev 覆盖中写入这些容器网络地址，宿主机/DBeaver/Console 才使用映射端口。
-- 生产 `docker-compose.yml` 仅发布 MySQL 管理端口（默认 `3307`）与应用 Nginx 入口；MinIO 由部署侧既有实例提供，通过 `.env` 注入 `MINIO_ENDPOINT` 与凭据。
+- 本地 dev 容器内数据库与对象存储访问使用 hostname：`mysql:3306`、`http://minio:9000`、`backend:8080`（写死在 `docker-compose-dev.yml`）。
+- 生产 `docker-compose.yml` 仅发布应用 Nginx 入口（`APP_PORT`）；MySQL 与 MinIO 由部署侧既有实例提供，通过 `.env` 注入 `MYSQL_*` / `MINIO_*`。
 - Nginx 前端入口包含 gzip、hash 静态资源长缓存、`index.html` no-cache、SPA fallback 与 `/api` 反向代理配置。
 - 后端默认不启用全局 CORS；Compose 通过 Nginx 同源代理 `/api/**`，本地 Vite 开发通过 dev proxy 转发 `/api/**`。
 - Linux/macOS/Git Bash 版脚本保持 LF 与可执行位；常规验证可运行 `bash -n scripts/*.sh` 与两套 `docker compose ... config`。
@@ -290,7 +288,7 @@ curl -X POST http://localhost:8080/api/files/upload \
 
 先调用 `POST /api/auth/login` 获取 `accessToken`，再用 Bearer token 携带凭证上传。本地 dev 的 MinIO API 默认映射到 `http://localhost:9000`，Console 默认 `http://localhost:9001`。生产环境由既有 MinIO 承接，无需本项目暴露 MinIO 端口。本地 dev 建议运行 `health-check -Profile dev`，确认 `minio-credentials`、`minio-live`、`minio-from-backend` 均通过后再实际上传小文件验证；生产可运行 `health-check -Profile prod` 检查 backend 到外部 `MINIO_ENDPOINT` 的连通性。
 
-物料清单图片可在 **配置管理 → 物料清单** 新增/编辑弹窗中上传多张图片（JPG/PNG/WebP/GIF，每条记录最多 20 张）；经验库附件支持任意类型文件（每条记录最多 20 个）。前端通过 `GET /api/files/upload-policy` 读取运行时上传策略，不在浏览器侧拦截文件大小或限制并发。后端通用附件仅校验大小与鉴权；BOM 图片在保存时继续校验图片 MIME，图片支持预览，普通附件通过下载接口获取。Compose/Nginx 部署默认 `client_max_body_size` 对齐 `UPLOAD_MAX_REQUEST_SIZE_BYTES`（当前默认 5.125 GiB），后端 Spring multipart 与业务层默认单文件上限 5 GiB（`UPLOAD_MAX_SIZE_BYTES=5368709120`）。修改 `application.yml` 或 `frontend/nginx.conf` 后需显式重建 Docker 镜像；若公司上游网关另有请求体限制，须同步放宽。物料清单 Excel 导入/导出不含图片列。
+物料清单图片可在 **配置管理 → 物料清单** 新增/编辑弹窗中上传多张图片（JPG/PNG/WebP/GIF）；经验库附件支持任意类型文件。前端通过 `GET /api/files/upload-policy` 读取运行时单文件大小上限，不在浏览器侧拦截文件大小或限制并发。后端通用附件仅校验大小与鉴权；BOM 图片在保存时继续校验图片 MIME，图片支持预览，普通附件通过下载接口获取。Compose/Nginx 部署默认 `client_max_body_size` 对齐 `UPLOAD_MAX_REQUEST_SIZE_BYTES`（当前默认 5.125 GiB），后端 Spring multipart 与业务层默认单文件上限 5 GiB（`UPLOAD_MAX_SIZE_BYTES=5368709120`）。修改 `application.yml` 或 `frontend/nginx.conf` 后需显式重建 Docker 镜像；若公司上游网关另有请求体限制，须同步放宽。物料清单 Excel 导入/导出不含图片列。
 
 ## 经验库
 
@@ -337,7 +335,7 @@ flowchart TD
 - 筛选：品类、统称、品牌联动下拉；名称、规格支持关键字查询；支持查询、重置、分页。
 - 列表：默认按 **更新时间倒序**；展示品类、统称、品牌、名称、规格、备注、图片（首图 + 数量提示）、更新日期；操作含查看/编辑/删除。
 - 重复校验：新增/编辑/导入时，若 **品类 + 统称 + 品牌 + 名称** 与已有记录完全相同，后端返回明确错误提示。
-- 图片：支持多选上传、预览与清除（最多 20 张）；持久化在 `warehouse_bom_image`；Excel 不含图片列。
+- 图片：支持多选上传、预览与清除；持久化在 `warehouse_bom_image`；Excel 不含图片列。
 - 批量：支持批量导出、批量删除、导入与模板下载。
 - 删除保护：已被物料台账引用的清单项禁止删除。
 - 入库联动：物料入库可从清单选择基础信息；Excel 入库导入校验四字段存在，并在提供规格时核对与清单一致。
@@ -445,7 +443,7 @@ flowchart TD
 - Google SMTP 默认按 Gmail 直连预留：`smtp.gmail.com:587` + STARTTLS；`MAIL_PASSWORD` 使用 Google 应用专用密码，不提交真实邮箱密码。公司 Workspace relay 可通过环境变量切换到 `smtp-relay.gmail.com`
 - 当前鉴权主路径为 Shiro + JWT；access token 存储在前端 localStorage。JWT 携带 `token_version` 声明，改密后会递增用户版本并使旧 token 失效。`POST /api/auth/logout` 会将当前 Bearer token 的 `jti` 写入服务端黑名单，登出后同 token 无法继续访问受保护 API。生产环境需启用 HTTPS，`JWT_SECRET` 必须使用部署侧强密钥，并持续防护 XSS 风险；如需第三方前端跨域直连后端，应优先在 Nginx/网关层显式配置跨域策略
 - 默认管理员密码自动重置能力仅建议本地排障开启，生产应关闭该初始化开关，避免启动时回退弱密码
-- 文件上传以后端校验为准：通用内网附件允许任意类型，单文件默认 ≤5 GiB、每条记录最多 20 个附件；BOM 图片与图片预览继续校验图片 MIME，Excel 导入继续校验表格格式；前端不做文件大小预检，也不做应用级并发队列。Compose/Nginx 部署需保证 `frontend/nginx.conf` 的 `client_max_body_size` 不小于后端 `UPLOAD_MAX_REQUEST_SIZE_BYTES`（当前默认 5.125 GiB），且修改配置后需显式重建镜像。
+- 文件上传以后端校验为准：通用内网附件允许任意类型，单文件默认 ≤5 GiB；BOM 图片与图片预览继续校验图片 MIME，Excel 导入继续校验表格格式；前端不做文件大小预检，也不做应用级并发队列。Compose/Nginx 部署需保证 `frontend/nginx.conf` 的 `client_max_body_size` 不小于后端 `UPLOAD_MAX_REQUEST_SIZE_BYTES`（当前默认 5.125 GiB），且修改配置后需显式重建镜像。
 - GitHub Actions CI：[`CI workflow`](https://github.com/z136606021-star/Storage/blob/main/.github/workflows/ci.yml)（后端测试 + 前端测试/构建）
 
 后端测试：`cd backend && mvn test "-Dspring.profiles.active=test"`

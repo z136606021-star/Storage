@@ -81,7 +81,6 @@ public class FileStorageServiceImpl implements FileStorageService {
     public FileUploadPolicyVO uploadPolicy() {
         return FileUploadPolicyVO.builder()
                 .maxSizeBytes(fileUploadProperties.getMaxSizeBytes())
-                .maxFilesPerRecord(fileUploadProperties.getMaxFilesPerRecord())
                 .build();
     }
 

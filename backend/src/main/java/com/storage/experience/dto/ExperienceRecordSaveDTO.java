@@ -31,6 +31,5 @@ public class ExperienceRecordSaveDTO {
 
     private List<@Size(max = 128, message = "关联项目不能超过128个字符") String> projectNames;
 
-    @Size(max = 20, message = "附件数量不能超过20个")
     private List<@Size(max = 255, message = "附件标识不能超过255个字符") String> attachmentObjectKeys;
 }
