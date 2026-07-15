@@ -22,20 +22,8 @@ public class RegistrationVerificationMailServiceImpl implements RegistrationVeri
     @Value("${storage.mail.from:}")
     private String mailFrom;
 
-    @Value("${spring.mail.username:}")
-    private String mailUsername;
-
     @Override
     public void sendVerificationCode(String email, String rawCode) {
-        if (!StringUtils.hasText(mailUsername)) {
-            log.warn(
-                    "MAIL_USERNAME 未配置，注册验证码仅输出到后端日志（本地开发）：email={} code={}",
-                    email,
-                    rawCode
-            );
-            return;
-        }
-
         SimpleMailMessage message = new SimpleMailMessage();
         if (StringUtils.hasText(mailFrom)) {
             message.setFrom(mailFrom.trim());

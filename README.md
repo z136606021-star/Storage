@@ -244,8 +244,7 @@ npm run dev
 - 登录支持 **账号或邮箱 + 密码**；**账号（NTID）禁止包含空格或空白字符**；注册时的显示名称仍禁止空白
 - 个人中心向本人展示 **完整绑定邮箱**（不再脱敏）
 - 注册支持可选邮箱；**用户与客户邮箱统一保存为小写**（写入时 trim + lowercase；已有 MySQL 卷由 Flyway `V024` 自动归一化历史数据）；**忘记密码仅凭绑定邮箱**申请邮件一次性链接，链接默认 30 分钟有效，后端统一错误提示并限流（同一邮箱 15 分钟最多 5 次失败）
-- 邮件配置通过 `.env` 预留：`APP_PUBLIC_BASE_URL`、`PASSWORD_RESET_TOKEN_TTL_MINUTES`、`MAIL_HOST`、`MAIL_PORT`、`MAIL_USERNAME`、`MAIL_PASSWORD`、`MAIL_FROM`、`MAIL_SMTP_AUTH`、`MAIL_SMTP_STARTTLS_ENABLE`；Gmail 默认 `smtp.gmail.com:587` + STARTTLS，`MAIL_PASSWORD` 使用 Google 应用专用密码
-- 本地开发若未配置 `MAIL_USERNAME`，注册验证码不会真实发信，而是输出到 **backend 控制台日志**（搜索 `注册验证码仅输出到后端日志`）；生产环境必须配置可用 SMTP
+- 邮件配置通过 `.env` 预留：`APP_PUBLIC_BASE_URL`、`PASSWORD_RESET_TOKEN_TTL_MINUTES`、`MAIL_HOST`、`MAIL_PORT`、`MAIL_USERNAME`、`MAIL_PASSWORD`、`MAIL_FROM`、`MAIL_SMTP_AUTH`、`MAIL_SMTP_STARTTLS_ENABLE`；SMTP 支持认证 Gmail（默认 `smtp.gmail.com:587` + STARTTLS，`MAIL_PASSWORD` 使用 Google 应用专用密码）或匿名内网中继。匿名中继示例：`MAIL_HOST=corimc04.corp.jabil.org`、`MAIL_PORT=25`、`MAIL_USERNAME=`、`MAIL_PASSWORD=`、`MAIL_SMTP_AUTH=false`、`MAIL_SMTP_STARTTLS_ENABLE=false`，并设置 `MAIL_FROM=warehouse-notify@example.com`；不配置用户名/密码时仍会尝试通过该中继发送
 - 「记住密码」仅 localStorage 保存账号（不存密码）
 - 未登录访问业务页会自动跳转到登录页
 - 默认管理员：`admin` / `admin123`（可管理用户/角色/菜单）
@@ -476,7 +475,7 @@ flowchart TD
 - 本仓库默认凭据（`admin123`、`storage123`、`minioadmin123`）仅用于本地开发，生产部署必须轮换为强密码
 - `POST /api/auth/register` 是否对公网开放须由部署侧显式评估；忘记密码接口已改为邮件一次性链接，但仍需配合 HTTPS、可信前端域名与限流策略
 - 忘记密码 token 仅明文出现在邮件链接中，数据库保存 SHA-256 哈希，默认 30 分钟过期且使用后失效；失败限流为单实例内存级（15 分钟 5 次，按邮箱计），多实例生产需迁移到 Redis/网关限流
-- Google SMTP 默认按 Gmail 直连预留：`smtp.gmail.com:587` + STARTTLS；`MAIL_PASSWORD` 使用 Google 应用专用密码，不提交真实邮箱密码。公司 Workspace relay 可通过环境变量切换到 `smtp-relay.gmail.com`
+- SMTP 支持认证 Gmail 或匿名内网中继：Gmail 默认 `smtp.gmail.com:587` + STARTTLS，`MAIL_PASSWORD` 使用 Google 应用专用密码且不提交真实邮箱密码；匿名中继可设为 `MAIL_HOST=corimc04.corp.jabil.org`、`MAIL_PORT=25`、空 `MAIL_USERNAME`/`MAIL_PASSWORD`、`MAIL_SMTP_AUTH=false`、`MAIL_SMTP_STARTTLS_ENABLE=false`，并配置 `MAIL_FROM=warehouse-notify@example.com`
 - 当前鉴权主路径为 Shiro + JWT；access token 存储在前端 localStorage。JWT 携带 `token_version` 声明，改密后会递增用户版本并使旧 token 失效。`POST /api/auth/logout` 会将当前 Bearer token 的 `jti` 写入服务端黑名单，登出后同 token 无法继续访问受保护 API。生产环境需启用 HTTPS，`JWT_SECRET` 必须使用部署侧强密钥，并持续防护 XSS 风险；如需第三方前端跨域直连后端，应优先在 Nginx/网关层显式配置跨域策略
 - 默认管理员密码自动重置能力仅建议本地排障开启，生产应关闭该初始化开关，避免启动时回退弱密码
 - 文件上传以后端校验为准：通用内网附件允许任意类型；上传大小统一由 `UPLOAD_MAX_REQUEST_SIZE_BYTES` 控制（默认约 5.125 GiB 请求体上限，单请求单文件，实际文件略小）；BOM 图片与图片预览继续校验图片 MIME，Excel 导入继续校验表格格式；前端不做文件大小预检，也不做应用级并发队列。Nginx 在容器启动时从同一环境变量渲染 `client_max_body_size`；修改 `.env` 后重启 backend/frontend 即可。
