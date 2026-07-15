@@ -244,7 +244,7 @@ npm run dev
 - 登录支持 **账号或邮箱 + 密码**；**账号（NTID）禁止包含空格或空白字符**；注册时的显示名称仍禁止空白
 - 个人中心向本人展示 **完整绑定邮箱**（不再脱敏）
 - 注册支持可选邮箱；**用户与客户邮箱统一保存为小写**（写入时 trim + lowercase；已有 MySQL 卷由 Flyway `V024` 自动归一化历史数据）；**忘记密码仅凭绑定邮箱**申请邮件一次性链接，链接默认 30 分钟有效，后端统一错误提示并限流（同一邮箱 15 分钟最多 5 次失败）
-- 邮件配置通过 `.env` 预留：`APP_PUBLIC_BASE_URL`、`PASSWORD_RESET_TOKEN_TTL_MINUTES`、`MAIL_HOST`、`MAIL_PORT`、`MAIL_USERNAME`、`MAIL_PASSWORD`、`MAIL_FROM`、`MAIL_SMTP_AUTH`、`MAIL_SMTP_STARTTLS_ENABLE`；SMTP 支持认证 Gmail（默认 `smtp.gmail.com:587` + STARTTLS，`MAIL_PASSWORD` 使用 Google 应用专用密码）或匿名内网中继。匿名中继示例：`MAIL_HOST=corimc04.corp.jabil.org`、`MAIL_PORT=25`、`MAIL_USERNAME=`、`MAIL_PASSWORD=`、`MAIL_SMTP_AUTH=false`、`MAIL_SMTP_STARTTLS_ENABLE=false`，并设置 `MAIL_FROM=warehouse-notify@example.com`；不配置用户名/密码时仍会尝试通过该中继发送
+- 邮件配置通过 `.env` 预留：`APP_PUBLIC_BASE_URL`、`PASSWORD_RESET_TOKEN_TTL_MINUTES`、`MAIL_HOST`、`MAIL_PORT`、`MAIL_USERNAME`、`MAIL_PASSWORD`、`MAIL_FROM`、`MAIL_SMTP_AUTH`、`MAIL_SMTP_STARTTLS_ENABLE`；SMTP 支持认证 Gmail（默认 `smtp.gmail.com:587` + STARTTLS，`MAIL_PASSWORD` 使用 Google 应用专用密码）或匿名内网中继。捷普匿名中继示例：`MAIL_HOST=corimc04.corp.jabil.org`、`MAIL_PORT=25`、`MAIL_USERNAME=`、`MAIL_PASSWORD=`、`MAIL_SMTP_AUTH=false`、`MAIL_SMTP_STARTTLS_ENABLE=false`，并设置 `MAIL_FROM=HUA Machining Center<HMC@Jabil.com>`；用户名和密码保持为空时仍会通过 `MAIL_FROM` 作为发件人尝试中继发送
 - 「记住密码」仅 localStorage 保存账号（不存密码）
 - 未登录访问业务页会自动跳转到登录页
 - 默认管理员：`admin` / `admin123`（可管理用户/角色/菜单）

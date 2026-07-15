@@ -12,7 +12,7 @@ public interface RegistrationVerificationCodeMapper extends BaseMapper<Registrat
     @Select("""
             SELECT * FROM registration_verification_code
             WHERE email = #{email}
-            ORDER BY created_at DESC
+            ORDER BY id DESC
             LIMIT 1
             """)
     RegistrationVerificationCode selectLatestByEmail(@Param("email") String email);
@@ -22,11 +22,11 @@ public interface RegistrationVerificationCodeMapper extends BaseMapper<Registrat
             WHERE email = #{email}
               AND code_hash = #{codeHash}
               AND used_at IS NULL
-              AND expires_at > CURRENT_TIMESTAMP
+            ORDER BY id DESC
             LIMIT 1
             FOR UPDATE
             """)
-    RegistrationVerificationCode selectValidForUpdate(
+    RegistrationVerificationCode selectUnusedForUpdate(
             @Param("email") String email,
             @Param("codeHash") String codeHash
     );

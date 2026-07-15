@@ -432,6 +432,36 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
+    void sendRegistrationVerificationCode_withLegacyDatabaseClockSkew_allowsResendThenAppliesCooldown() throws Exception {
+        String email = "clockskew@example.com";
+        LocalDateTime now = LocalDateTime.now();
+        RegistrationVerificationCode legacyCode = new RegistrationVerificationCode();
+        legacyCode.setEmail(email);
+        legacyCode.setCodeHash(hashCode("123456"));
+        legacyCode.setExpiresAt(now.minusMinutes(1));
+        legacyCode.setCreatedAt(now.plusHours(8));
+        registrationVerificationCodeMapper.insert(legacyCode);
+
+        SendRegistrationVerificationCodeDTO request = new SendRegistrationVerificationCodeDTO();
+        request.setEmail(email);
+
+        mockMvc.perform(post("/api/auth/register/verification-code")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(post("/api/auth/register/verification-code")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("发送过于频繁，请稍后再试"));
+
+        ArgumentCaptor<SimpleMailMessage> captor = ArgumentCaptor.forClass(SimpleMailMessage.class);
+        verify(mailSender).send(captor.capture());
+        assertThat(captor.getValue().getTo()).containsExactly(email);
+    }
+
+    @Test
     void sendPasswordVerificationCode_withoutAuth_returns401() throws Exception {
         mockMvc.perform(post("/api/auth/password/verification-code"))
                 .andExpect(status().isUnauthorized())

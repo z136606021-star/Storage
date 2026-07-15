@@ -105,10 +105,15 @@ public class AuthServiceImpl implements AuthService {
             throw new BusinessException("该邮箱已被注册");
         }
 
+        LocalDateTime now = LocalDateTime.now();
         RegistrationVerificationCode latest = registrationVerificationCodeMapper.selectLatestByEmail(email);
-        if (latest != null && latest.getCreatedAt() != null) {
-            LocalDateTime cooldownUntil = latest.getCreatedAt().plusSeconds(passwordVerificationProperties.getSendCooldownSeconds());
-            if (cooldownUntil.isAfter(LocalDateTime.now())) {
+        if (latest != null) {
+            LocalDateTime cooldownStartedAt = resolveVerificationCooldownStartedAt(
+                    latest.getCreatedAt(),
+                    latest.getExpiresAt()
+            );
+            if (cooldownStartedAt != null
+                    && cooldownStartedAt.plusSeconds(passwordVerificationProperties.getSendCooldownSeconds()).isAfter(now)) {
                 throw new BusinessException("发送过于频繁，请稍后再试");
             }
         }
@@ -117,7 +122,8 @@ public class AuthServiceImpl implements AuthService {
         RegistrationVerificationCode code = new RegistrationVerificationCode();
         code.setEmail(email);
         code.setCodeHash(hashToken(rawCode));
-        code.setExpiresAt(LocalDateTime.now().plusMinutes(passwordVerificationProperties.getTtlMinutes()));
+        code.setExpiresAt(now.plusMinutes(passwordVerificationProperties.getTtlMinutes()));
+        code.setCreatedAt(now);
         registrationVerificationCodeMapper.insert(code);
 
         registrationVerificationMailService.sendVerificationCode(email, rawCode);
@@ -139,11 +145,12 @@ public class AuthServiceImpl implements AuthService {
         assertEmailAvailable(email, null);
 
         registrationVerificationFailureLimiter.assertAllowedVerify(email);
-        RegistrationVerificationCode code = registrationVerificationCodeMapper.selectValidForUpdate(
+        LocalDateTime now = LocalDateTime.now();
+        RegistrationVerificationCode code = registrationVerificationCodeMapper.selectUnusedForUpdate(
                 email,
                 hashToken(request.getVerificationCode().trim())
         );
-        if (code == null) {
+        if (code == null || code.getExpiresAt() == null || !code.getExpiresAt().isAfter(now)) {
             registrationVerificationFailureLimiter.recordVerifyFailure(email);
             throw new BusinessException(REGISTER_VERIFICATION_CODE_ERROR);
         }
@@ -163,7 +170,7 @@ public class AuthServiceImpl implements AuthService {
         sysUserMapper.insert(user);
         sysMenuMapper.insertUserRole(user.getId(), userRole.getId());
 
-        code.setUsedAt(LocalDateTime.now());
+        code.setUsedAt(now);
         registrationVerificationCodeMapper.updateById(code);
         registrationVerificationFailureLimiter.resetVerifyFailures(email);
 
@@ -253,10 +260,15 @@ public class AuthServiceImpl implements AuthService {
             throw new BusinessException("当前账号未绑定邮箱，无法发送验证码");
         }
 
+        LocalDateTime now = LocalDateTime.now();
         EmailVerificationCode latest = emailVerificationCodeMapper.selectLatestByUserAndPurpose(user.getId(), CHANGE_PASSWORD_PURPOSE);
-        if (latest != null && latest.getCreatedAt() != null) {
-            LocalDateTime cooldownUntil = latest.getCreatedAt().plusSeconds(passwordVerificationProperties.getSendCooldownSeconds());
-            if (cooldownUntil.isAfter(LocalDateTime.now())) {
+        if (latest != null) {
+            LocalDateTime cooldownStartedAt = resolveVerificationCooldownStartedAt(
+                    latest.getCreatedAt(),
+                    latest.getExpiresAt()
+            );
+            if (cooldownStartedAt != null
+                    && cooldownStartedAt.plusSeconds(passwordVerificationProperties.getSendCooldownSeconds()).isAfter(now)) {
                 throw new BusinessException("发送过于频繁，请稍后再试");
             }
         }
@@ -266,7 +278,8 @@ public class AuthServiceImpl implements AuthService {
         code.setUserId(user.getId());
         code.setPurpose(CHANGE_PASSWORD_PURPOSE);
         code.setCodeHash(hashToken(rawCode));
-        code.setExpiresAt(LocalDateTime.now().plusMinutes(passwordVerificationProperties.getTtlMinutes()));
+        code.setExpiresAt(now.plusMinutes(passwordVerificationProperties.getTtlMinutes()));
+        code.setCreatedAt(now);
         emailVerificationCodeMapper.insert(code);
 
         passwordVerificationMailService.sendVerificationCode(user, rawCode);
@@ -282,12 +295,13 @@ public class AuthServiceImpl implements AuthService {
         validatePasswordChange(request.getNewPassword(), request.getConfirmPassword());
         passwordVerificationFailureLimiter.assertAllowedVerify(user.getId());
 
-        EmailVerificationCode code = emailVerificationCodeMapper.selectValidForUpdate(
+        LocalDateTime now = LocalDateTime.now();
+        EmailVerificationCode code = emailVerificationCodeMapper.selectUnusedForUpdate(
                 user.getId(),
                 CHANGE_PASSWORD_PURPOSE,
                 hashToken(request.getVerificationCode().trim())
         );
-        if (code == null) {
+        if (code == null || code.getExpiresAt() == null || !code.getExpiresAt().isAfter(now)) {
             passwordVerificationFailureLimiter.recordVerifyFailure(user.getId());
             throw new BusinessException(VERIFICATION_CODE_ERROR);
         }
@@ -296,7 +310,7 @@ public class AuthServiceImpl implements AuthService {
         }
 
         updatePasswordAndInvalidateSessions(user, request.getNewPassword());
-        code.setUsedAt(LocalDateTime.now());
+        code.setUsedAt(now);
         emailVerificationCodeMapper.updateById(code);
         passwordVerificationFailureLimiter.resetVerifyFailures(user.getId());
     }
@@ -384,6 +398,22 @@ public class AuthServiceImpl implements AuthService {
         int floor = bound / 10;
         int code = secureRandom.nextInt(bound - floor) + floor;
         return String.valueOf(code);
+    }
+
+    private LocalDateTime resolveVerificationCooldownStartedAt(
+            LocalDateTime databaseCreatedAt,
+            LocalDateTime applicationExpiresAt
+    ) {
+        LocalDateTime inferredCreatedAt = applicationExpiresAt == null
+                ? null
+                : applicationExpiresAt.minusMinutes(passwordVerificationProperties.getTtlMinutes());
+        if (databaseCreatedAt == null) {
+            return inferredCreatedAt;
+        }
+        if (inferredCreatedAt == null) {
+            return databaseCreatedAt;
+        }
+        return databaseCreatedAt.isBefore(inferredCreatedAt) ? databaseCreatedAt : inferredCreatedAt;
     }
 
     private String hashToken(String rawToken) {

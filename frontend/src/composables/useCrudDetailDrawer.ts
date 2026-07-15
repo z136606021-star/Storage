@@ -9,12 +9,13 @@ export function useCrudDetailDrawer<T>(
   const detailLoading = ref(false)
   const detailRecord = ref<T | null>(null)
 
-  async function openDetail(record: { id: number }) {
+  async function openDetail(recordOrId: { id: number } | number) {
+    const id = typeof recordOrId === 'number' ? recordOrId : recordOrId.id
     drawerOpen.value = true
     detailLoading.value = true
     detailRecord.value = null
     try {
-      detailRecord.value = await fetchById(record.id)
+      detailRecord.value = await fetchById(id)
     } catch {
       message.error(loadErrorMessage)
       drawerOpen.value = false

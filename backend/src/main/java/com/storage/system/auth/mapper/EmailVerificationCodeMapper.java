@@ -12,7 +12,7 @@ public interface EmailVerificationCodeMapper extends BaseMapper<EmailVerificatio
     @Select("""
             SELECT * FROM email_verification_code
             WHERE user_id = #{userId} AND purpose = #{purpose}
-            ORDER BY created_at DESC
+            ORDER BY id DESC
             LIMIT 1
             """)
     EmailVerificationCode selectLatestByUserAndPurpose(@Param("userId") Long userId, @Param("purpose") String purpose);
@@ -23,11 +23,11 @@ public interface EmailVerificationCodeMapper extends BaseMapper<EmailVerificatio
               AND purpose = #{purpose}
               AND code_hash = #{codeHash}
               AND used_at IS NULL
-              AND expires_at > CURRENT_TIMESTAMP
+            ORDER BY id DESC
             LIMIT 1
             FOR UPDATE
             """)
-    EmailVerificationCode selectValidForUpdate(
+    EmailVerificationCode selectUnusedForUpdate(
             @Param("userId") Long userId,
             @Param("purpose") String purpose,
             @Param("codeHash") String codeHash
