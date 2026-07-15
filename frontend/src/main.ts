@@ -6,6 +6,7 @@ import 'dayjs/locale/zh-cn'
 import 'ant-design-vue/dist/reset.css'
 import App from './App.vue'
 import router from './router'
+import { installClientErrorHandlers } from './diagnostics/clientErrorReporting'
 import './style.less'
 
 dayjs.locale('zh-cn')
@@ -15,7 +16,10 @@ const app = createApp(App)
 app.use(createPinia())
 app.use(router)
 app.provide('antdLocale', zhCN)
+installClientErrorHandlers(app, router)
 
 router.isReady().then(() => {
   app.mount('#app')
+}).catch((error) => {
+  console.error('[bootstrap] router failed to become ready', error)
 })

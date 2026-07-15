@@ -51,7 +51,7 @@ server:
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
   global-config:
     db-config:
       id-type: auto
@@ -81,7 +81,13 @@ storage:
     bucket: ${MINIO_BUCKET:storage}
   file-upload:
     max-size-bytes: ${UPLOAD_MAX_REQUEST_SIZE_BYTES:5505025024}
+  exception-log:
+    retention-days: ${EXCEPTION_LOG_RETENTION_DAYS:30}
+    max-stack-trace-length: ${EXCEPTION_LOG_MAX_STACK_TRACE_LENGTH:8000}
+    max-summary-length: ${EXCEPTION_LOG_MAX_SUMMARY_LENGTH:500}
 
 logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} [requestId=%X{requestId}] - %msg%n"
   level:
     com.storage: debug

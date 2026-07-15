@@ -1,5 +1,6 @@
 package com.storage.system.auth.controller;
 
+import com.storage.common.annotation.IgnoreAuth;
 import com.storage.system.auth.dto.AuthSessionVO;
 import com.storage.system.auth.dto.AuthUserVO;
 import com.storage.system.auth.dto.ChangePasswordByCurrentPasswordDTO;
@@ -35,6 +36,7 @@ public class AuthController {
         return authService.login(request);
     }
 
+    @IgnoreAuth
     @PostMapping("/register/verification-code")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void sendRegistrationVerificationCode(@Valid @RequestBody SendRegistrationVerificationCodeDTO request) {

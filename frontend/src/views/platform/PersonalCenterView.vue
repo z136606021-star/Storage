@@ -297,7 +297,7 @@ onMounted(loadProfile)
                       <a-input
                         v-model:value="emailForm.verificationCode"
                         placeholder="6 位验证码"
-                        maxlength="6"
+                        :maxlength="6"
                         style="width: 180px"
                       />
                       <a-button
@@ -356,7 +356,7 @@ onMounted(loadProfile)
             <a-input
               v-model:value="phoneForm.phone"
               allow-clear
-              maxlength="32"
+              :maxlength="32"
               placeholder="请输入手机号，留空可清除"
             />
           </a-form-item>

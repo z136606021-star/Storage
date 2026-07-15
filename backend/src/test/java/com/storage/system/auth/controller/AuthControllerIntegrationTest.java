@@ -417,6 +417,28 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
+    void sendRegistrationVerificationCode_withoutAuth_returnsNoContent() throws Exception {
+        SendRegistrationVerificationCodeDTO request = new SendRegistrationVerificationCodeDTO();
+        request.setEmail("newregister@example.com");
+
+        mockMvc.perform(post("/api/auth/register/verification-code")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isNoContent());
+
+        ArgumentCaptor<SimpleMailMessage> captor = ArgumentCaptor.forClass(SimpleMailMessage.class);
+        verify(mailSender).send(captor.capture());
+        assertThat(captor.getValue().getTo()).containsExactly("newregister@example.com");
+    }
+
+    @Test
+    void sendPasswordVerificationCode_withoutAuth_returns401() throws Exception {
+        mockMvc.perform(post("/api/auth/password/verification-code"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("未登录或登录已过期"));
+    }
+
+    @Test
     void register_withMissingVerificationCode_returns400() throws Exception {
         RegisterRequestDTO request = new RegisterRequestDTO();
         request.setUsername("registernocode");

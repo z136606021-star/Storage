@@ -152,8 +152,8 @@ class SysMenuControllerIntegrationTest {
                 .orElseThrow();
         var children = catalogNode.get("children");
         assertThat(children).isNotNull();
-        assertThat(children).hasSize(4);
-        assertThat(children.findValuesAsText("key")).containsExactlyInAnyOrder("201", "202", "203", "204");
+        assertThat(children).hasSize(5);
+        assertThat(children.findValuesAsText("key")).containsExactlyInAnyOrder("201", "202", "203", "204", "205");
         for (var child : children) {
             assertThat(child.hasNonNull("children")).isFalse();
             assertThat(child.get("path").asText()).startsWith("/system/");

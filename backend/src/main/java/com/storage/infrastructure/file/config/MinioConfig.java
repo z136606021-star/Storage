@@ -34,7 +34,7 @@ public class MinioConfig {
                 log.info("Created MinIO bucket: {}", bucket);
             }
         } catch (Exception ex) {
-            log.warn("MinIO bucket initialization skipped: {}", ex.getMessage());
+            log.warn("MinIO bucket initialization skipped", ex);
         }
     }
 }

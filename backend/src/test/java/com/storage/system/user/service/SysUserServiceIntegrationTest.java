@@ -120,6 +120,50 @@ class SysUserServiceIntegrationTest {
         assertThat(sysUserMapper.selectById(created.getId()).getPhone()).isNull();
     }
 
+    @Test
+    @Transactional
+    void createUser_allowsWhitespaceInDisplayName() {
+        SysUserSaveDTO dto = baseDto("mandy7362", "Mandy Liu");
+        dto.setEmail("mandy_liu7362@jabil.com");
+        dto.setPhone("18820777053");
+        dto.setRoleIds(List.of(1L));
+
+        var created = sysUserService.create(dto);
+
+        assertThat(created.getDisplayName()).isEqualTo("Mandy Liu");
+        assertThat(sysUserMapper.selectById(created.getId()).getDisplayName()).isEqualTo("Mandy Liu");
+    }
+
+    @Test
+    @Transactional
+    void createUser_trimsDisplayNameEdges() {
+        SysUserSaveDTO dto = baseDto("trimname", "  Mandy Liu  ");
+        var created = sysUserService.create(dto);
+        assertThat(created.getDisplayName()).isEqualTo("Mandy Liu");
+    }
+
+    @Test
+    @Transactional
+    void createUser_rejectsDuplicateRoleIds() {
+        SysUserSaveDTO dto = baseDto("duprole", "重复角色");
+        dto.setRoleIds(List.of(2L, 2L));
+
+        assertThatThrownBy(() -> sysUserService.create(dto))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("角色不能重复");
+    }
+
+    @Test
+    @Transactional
+    void createUser_rejectsCustomPasswordShorterThanSix() {
+        SysUserSaveDTO dto = baseDto("shortpw", "短密码");
+        dto.setPassword("12345");
+
+        assertThatThrownBy(() -> sysUserService.create(dto))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("密码长度为 6-64 个字符");
+    }
+
     private SysUserSaveDTO baseDto(String username, String displayName) {
         SysUserSaveDTO dto = new SysUserSaveDTO();
         dto.setUsername(username);

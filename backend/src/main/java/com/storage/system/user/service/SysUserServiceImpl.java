@@ -196,10 +196,20 @@ public class SysUserServiceImpl implements SysUserService {
 
     private void validateSaveDto(SysUserSaveDTO dto) {
         IdentityTextValidation.requireNoWhitespace(dto.getUsername(), "NTID");
-        IdentityTextValidation.requireNoWhitespace(dto.getDisplayName(), "用户姓名");
         String email = StringMapping.trimToNullLowercase(dto.getEmail());
         if (email != null && !EMAIL_PATTERN.matcher(email).matches()) {
             throw new BusinessException("邮箱格式不正确");
+        }
+        validatePasswordIfPresent(dto.getPassword());
+    }
+
+    private void validatePasswordIfPresent(String password) {
+        if (!StringUtils.hasText(password)) {
+            return;
+        }
+        String trimmed = password.trim();
+        if (trimmed.length() < 6 || trimmed.length() > 64) {
+            throw new BusinessException("密码长度为 6-64 个字符");
         }
     }
 
@@ -236,6 +246,9 @@ public class SysUserServiceImpl implements SysUserService {
     }
 
     private void validateRoleIds(List<Long> roleIds) {
+        if (roleIds.stream().distinct().count() != roleIds.size()) {
+            throw new BusinessException("角色不能重复");
+        }
         for (Long roleId : roleIds) {
             SysRole role = sysRoleMapper.selectById(roleId);
             if (role == null) {

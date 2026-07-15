@@ -1,5 +1,9 @@
 # CHANGELOG
 
+| 2026-07-15 | 修复用户新增/编辑表单校验：前端改为 Ant Design Form Rules + `validate()`，允许用户姓名中间空格；防重复提交、编辑密码单路径、保存后刷新失败单独提示；`getErrorMessage` 保留普通 `Error` 并支持响应头 `X-Request-Id`；后端 `SysUserSaveDTO`/Service 对齐邮箱、状态、角色去重与密码规则 |
+| 2026-07-15 | 注册验证码本地开发兜底：`MAIL_USERNAME` 未配置时将验证码输出到后端日志；SMTP 失败时记录完整异常并提示检查邮件配置 |
+| 2026-07-15 | 修复注册验证码鉴权：`WebMvcConfig` 放行 `/api/auth/register/**`，未登录用户可调用 `POST /api/auth/register/verification-code` 发送注册验证码 |
+| 2026-07-15 | 异常日志闭环：后端 `requestId` 过滤器、未预期 `5xx` 完整堆栈日志与落库、前端全局捕获与登录态上报、系统管理异常日志页；Flyway `V027__exception_log_center.sql`；默认保留 30 天并支持管理员清理 |
 | 2026-07-14 | 完成上传上限统一：Nginx 改用官方 envsubst 模板，容器启动时从 `UPLOAD_MAX_REQUEST_SIZE_BYTES` 渲染 `client_max_body_size`，与 Spring multipart / upload-policy 共用同一 `.env` 变量 |
 | 2026-07-14 | 统一上传大小配置：移除 `UPLOAD_MAX_SIZE_BYTES`，仅保留 `UPLOAD_MAX_REQUEST_SIZE_BYTES` 驱动 Spring multipart 与 upload-policy |
 | 2026-07-14 | 移除每条记录文件数量上限：删除 `UPLOAD_MAX_FILES_PER_RECORD` 与 upload-policy `maxFilesPerRecord`；BOM/经验库不再限制单条记录附件个数 |

@@ -237,13 +237,15 @@ npm run dev
 - 默认打开 `/login`（当前为 Shiro + JWT 鉴权，前端通过 Pinia + localStorage 保存 access token）；注册 Tab：`/login?tab=register`；忘记密码申请 Tab：`/login?tab=forgot`；邮件链接重置 Tab：`/login?tab=reset&token=...`
 - **个人中心**（侧栏首位）：账号信息、原密码改密、绑定邮箱验证码改密；改密成功后递增 `sys_user.token_version`，该用户所有旧 JWT 立即失效并需重新登录
 - 个人中心支持维护 **可选手机号**（无需短信验证）；具备 `system:user:write` 权限的管理员可在用户管理中维护
+- **用户管理表单规则**：NTID 必填、3–64 字符且禁止任何空白；用户姓名必填、最多 64 字符且允许中间空格（提交前仅 trim 首尾）；邮箱可选且格式校验、写入小写；手机号可选；至少选择一个角色；状态仅 `0/1`；编辑时重置密码可选且 6–64 字符（走独立 `PUT /api/system/users/{id}/password`）
 - 登录态改密 API：`PUT /api/auth/password`（原密码）、`POST /api/auth/password/verification-code`（发码）、`PUT /api/auth/password/by-verification-code`（验码改密）；验证码仅发往当前用户绑定邮箱，默认 6 位、10 分钟有效、60 秒发送冷却
 - 登录态个人信息 API：`PUT /api/auth/me/phone`（当前用户维护手机号，可选、最大 32 字符，留空清除）
-- 支持开放注册，新用户默认 `USER` 角色（仅物料台账只读）；注册账号 3-32 字符、密码至少 6 位；**注册必须先向邮箱发送验证码并校验通过**；**一个邮箱只能绑定一个账号**
-- 登录支持 **账号或邮箱 + 密码**；账号与显示名称 **禁止包含空格或空白字符**
+- 支持开放注册，新用户默认 `USER` 角色（仅物料台账只读）；注册账号 3-32 字符、密码至少 6 位；**注册必须先向邮箱发送验证码并校验通过**（`POST /api/auth/register/verification-code` 为公开入口，无需登录）；**一个邮箱只能绑定一个账号**
+- 登录支持 **账号或邮箱 + 密码**；**账号（NTID）禁止包含空格或空白字符**；注册时的显示名称仍禁止空白
 - 个人中心向本人展示 **完整绑定邮箱**（不再脱敏）
 - 注册支持可选邮箱；**用户与客户邮箱统一保存为小写**（写入时 trim + lowercase；已有 MySQL 卷由 Flyway `V024` 自动归一化历史数据）；**忘记密码仅凭绑定邮箱**申请邮件一次性链接，链接默认 30 分钟有效，后端统一错误提示并限流（同一邮箱 15 分钟最多 5 次失败）
 - 邮件配置通过 `.env` 预留：`APP_PUBLIC_BASE_URL`、`PASSWORD_RESET_TOKEN_TTL_MINUTES`、`MAIL_HOST`、`MAIL_PORT`、`MAIL_USERNAME`、`MAIL_PASSWORD`、`MAIL_FROM`、`MAIL_SMTP_AUTH`、`MAIL_SMTP_STARTTLS_ENABLE`；Gmail 默认 `smtp.gmail.com:587` + STARTTLS，`MAIL_PASSWORD` 使用 Google 应用专用密码
+- 本地开发若未配置 `MAIL_USERNAME`，注册验证码不会真实发信，而是输出到 **backend 控制台日志**（搜索 `注册验证码仅输出到后端日志`）；生产环境必须配置可用 SMTP
 - 「记住密码」仅 localStorage 保存账号（不存密码）
 - 未登录访问业务页会自动跳转到登录页
 - 默认管理员：`admin` / `admin123`（可管理用户/角色/菜单）
@@ -359,7 +361,7 @@ flowchart TD
 
 - [x] 登录页 + Shiro JWT 登录/登出/当前用户 + Pinia 全局 auth store + **开放注册** + **第五期优化**（左栏插画、记住账号、URL Tab、注册校验、交互打磨）
 - [x] 路由守卫与 API 401 拦截（Bearer token）+ **路由 permission 校验**
-- [x] **系统管理**：用户管理、角色管理、菜单管理、客户管理（独立侧栏菜单；多角色分配、授权只读面板、Excel 导入导出）+ SideMenu 动态导航
+- [x] **系统管理**：用户管理、角色管理、菜单管理、客户管理、**异常日志**（独立侧栏菜单；多角色分配、授权只读面板、Excel 导入导出）+ SideMenu 动态导航
 - [x] MinIO 对象存储基础设施 + `POST /api/files/upload`
 - [x] **第六期平台壳层**：DB 导航种子（个人中心/项目/采购/设计/技能/经验/财务 + 仓库 5 项含库存统计与配置管理）、占位路由、`ComingSoonPage` 复用组件
 - [x] **第七期壳层 UI 补全**：动态 TabBar（ADMIN 预置个人中心/项目中心）、壳层 `/platform/*` 路由、侧栏点击无 toast
@@ -434,6 +436,40 @@ flowchart TD
 1. `GPT-5.5` 输出计划与边界；
 2. `Composer 2.5` 按计划实施并验证；
 3. `Claude Sonnet` 产出文档与沟通材料。
+
+## 故障排查与异常日志
+
+### 浏览器侧
+
+- 打开开发者工具 **Console**：前端会输出 `[client-error]` 结构化错误，包含错误码、路由、HTTP 状态与 `requestId`。
+- 打开 **Network**：查看失败请求的响应头 `X-Request-Id` 与 JSON 体中的 `requestId`；`5xx` 响应的用户提示会附带请求 ID。
+- 未登录页面（登录/注册）的异常只输出控制台，不会上报后端。
+
+### 异常中心
+
+- 入口：**系统管理 → 异常日志**（`/system/exception-logs`）
+- 读权限：`system:exception-log:read`；清理权限：`system:exception-log:write`
+- 支持按时间、来源（后端/前端）、HTTP 状态、异常类型、路径、`requestId`、关键字筛选；详情抽屉查看截断后的堆栈。
+- 默认保留 30 天；管理员可手动清理 30 天前记录。每日 03:00 自动清理过期日志。
+
+### 后端日志
+
+- 本地 IDE/进程日志：控制台格式包含 `[requestId=...]`，未预期 `5xx` 会输出完整堆栈。
+- Docker：`docker logs storage-backend`（dev Compose 容器名）；结合响应头或异常中心中的同一 `requestId` 定位。
+
+### 不会入库的错误
+
+- 预期业务失败（`BusinessException`、校验错误、普通 `4xx`）
+- 未登录前端异常
+- 含敏感信息的请求体、Authorization、Cookie、验证码、重置 token
+
+### 相关配置（`.env` / `application.yml`）
+
+- `EXCEPTION_LOG_RETENTION_DAYS`：默认 `30`
+- `EXCEPTION_LOG_MAX_STACK_TRACE_LENGTH`：默认 `8000`
+- `EXCEPTION_LOG_MAX_SUMMARY_LENGTH`：默认 `500`
+
+部署说明：新增 `V027__exception_log_center.sql` 迁移；已有数据卷升级时重启后端触发 Flyway，无需清库。
 
 ## 安全与生产部署要点
 

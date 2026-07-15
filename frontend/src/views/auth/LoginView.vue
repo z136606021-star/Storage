@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { LockOutlined, UserOutlined } from '@ant-design/icons-vue'
 import axios from 'axios'
 import { message } from 'ant-design-vue'
-import type { Rule } from 'ant-design-vue/es/form'
+import type { FormInstance, Rule } from 'ant-design-vue/es/form'
 import loginBg from '@/assets/auth/login-bg.png'
 import loginLogo from '@/assets/auth/login-logo.png'
 import loginDecoTech from '@/assets/auth/login-deco-tech.png'
@@ -42,6 +42,7 @@ function resolveTabFromQuery(tab: unknown): AuthTab {
 const activeTab = ref<AuthTab>(resolveTabFromQuery(route.query.tab))
 const submitting = ref(false)
 const rememberPassword = ref(false)
+const registerFormRef = ref<FormInstance>()
 
 const loginForm = reactive({
   username: '',
@@ -165,23 +166,6 @@ const loginCanSubmit = computed(
   () => loginForm.username.trim().length > 0 && loginForm.password.length > 0,
 )
 
-const registerCanSubmit = computed(() => {
-  const username = registerForm.username.trim()
-  const displayName = registerForm.displayName.trim()
-  return (
-    username.length >= 3
-    && username.length <= 32
-    && !containsWhitespace(username)
-    && displayName.length > 0
-    && displayName.length <= 64
-    && !containsWhitespace(displayName)
-    && registerForm.password.length >= 6
-    && registerForm.password.length <= 64
-    && registerForm.confirmPassword === registerForm.password
-    && registerForm.verificationCode.trim().length === 6
-  )
-})
-
 const forgotCanSubmit = computed(() => forgotForm.email.trim().length > 0)
 
 const resetCanSubmit = computed(() => (
@@ -278,11 +262,13 @@ function startRegisterCountdown(seconds = 60) {
 }
 
 async function handleSendRegistrationCode() {
-  const email = normalizeEmail(registerForm.email)
-  if (!email) {
-    message.warning('请输入有效邮箱')
+  try {
+    await registerFormRef.value?.validateFields(['email'])
+  } catch {
     return
   }
+
+  const email = normalizeEmail(registerForm.email) ?? ''
   registerSendingCode.value = true
   try {
     await sendRegistrationVerificationCode({ email })
@@ -333,6 +319,12 @@ async function handleLogin() {
 }
 
 async function handleRegister() {
+  try {
+    await registerFormRef.value?.validate()
+  } catch {
+    return
+  }
+
   submitting.value = true
   try {
     await auth.register({
@@ -492,11 +484,11 @@ async function handleRegister() {
 
         <a-form
           v-else
+          ref="registerFormRef"
           class="login-form"
           layout="vertical"
           :model="registerForm"
           :rules="registerRules"
-          @finish="handleRegister"
         >
           <a-form-item name="username">
             <a-input v-model:value="registerForm.username" size="large" placeholder="请输入账号（3-32 个字符）" autocomplete="username">
@@ -525,7 +517,7 @@ async function handleRegister() {
                 v-model:value="registerForm.verificationCode"
                 size="large"
                 placeholder="6 位验证码"
-                maxlength="6"
+                :maxlength="6"
                 style="width: 180px"
               />
               <a-button
@@ -550,12 +542,12 @@ async function handleRegister() {
           </a-form-item>
           <a-button
             type="primary"
-            html-type="submit"
+            html-type="button"
             size="large"
             block
             class="login-form__submit"
             :loading="submitting"
-            :disabled="!registerCanSubmit"
+            @click="handleRegister"
           >
             注册并登录
           </a-button>

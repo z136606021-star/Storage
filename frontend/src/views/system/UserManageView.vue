@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
+import type { FormInstance } from 'ant-design-vue'
 import { ReloadOutlined, SearchOutlined } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
 import { getErrorMessage } from '@/api/http'
@@ -19,14 +20,21 @@ import CrudListPage from '@/components/common/CrudListPage.vue'
 import { useWritePermission } from '@/composables/useWritePermission'
 import { useExcelImportExport } from '@/composables/useExcelImportExport'
 import { usePaginatedCrudList } from '@/composables/usePaginatedCrudList'
-import type { SysMenu, SysRole, SysUser, SysUserSave } from '@/types/system'
+import type { SysMenu, SysRole, SysUser } from '@/types/system'
 import { buildMenuAuthTreeNodes } from '@/utils/menuAuthTree'
 import { confirmDelete } from '@/utils/confirmDelete'
-import { displayValue, normalizeEmail, containsWhitespace } from '@/utils/format'
+import { displayValue, normalizeEmail } from '@/utils/format'
+import {
+  buildUserSavePayload,
+  createUserFormRules,
+  shouldBlockUserSubmit,
+} from '@/utils/userFormValidation'
 
 const { canWrite } = useWritePermission('system:user:write')
 
 const roleOptions = ref<SysRole[]>([])
+const formRef = ref<FormInstance>()
+const submitting = ref(false)
 const modalOpen = ref(false)
 const drawerOpen = ref(false)
 const editingId = ref<number | null>(null)
@@ -97,6 +105,8 @@ const formState = reactive({
   newPassword: '',
 })
 
+const formRules = computed(() => createUserFormRules(() => editingId.value != null))
+
 const columns = [
   { title: 'NTID', dataIndex: 'username', key: 'username', width: 120 },
   { title: '用户姓名', dataIndex: 'displayName', key: 'displayName', width: 120 },
@@ -108,27 +118,6 @@ const columns = [
 ]
 
 const permissionTreeData = computed(() => buildMenuAuthTreeNodes(permissionMenuTree.value))
-
-function buildSavePayload(): SysUserSave {
-  if (!formState.roleIds.length) {
-    throw new Error('请至少选择一个角色')
-  }
-  if (containsWhitespace(formState.username)) {
-    throw new Error('NTID 不能包含空格或空白字符')
-  }
-  if (containsWhitespace(formState.displayName)) {
-    throw new Error('用户姓名不能包含空格或空白字符')
-  }
-  return {
-    username: formState.username,
-    displayName: formState.displayName,
-    email: normalizeEmail(formState.email) || undefined,
-    phone: formState.phone || undefined,
-    status: formState.status,
-    roleIds: [...formState.roleIds],
-    password: formState.newPassword || undefined,
-  }
-}
 
 async function loadRoles() {
   const { data } = await fetchRoles()
@@ -174,6 +163,7 @@ function openCreate() {
 }
 
 function openEdit(record: SysUser) {
+  resetForm()
   editingId.value = record.id
   formState.username = record.username
   formState.displayName = record.displayName
@@ -200,23 +190,50 @@ function selectUser(record: SysUser) {
 }
 
 async function handleSubmit() {
+  if (shouldBlockUserSubmit(submitting.value)) {
+    return
+  }
+
   try {
-    const payload = buildSavePayload()
-    if (editingId.value) {
-      await updateUser(editingId.value, payload)
-      if (formState.newPassword) {
-        await resetUserPassword(editingId.value, formState.newPassword)
+    await formRef.value?.validate()
+  } catch {
+    return
+  }
+
+  submitting.value = true
+  let saved = false
+  const editingUserId = editingId.value
+  const newPassword = formState.newPassword.trim()
+  const payload = buildUserSavePayload(formState)
+
+  try {
+    if (editingUserId) {
+      await updateUser(editingUserId, payload)
+      if (newPassword) {
+        await resetUserPassword(editingUserId, newPassword)
       }
-      message.success('用户已更新')
+      message.success(newPassword ? '用户资料已更新，密码已重置' : '用户已更新')
     } else {
       await createUser(payload)
       message.success('用户已创建')
-      message.info(`初始密码为 ${formState.username}@123`)
+      message.info(`初始密码为 ${payload.username}@123`)
     }
+    saved = true
     modalOpen.value = false
-    await loadData()
   } catch (error) {
     message.error(getErrorMessage(error, '保存失败'))
+  } finally {
+    submitting.value = false
+  }
+
+  if (!saved) {
+    return
+  }
+
+  try {
+    await loadData()
+  } catch (error) {
+    message.warning(getErrorMessage(error, '用户已保存，但列表刷新失败'))
   }
 }
 
@@ -244,6 +261,12 @@ function customRow(record: SysUser) {
     class: selectedUserId.value === record.id ? 'row-selected' : '',
   }
 }
+
+watch(modalOpen, (open) => {
+  if (open) {
+    formRef.value?.clearValidate()
+  }
+})
 
 watch(selectedUserId, (userId) => {
   if (userId) {
@@ -416,27 +439,30 @@ onMounted(async () => {
     <a-modal
       v-model:open="modalOpen"
       :title="editingId ? '编辑用户' : '新增用户'"
+      :confirm-loading="submitting"
+      destroy-on-close
       ok-text="提交"
       cancel-text="关闭"
       @ok="handleSubmit"
     >
-      <a-form layout="vertical">
-        <a-form-item label="NTID" required>
-          <a-input v-model:value="formState.username" :disabled="!!editingId" />
+      <a-form ref="formRef" :model="formState" :rules="formRules" layout="vertical">
+        <a-form-item label="NTID" name="username">
+          <a-input v-model:value="formState.username" :disabled="!!editingId" allow-clear />
         </a-form-item>
-        <a-form-item label="用户姓名" required>
-          <a-input v-model:value="formState.displayName" />
+        <a-form-item label="用户姓名" name="displayName">
+          <a-input v-model:value="formState.displayName" allow-clear />
         </a-form-item>
-        <a-form-item label="邮箱">
+        <a-form-item label="邮箱" name="email">
           <a-input
             v-model:value="formState.email"
+            allow-clear
             @blur="formState.email = normalizeEmailField(formState.email)"
           />
         </a-form-item>
-        <a-form-item label="手机号">
-          <a-input v-model:value="formState.phone" />
+        <a-form-item label="手机号" name="phone">
+          <a-input v-model:value="formState.phone" allow-clear />
         </a-form-item>
-        <a-form-item label="角色" required>
+        <a-form-item label="角色" name="roleIds">
           <a-select
             v-model:value="formState.roleIds"
             mode="multiple"
@@ -448,10 +474,10 @@ onMounted(async () => {
             </a-select-option>
           </a-select>
         </a-form-item>
-        <a-form-item label="是否启用" required>
+        <a-form-item label="是否启用" name="status">
           <a-switch v-model:checked="formState.status" :checked-value="1" :un-checked-value="0" />
         </a-form-item>
-        <a-form-item v-if="editingId" label="重置密码（留空不修改）">
+        <a-form-item v-if="editingId" label="重置密码（留空不修改）" name="newPassword">
           <a-input-password v-model:value="formState.newPassword" placeholder="请输入新密码" />
         </a-form-item>
       </a-form>

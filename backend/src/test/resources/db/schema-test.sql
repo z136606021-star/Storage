@@ -12,6 +12,7 @@ DROP TABLE IF EXISTS experience_project_link;
 DROP TABLE IF EXISTS experience_record;
 DROP TABLE IF EXISTS experience_type;
 DROP TABLE IF EXISTS sys_customer;
+DROP TABLE IF EXISTS sys_exception_log;
 DROP TABLE IF EXISTS password_reset_token;
 DROP TABLE IF EXISTS registration_verification_code;
 DROP TABLE IF EXISTS email_verification_code;
@@ -139,6 +140,27 @@ CREATE TABLE sys_customer (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (customer_code)
+);
+
+CREATE TABLE sys_exception_log (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    source VARCHAR(16) NOT NULL,
+    level VARCHAR(16) NOT NULL DEFAULT 'ERROR',
+    occurred_at TIMESTAMP NOT NULL,
+    error_code VARCHAR(64) NULL,
+    request_id VARCHAR(64) NULL,
+    http_status INT NULL,
+    http_method VARCHAR(16) NULL,
+    request_path VARCHAR(512) NULL,
+    exception_class VARCHAR(256) NULL,
+    summary VARCHAR(512) NOT NULL,
+    stack_trace CLOB NULL,
+    frontend_route VARCHAR(512) NULL,
+    browser_info VARCHAR(512) NULL,
+    operator_id BIGINT NULL,
+    operator_username VARCHAR(64) NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_test_exception_log_operator FOREIGN KEY (operator_id) REFERENCES sys_user (id) ON DELETE SET NULL
 );
 
 CREATE TABLE experience_type (
@@ -348,14 +370,16 @@ INSERT INTO sys_menu (id, parent_id, name, permission, path, component_key, icon
 (202, 200, '角色管理', 'system:role:read', '/system/roles', 'components/system/RoleManagePanel.vue', NULL, 20, 1),
 (203, 200, '菜单管理', 'system:menu:read', '/system/menus', 'components/system/MenuManagePanel.vue', NULL, 30, 1),
 (204, 200, '客户管理', 'system:customer:read', '/system/customers', 'views/system/CustomerManageView.vue', NULL, 40, 1),
+(205, 200, '异常日志', 'system:exception-log:read', '/system/exception-logs', 'views/system/ExceptionLogView.vue', NULL, 50, 1),
 (214, 201, '用户写', 'system:user:write', NULL, NULL, NULL, 214, 0),
 (224, 202, '角色写', 'system:role:write', NULL, NULL, NULL, 224, 0),
 (234, 203, '菜单写', 'system:menu:write', NULL, NULL, NULL, 234, 0),
-(244, 204, '客户写', 'system:customer:write', NULL, NULL, NULL, 244, 0);
+(244, 204, '客户写', 'system:customer:write', NULL, NULL, NULL, 244, 0),
+(245, 205, '异常日志清理', 'system:exception-log:write', NULL, NULL, NULL, 245, 0);
 
 UPDATE sys_menu SET menu_type = 'TOP' WHERE id IN (10, 110, 200);
-UPDATE sys_menu SET menu_type = 'SUB' WHERE id IN (111, 114, 115, 116, 201, 202, 203, 204, 3, 6, 7, 12, 5);
-UPDATE sys_menu SET menu_type = 'BUTTON' WHERE id IN (2, 4, 8, 9, 13, 214, 224, 234, 244);
+UPDATE sys_menu SET menu_type = 'SUB' WHERE id IN (111, 114, 115, 116, 201, 202, 203, 204, 205, 3, 6, 7, 12, 5);
+UPDATE sys_menu SET menu_type = 'BUTTON' WHERE id IN (2, 4, 8, 9, 13, 214, 224, 234, 244, 245);
 
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 (1, 10),
@@ -379,10 +403,12 @@ INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 (1, 202),
 (1, 203),
 (1, 204),
+(1, 205),
 (1, 214),
 (1, 224),
 (1, 234),
 (1, 244),
+(1, 245),
 (2, 111);
 
 INSERT INTO experience_type (id, name, status, sort_order) VALUES

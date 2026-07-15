@@ -3,6 +3,7 @@ package com.storage.system.auth.service;
 import com.storage.common.exception.BusinessException;
 import com.storage.system.auth.config.PasswordVerificationProperties;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
@@ -10,6 +11,7 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class RegistrationVerificationMailServiceImpl implements RegistrationVerificationMailService {
@@ -20,8 +22,20 @@ public class RegistrationVerificationMailServiceImpl implements RegistrationVeri
     @Value("${storage.mail.from:}")
     private String mailFrom;
 
+    @Value("${spring.mail.username:}")
+    private String mailUsername;
+
     @Override
     public void sendVerificationCode(String email, String rawCode) {
+        if (!StringUtils.hasText(mailUsername)) {
+            log.warn(
+                    "MAIL_USERNAME 未配置，注册验证码仅输出到后端日志（本地开发）：email={} code={}",
+                    email,
+                    rawCode
+            );
+            return;
+        }
+
         SimpleMailMessage message = new SimpleMailMessage();
         if (StringUtils.hasText(mailFrom)) {
             message.setFrom(mailFrom.trim());
@@ -38,7 +52,8 @@ public class RegistrationVerificationMailServiceImpl implements RegistrationVeri
         try {
             mailSender.send(message);
         } catch (MailException ex) {
-            throw new BusinessException("验证码邮件发送失败，请稍后再试");
+            log.warn("注册验证码邮件发送失败 email={}", email, ex);
+            throw new BusinessException("验证码邮件发送失败，请检查邮件配置或稍后再试");
         }
     }
 }

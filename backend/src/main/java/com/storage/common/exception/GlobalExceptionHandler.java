@@ -5,12 +5,22 @@ import com.storage.design.exception.DesignProductTypeNotFoundException;
 import com.storage.design.exception.DesignStageNotFoundException;
 import com.storage.experience.exception.ExperienceRecordNotFoundException;
 import com.storage.experience.exception.ExperienceTypeNotFoundException;
+import com.storage.system.exceptionlog.exception.SysExceptionLogNotFoundException;
+import com.storage.system.exceptionlog.service.SysExceptionLogService;
 import com.storage.warehouse.exception.MaterialIoNotFoundException;
 import com.storage.warehouse.exception.MaterialLedgerNotFoundException;
 import com.storage.warehouse.exception.SafetyStockNotFoundException;
 import com.storage.warehouse.exception.WarehouseBinNotFoundException;
 import com.storage.warehouse.exception.WarehouseBomNotFoundException;
 import com.storage.system.customer.exception.SysCustomerNotFoundException;
+import com.storage.common.web.RequestContext;
+import com.storage.common.web.RequestContextFilter;
+import com.storage.common.web.RequestIdGenerator;
+import com.storage.common.web.RequestPathSanitizer;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.shiro.authz.UnauthenticatedException;
 import org.apache.shiro.authz.UnauthorizedException;
 import org.springframework.dao.DuplicateKeyException;
@@ -26,8 +36,12 @@ import org.springframework.web.multipart.MultipartException;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+@Slf4j
 @RestControllerAdvice
+@RequiredArgsConstructor
 public class GlobalExceptionHandler {
+
+    private final SysExceptionLogService sysExceptionLogService;
 
     @ExceptionHandler(UnauthenticatedException.class)
     public ResponseEntity<Map<String, String>> handleUnauthenticated(UnauthenticatedException ex) {
@@ -107,6 +121,12 @@ public class GlobalExceptionHandler {
                 .body(Map.of("message", ex.getMessage()));
     }
 
+    @ExceptionHandler(SysExceptionLogNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleSysExceptionLogNotFound(SysExceptionLogNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("message", ex.getMessage()));
+    }
+
     @ExceptionHandler(ImportFormatException.class)
     public ResponseEntity<Map<String, String>> handleImportFormat(ImportFormatException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
@@ -141,8 +161,9 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler({IllegalArgumentException.class, BusinessException.class})
     public ResponseEntity<Map<String, String>> handleBusiness(RuntimeException ex) {
+        String message = ex.getMessage() == null ? "请求无效" : ex.getMessage();
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(Map.of("message", ex.getMessage()));
+                .body(Map.of("message", message));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -150,7 +171,33 @@ public class GlobalExceptionHandler {
         String message = ex.getBindingResult().getFieldErrors().stream()
                 .map(FieldError::getDefaultMessage)
                 .collect(Collectors.joining("；"));
+        if (message.isBlank()) {
+            message = "请求参数无效";
+        }
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(Map.of("message", message));
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<Map<String, String>> handleUnexpected(
+            Exception ex,
+            HttpServletRequest request,
+            HttpServletResponse response
+    ) {
+        String requestId = resolveRequestId(request);
+        response.setHeader(RequestContextFilter.REQUEST_ID_HEADER, requestId);
+        String path = RequestPathSanitizer.sanitize(request.getRequestURI());
+        log.error("Unhandled exception requestId={} method={} path={}", requestId, request.getMethod(), path, ex);
+        sysExceptionLogService.recordBackendException(ex, request, HttpStatus.INTERNAL_SERVER_ERROR.value());
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiErrorBody.internalError(requestId, path).toResponseMap());
+    }
+
+    private String resolveRequestId(HttpServletRequest request) {
+        String requestId = RequestContext.getRequestId();
+        if (requestId != null && !requestId.isBlank()) {
+            return requestId;
+        }
+        return RequestIdGenerator.normalize(request.getHeader(RequestContextFilter.REQUEST_ID_HEADER));
     }
 }
