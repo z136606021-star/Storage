@@ -133,7 +133,6 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public AuthSessionVO register(RegisterRequestDTO request) {
         IdentityTextValidation.requireNoWhitespace(request.getUsername(), "账号");
-        IdentityTextValidation.requireNoWhitespace(request.getDisplayName(), "显示名称");
 
         String username = request.getUsername().trim();
         String displayName = request.getDisplayName().trim();

@@ -241,7 +241,7 @@ npm run dev
 - 登录态改密 API：`PUT /api/auth/password`（原密码）、`POST /api/auth/password/verification-code`（发码）、`PUT /api/auth/password/by-verification-code`（验码改密）；验证码仅发往当前用户绑定邮箱，默认 6 位、10 分钟有效、60 秒发送冷却
 - 登录态个人信息 API：`PUT /api/auth/me/phone`（当前用户维护手机号，可选、最大 32 字符，留空清除）
 - 支持开放注册，新用户默认 `USER` 角色（仅物料台账只读）；注册账号 3-32 字符、密码至少 6 位；**注册必须先向邮箱发送验证码并校验通过**（`POST /api/auth/register/verification-code` 为公开入口，无需登录）；**一个邮箱只能绑定一个账号**
-- 登录支持 **账号或邮箱 + 密码**；**账号（NTID）禁止包含空格或空白字符**；注册时的显示名称仍禁止空白
+- 登录支持 **账号或邮箱 + 密码**；**账号（NTID）禁止包含空格或空白字符**；注册时的显示名称允许英文名中间空格（如 `Zixuan Zhu`），入库前会去除首尾空格
 - 个人中心向本人展示 **完整绑定邮箱**（不再脱敏）
 - 注册支持可选邮箱；**用户与客户邮箱统一保存为小写**（写入时 trim + lowercase；已有 MySQL 卷由 Flyway `V024` 自动归一化历史数据）；**忘记密码仅凭绑定邮箱**申请邮件一次性链接，链接默认 30 分钟有效，后端统一错误提示并限流（同一邮箱 15 分钟最多 5 次失败）
 - 邮件配置通过 `.env` 预留：`APP_PUBLIC_BASE_URL`、`PASSWORD_RESET_TOKEN_TTL_MINUTES`、`MAIL_HOST`、`MAIL_PORT`、`MAIL_USERNAME`、`MAIL_PASSWORD`、`MAIL_FROM`、`MAIL_SMTP_AUTH`、`MAIL_SMTP_STARTTLS_ENABLE`；SMTP 支持认证 Gmail（默认 `smtp.gmail.com:587` + STARTTLS，`MAIL_PASSWORD` 使用 Google 应用专用密码）或匿名内网中继。捷普匿名中继示例：`MAIL_HOST=corimc04.corp.jabil.org`、`MAIL_PORT=25`、`MAIL_USERNAME=`、`MAIL_PASSWORD=`、`MAIL_SMTP_AUTH=false`、`MAIL_SMTP_STARTTLS_ENABLE=false`，并设置 `MAIL_FROM=HUA Machining Center<HMC@Jabil.com>`；用户名和密码保持为空时仍会通过 `MAIL_FROM` 作为发件人尝试中继发送

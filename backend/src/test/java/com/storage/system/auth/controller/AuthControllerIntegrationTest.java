@@ -501,6 +501,28 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
+    void register_withEnglishDisplayName_preservesInternalSpaceAndTrimsOuterWhitespace() throws Exception {
+        insertRegistrationCode("englishname@example.com", "123456");
+        RegisterRequestDTO request = buildRegisterRequest(
+                "englishname",
+                "  Zixuan Zhu  ",
+                "newpass123",
+                "englishname@example.com",
+                "123456"
+        );
+
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.user.displayName").value("Zixuan Zhu"));
+
+        SysUser user = sysUserMapper.selectByUsername("englishname");
+        assertThat(user).isNotNull();
+        assertThat(user.getDisplayName()).isEqualTo("Zixuan Zhu");
+    }
+
+    @Test
     void register_withDuplicateEmail_rejects() throws Exception {
         insertActiveUser("existingmail", "dupmail@example.com", "oldpass");
         insertRegistrationCode("dupmail@example.com", "123456");
