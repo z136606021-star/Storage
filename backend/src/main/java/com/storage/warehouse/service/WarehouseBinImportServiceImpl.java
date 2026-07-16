@@ -28,11 +28,22 @@ public class WarehouseBinImportServiceImpl implements WarehouseBinImportService 
 
     private WarehouseBinSaveDTO parseRow(WarehouseBinImportTemplateRow row) {
         WarehouseBinSaveDTO dto = new WarehouseBinSaveDTO();
-        dto.setRowNo(parsePositiveInt(row.getRowNo(), "排", true));
+        dto.setRowNo(parseRequiredRow(row.getRowNo()));
         dto.setColNo(parsePositiveInt(row.getColNo(), "列", false));
         dto.setLevelNo(parsePositiveInt(row.getLevelNo(), "层", false));
         dto.setRemark(row.getRemark());
         return dto;
+    }
+
+    private String parseRequiredRow(String value) {
+        if (!StringUtils.hasText(value)) {
+            throw new IllegalArgumentException("排不能为空");
+        }
+        String normalized = value.trim();
+        if (normalized.length() > 32) {
+            throw new IllegalArgumentException("排长度不能超过32");
+        }
+        return normalized;
     }
 
     private Integer parsePositiveInt(Integer value, String label, boolean required) {

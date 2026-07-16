@@ -4,6 +4,8 @@ import com.storage.common.dto.ImportResultVO;
 import com.storage.common.excel.ExcelCellUtils;
 import com.storage.warehouse.excel.WarehouseBinImportTemplateColumn;
 import com.storage.warehouse.mapper.WarehouseBinMapper;
+import com.storage.system.user.contract.OperatorInfo;
+import com.storage.system.user.contract.OperatorResolver;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -14,11 +16,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.boot.test.mock.mockito.MockBean;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.List;
+import java.util.Map;
 
+import static com.storage.common.excel.ExcelTemplateTestSupport.fillTemplateRows;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.when;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -33,33 +40,50 @@ class WarehouseBinImportServiceIntegrationTest {
     @Autowired
     private WarehouseBinMapper warehouseBinMapper;
 
+    @MockBean
+    private OperatorResolver operatorResolver;
+
     @BeforeEach
     void setUp() {
         warehouseBinMapper.delete(null);
+        OperatorInfo operator = new OperatorInfo();
+        operator.setId(1L);
+        operator.setUsername("tester");
+        when(operatorResolver.requireCurrentOperator()).thenReturn(operator);
     }
 
     @Test
     void import_createsRowOnlyAndRowColBins() throws IOException {
-        MockMultipartFile file = buildImportFile(
-                new String[] { "排", "列", "层", "备注" },
-                new Object[] { 3, null, null, "仅排" },
-                new Object[] { 4, 5, null, "排+列" }
+        MockMultipartFile file = fillTemplateRows(
+                warehouseBinService.exportTemplate(),
+                "bins.xlsx",
+                List.of(
+                        Map.of(
+                                WarehouseBinImportTemplateColumn.ROW_NO.getIndex(), "铁柜",
+                                WarehouseBinImportTemplateColumn.REMARK.getIndex(), "仅排"
+                        ),
+                        Map.of(
+                                WarehouseBinImportTemplateColumn.ROW_NO.getIndex(), "A",
+                                WarehouseBinImportTemplateColumn.COL_NO.getIndex(), 5,
+                                WarehouseBinImportTemplateColumn.REMARK.getIndex(), "排+列"
+                        )
+                )
         );
 
         ImportResultVO result = warehouseBinImportService.importExcel(file);
 
         assertThat(result.getSuccessCount()).isEqualTo(2);
         assertThat(result.getFailCount()).isZero();
-        assertThat(warehouseBinService.listAllCodes()).containsExactlyInAnyOrder("3", "4-5");
+        assertThat(warehouseBinService.listAllCodes()).containsExactlyInAnyOrder("铁柜", "A-5");
     }
 
     @Test
     void import_duplicateRowOnlyReportsFailure() throws IOException {
-        warehouseBinService.create(binDto(7, null, null));
+        warehouseBinService.create(binDto("铁柜", null, null));
 
         MockMultipartFile file = buildImportFile(
                 new String[] { "排", "列", "层", "备注" },
-                new Object[] { 7, null, null, "重复" }
+                new Object[] { "铁柜", null, null, "重复" }
         );
 
         ImportResultVO result = warehouseBinImportService.importExcel(file);
@@ -84,7 +108,7 @@ class WarehouseBinImportServiceIntegrationTest {
         }
     }
 
-    private com.storage.warehouse.dto.WarehouseBinSaveDTO binDto(Integer row, Integer col, Integer level) {
+    private com.storage.warehouse.dto.WarehouseBinSaveDTO binDto(String row, Integer col, Integer level) {
         com.storage.warehouse.dto.WarehouseBinSaveDTO dto = new com.storage.warehouse.dto.WarehouseBinSaveDTO();
         dto.setRowNo(row);
         dto.setColNo(col);

@@ -43,7 +43,6 @@ const defaultForm = (): WarehouseBomSavePayload => ({
   genericName: '',
   brand: null,
   name: '',
-  model: null,
   remark: null,
   imageObjectKeys: [],
 })
@@ -104,7 +103,6 @@ watch(
         genericName: props.record.genericName,
         brand: props.record.brand,
         name: props.record.name,
-        model: props.record.model,
         remark: props.record.remark,
         imageObjectKeys: props.record.imageObjectKeys ?? [],
       })
@@ -141,7 +139,6 @@ async function handleSubmit() {
     genericName: formState.genericName.trim(),
     brand: formState.brand?.trim() || null,
     name: formState.name.trim(),
-    model: formState.model?.trim() || null,
     remark: formState.remark?.trim() || null,
     imageObjectKeys,
     imageObjectKey: imageObjectKeys[0] ?? null,
@@ -188,9 +185,6 @@ async function handleSubmit() {
       </a-form-item>
       <a-form-item label="名称" name="name" required>
         <a-input v-model:value="formState.name" placeholder="请输入名称" allow-clear />
-      </a-form-item>
-      <a-form-item label="规格" name="model">
-        <a-input v-model:value="formState.model" placeholder="请输入规格（选填）" allow-clear />
       </a-form-item>
       <a-form-item label="备注" name="remark">
         <a-textarea

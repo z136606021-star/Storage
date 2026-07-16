@@ -21,7 +21,7 @@ const formRef = ref<FormInstance>()
 const submitting = ref(false)
 
 const defaultForm = (): WarehouseBinSavePayload => ({
-  rowNo: 1,
+  rowNo: '',
   colNo: null,
   levelNo: null,
   remark: null,
@@ -65,7 +65,7 @@ function handleCancel() {
 
 function buildPayload(): WarehouseBinSavePayload {
   return {
-    rowNo: formState.rowNo,
+    rowNo: formState.rowNo.trim(),
     colNo: normalizeBinCoordinate(formState.colNo),
     levelNo: normalizeBinCoordinate(formState.levelNo),
     remark: formState.remark,
@@ -119,13 +119,12 @@ async function handleSubmit() {
       <a-form-item label="Bin位编号">
         <a-input :value="previewBinCode || '自动带出'" disabled />
       </a-form-item>
-      <a-form-item label="排" name="rowNo" required>
-        <a-input-number
+      <a-form-item label="排" name="rowNo">
+        <a-input
           v-model:value="formState.rowNo"
-          :min="1"
-          :precision="0"
-          placeholder="例：1"
-          style="width: 100%"
+          :maxlength="32"
+          placeholder="例：铁柜"
+          allow-clear
         />
       </a-form-item>
       <a-form-item label="列" name="colNo">

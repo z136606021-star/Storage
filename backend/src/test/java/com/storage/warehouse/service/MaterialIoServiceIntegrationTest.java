@@ -85,7 +85,6 @@ class MaterialIoServiceIntegrationTest {
         bom.setGenericName("测试物料");
         bom.setBrand("品牌A");
         bom.setName("测试品");
-        bom.setModel("T-001");
         warehouseBomMapper.insert(bom);
         bomId = bom.getId();
 
@@ -372,6 +371,19 @@ class MaterialIoServiceIntegrationTest {
     }
 
     @Test
+    void batchInbound_modelIsOptionalAndStoredAsEmptyString() {
+        MaterialIoBatchSaveDTO batch = new MaterialIoBatchSaveDTO();
+        batch.setIoType("IN");
+        batch.setItems(List.of(inboundItem(bomId, "2-3-4", 2, null)));
+
+        var created = materialIoService.batchCreate(batch).get(0);
+
+        MaterialLedger createdLedger = materialLedgerMapper.selectById(created.getMaterialLedgerId());
+        assertThat(createdLedger.getModel()).isEmpty();
+        assertThat(createdLedger.getStockQuantity()).isEqualTo(2);
+    }
+
+    @Test
     void batchInbound_unknownBin_rejects() {
         MaterialIoBatchSaveDTO batch = new MaterialIoBatchSaveDTO();
         batch.setIoType("IN");
@@ -503,7 +515,7 @@ class MaterialIoServiceIntegrationTest {
     private void insertBin(String binCode, int rowNo, int colNo, int levelNo) {
         WarehouseBin bin = new WarehouseBin();
         bin.setBinCode(binCode);
-        bin.setRowNo(rowNo);
+        bin.setRowNo(String.valueOf(rowNo));
         bin.setColNo(colNo);
         bin.setLevelNo(levelNo);
         warehouseBinMapper.insert(bin);
@@ -533,9 +545,14 @@ class MaterialIoServiceIntegrationTest {
     }
 
     private MaterialIoBatchItemDTO inboundItem(Long bomId, String binLocation, int quantity) {
+        return inboundItem(bomId, binLocation, quantity, "T-001");
+    }
+
+    private MaterialIoBatchItemDTO inboundItem(Long bomId, String binLocation, int quantity, String model) {
         MaterialIoBatchItemDTO item = new MaterialIoBatchItemDTO();
         item.setBomId(bomId);
         item.setBinLocation(binLocation);
+        item.setModel(model);
         item.setQuantity(quantity);
         return item;
     }

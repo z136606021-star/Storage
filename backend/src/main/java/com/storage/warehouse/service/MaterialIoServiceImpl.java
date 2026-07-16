@@ -298,7 +298,7 @@ public class MaterialIoServiceImpl extends ServiceImpl<MaterialIoRecordMapper, M
             throw new BusinessException("Bin位不存在: " + binLocation);
         }
 
-        String model = resolveBomModel(bom);
+        String model = StringUtils.hasText(item.getModel()) ? item.getModel().trim() : "";
         MaterialLedger existing = materialLedgerMapper.selectOne(MaterialLedgerQueryBuilder.byNaturalKey(
                 bom.getCategory(),
                 bom.getGenericName(),
@@ -345,10 +345,6 @@ public class MaterialIoServiceImpl extends ServiceImpl<MaterialIoRecordMapper, M
         if (ledgerIds.size() != new HashSet<>(ledgerIds).size()) {
             throw new BusinessException("同一批次不能包含重复物料");
         }
-    }
-
-    private String resolveBomModel(WarehouseBom bom) {
-        return StringUtils.hasText(bom.getModel()) ? bom.getModel().trim() : bom.getName().trim();
     }
 
     private BigDecimal resolveUnitPrice(BigDecimal requested, MaterialLedger ledger) {

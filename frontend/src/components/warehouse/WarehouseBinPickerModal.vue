@@ -23,7 +23,7 @@ const dataSource = ref<WarehouseBin[]>([])
 const selectedRowKeys = ref<number[]>([])
 const queryForm = reactive<{
   binCode: string
-  rowNo?: number
+  rowNo?: string
   colNo?: number
   levelNo?: number
 }>({
@@ -56,7 +56,7 @@ const rowSelection = computed(() => ({
 function buildQueryParams() {
   return {
     binCode: queryForm.binCode.trim() || undefined,
-    rowNo: queryForm.rowNo,
+    rowNo: queryForm.rowNo?.trim() || undefined,
     colNo: queryForm.colNo,
     levelNo: queryForm.levelNo,
     page: pagination.current,
@@ -163,7 +163,7 @@ watch(
         </a-col>
         <a-col :xs="8" :sm="6" :md="4">
           <a-form-item label="排" class="filter-item">
-            <a-input-number v-model:value="queryForm.rowNo" :min="1" :precision="0" style="width: 100%" />
+            <a-input v-model:value="queryForm.rowNo" allow-clear />
           </a-form-item>
         </a-col>
         <a-col :xs="8" :sm="6" :md="4">

@@ -7,7 +7,7 @@ import org.jeecgframework.poi.excel.annotation.Excel;
 public class WarehouseBinImportTemplateRow {
 
     @Excel(name = "排", orderNum = "0")
-    private Integer rowNo;
+    private String rowNo;
 
     @Excel(name = "列", orderNum = "1")
     private Integer colNo;

@@ -50,7 +50,7 @@ class MaterialLedgerServiceIntegrationTest {
 
         WarehouseBin bin = new WarehouseBin();
         bin.setBinCode("1-1-1");
-        bin.setRowNo(1);
+        bin.setRowNo("1");
         bin.setColNo(1);
         bin.setLevelNo(1);
         warehouseBinMapper.insert(bin);
@@ -68,7 +68,6 @@ class MaterialLedgerServiceIntegrationTest {
         bom.setGenericName("测试统称");
         bom.setBrand("品牌A");
         bom.setName(name);
-        bom.setModel("M-001");
         warehouseBomMapper.insert(bom);
     }
 

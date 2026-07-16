@@ -32,10 +32,6 @@ public final class WarehouseBomQueryBuilder {
         if (StringUtils.hasText(query.getName())) {
             wrapper.like(WarehouseBom::getName, query.getName().trim());
         }
-        if (StringUtils.hasText(query.getModel())) {
-            wrapper.like(WarehouseBom::getModel, query.getModel().trim());
-        }
-
         wrapper.orderByDesc(WarehouseBom::getUpdatedAt, WarehouseBom::getId);
         return wrapper;
     }

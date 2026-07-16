@@ -1,7 +1,7 @@
 export interface WarehouseBin {
   id: number
   binCode: string
-  rowNo: number
+  rowNo: string
   colNo: number | null
   levelNo: number | null
   remark: string | null
@@ -13,7 +13,7 @@ export interface WarehouseBin {
 
 export interface WarehouseBinQuery {
   binCode?: string
-  rowNo?: number
+  rowNo?: string
   colNo?: number
   levelNo?: number
   page?: number
@@ -21,7 +21,7 @@ export interface WarehouseBinQuery {
 }
 
 export interface WarehouseBinSavePayload {
-  rowNo: number
+  rowNo: string
   colNo?: number | null
   levelNo?: number | null
   remark?: string | null

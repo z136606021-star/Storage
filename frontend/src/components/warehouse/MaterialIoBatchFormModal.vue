@@ -271,12 +271,24 @@ function handleLedgerSelect(material: MaterialLedger) {
   pickingRowKey.value = null
 }
 
-function hasInboundDuplicate(row: MaterialIoFormRow, bomId: number, binLocation?: string) {
+function normalizeModel(model?: string | null) {
+  return model?.trim() ?? ''
+}
+
+function hasInboundDuplicate(
+  row: MaterialIoFormRow,
+  bomId: number,
+  binLocation?: string,
+  model = row.model,
+) {
   if (!binLocation) {
     return false
   }
   return rows.value.some(
-    (item) => item.key !== row.key && item.bomId === bomId && item.binLocation === binLocation,
+    (item) => item.key !== row.key
+      && item.bomId === bomId
+      && item.binLocation === binLocation
+      && normalizeModel(item.model) === normalizeModel(model),
   )
 }
 
@@ -298,7 +310,7 @@ function handleBomSelect(material: WarehouseBom) {
   row.genericName = material.genericName
   row.brand = material.brand
   row.name = material.name
-  row.model = material.model
+  row.model = ''
   row.stockQuantity = undefined
   pickingRowKey.value = null
 }
@@ -359,6 +371,7 @@ async function submitPayload() {
               ...base,
               bomId: row.bomId!,
               binLocation: row.binLocation!,
+              model: row.model?.trim() || null,
             }
           }
           return {
@@ -475,6 +488,15 @@ watch(ioType, (newType, oldType) => {
       <template #bodyCell="{ column, record, index }">
         <template v-if="column.key === 'index'">
           {{ index + 1 }}
+        </template>
+        <template v-else-if="column.key === 'model' && !isEdit && ioType === 'IN'">
+          <a-input
+            v-model:value="record.model"
+            :maxlength="64"
+            allow-clear
+            placeholder="选填"
+            @click="stopCellInputPropagation"
+          />
         </template>
         <template v-else-if="IDENTITY_KEYS.includes(column.key as typeof IDENTITY_KEYS[number])">
           <div

@@ -74,7 +74,7 @@ public class MaterialLedgerServiceImpl extends ServiceImpl<MaterialLedgerMapper,
     public MaterialLedger create(MaterialSaveDTO dto) {
         warehouseBinService.assertBinExists(dto.getBinLocation());
         warehouseBomService.assertCatalogExists(
-                dto.getCategory(), dto.getGenericName(), dto.getBrand(), dto.getName(), dto.getModel());
+                dto.getCategory(), dto.getGenericName(), dto.getBrand(), dto.getName());
         MaterialLedger entity = materialLedgerConverter.toNewEntity(dto);
         save(entity);
         return entity;

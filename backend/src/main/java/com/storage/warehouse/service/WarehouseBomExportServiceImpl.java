@@ -3,6 +3,7 @@ package com.storage.warehouse.service;
 import com.storage.common.excel.AutoPoiExcelTemplate;
 import com.storage.warehouse.entity.WarehouseBom;
 import com.storage.warehouse.excel.WarehouseBomExportRow;
+import com.storage.warehouse.excel.WarehouseBomImportTemplateRow;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -17,7 +18,7 @@ public class WarehouseBomExportServiceImpl implements WarehouseBomExportService 
     }
 
     public byte[] exportTemplate() throws IOException {
-        return exportWorkbook(List.of());
+        return AutoPoiExcelTemplate.exportBytes("物料清单", WarehouseBomImportTemplateRow.class, List.of());
     }
 
     private byte[] exportWorkbook(List<WarehouseBom> records) throws IOException {
@@ -30,7 +31,6 @@ public class WarehouseBomExportServiceImpl implements WarehouseBomExportService 
             row.setGenericName(record.getGenericName());
             row.setBrand(record.getBrand());
             row.setName(record.getName());
-            row.setModel(record.getModel());
             row.setRemark(record.getRemark());
             rows.add(row);
         }

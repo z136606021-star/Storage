@@ -3,6 +3,7 @@ package com.storage.warehouse.service;
 import com.storage.common.excel.ExcelCellUtils;
 import com.storage.warehouse.entity.WarehouseBom;
 import com.storage.warehouse.excel.WarehouseBomExcelColumn;
+import com.storage.warehouse.excel.WarehouseBomImportTemplateColumn;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -26,7 +27,6 @@ class WarehouseBomExportServiceTest {
         bom.setGenericName("电阻");
         bom.setBrand("YAGEO");
         bom.setName("贴片电阻");
-        bom.setModel("RC0603");
         bom.setRemark("常用料");
 
         byte[] bytes = exportService.export(List.of(bom));
@@ -52,8 +52,6 @@ class WarehouseBomExportServiceTest {
                     .isEqualTo("YAGEO");
             assertThat(ExcelCellUtils.getCellString(dataRow, WarehouseBomExcelColumn.NAME.getIndex()))
                     .isEqualTo("贴片电阻");
-            assertThat(ExcelCellUtils.getCellString(dataRow, WarehouseBomExcelColumn.MODEL.getIndex()))
-                    .isEqualTo("RC0603");
             assertThat(ExcelCellUtils.getCellString(dataRow, WarehouseBomExcelColumn.REMARK.getIndex()))
                     .isEqualTo("常用料");
         }
@@ -66,7 +64,11 @@ class WarehouseBomExportServiceTest {
         try (Workbook workbook = WorkbookFactory.create(new ByteArrayInputStream(bytes))) {
             Sheet sheet = workbook.getSheetAt(0);
             assertThat(sheet.getSheetName()).isEqualTo("物料清单");
-            assertThat(sheet.getRow(0)).isNotNull();
+            Row headerRow = sheet.getRow(0);
+            String[] headers = WarehouseBomImportTemplateColumn.headers();
+            for (int i = 0; i < headers.length; i++) {
+                assertThat(ExcelCellUtils.getCellString(headerRow, i)).isEqualTo(headers[i]);
+            }
             assertThat(sheet.getRow(1)).isNull();
         }
     }

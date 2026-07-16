@@ -24,7 +24,7 @@ class WarehouseBinExportServiceTest {
     void export_writesExpectedSheetHeadersAndValues() throws IOException {
         WarehouseBin bin = new WarehouseBin();
         bin.setBinCode("A-01-01");
-        bin.setRowNo(1);
+        bin.setRowNo("1");
         bin.setColNo(2);
         bin.setLevelNo(3);
         bin.setRemark("近门口");

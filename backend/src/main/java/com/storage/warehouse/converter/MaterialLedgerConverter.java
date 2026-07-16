@@ -19,7 +19,7 @@ public interface MaterialLedgerConverter {
     @Mapping(target = "genericName", source = "genericName", qualifiedByName = "trim")
     @Mapping(target = "brand", source = "brand", qualifiedByName = "trimToEmpty")
     @Mapping(target = "name", source = "name", qualifiedByName = "trim")
-    @Mapping(target = "model", source = "model", qualifiedByName = "trim")
+    @Mapping(target = "model", source = "model", qualifiedByName = "trimToEmpty")
     @Mapping(target = "binLocation", source = "binLocation", qualifiedByName = "trim")
     @Mapping(target = "remark", source = "remark", qualifiedByName = "trimToNull")
     MaterialLedger toEntity(MaterialSaveDTO dto);

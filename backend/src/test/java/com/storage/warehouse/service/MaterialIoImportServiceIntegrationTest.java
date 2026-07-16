@@ -30,7 +30,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
+import static com.storage.common.excel.ExcelTemplateTestSupport.fillTemplate;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
@@ -42,6 +44,9 @@ class MaterialIoImportServiceIntegrationTest {
 
     @Autowired
     private MaterialIoImportService materialIoImportService;
+
+    @Autowired
+    private MaterialIoExportService materialIoExportService;
 
     @Autowired
     private MaterialLedgerMapper materialLedgerMapper;
@@ -78,12 +83,11 @@ class MaterialIoImportServiceIntegrationTest {
         bom.setGenericName("测试物料");
         bom.setBrand("品牌A");
         bom.setName("测试品");
-        bom.setModel("T-001");
         warehouseBomMapper.insert(bom);
 
         WarehouseBin bin = new WarehouseBin();
         bin.setBinCode("1-1-1");
-        bin.setRowNo(1);
+        bin.setRowNo("1");
         bin.setColNo(1);
         bin.setLevelNo(1);
         warehouseBinMapper.insert(bin);
@@ -104,9 +108,21 @@ class MaterialIoImportServiceIntegrationTest {
 
     @Test
     void importExcel_validRow_success() throws IOException {
-        List<String[]> rows = new ArrayList<>();
-        rows.add(ioRow("耗材", "测试物料", "品牌A", "测试品", "T-001", "1-1-1", "5", "", "入库"));
-        MockMultipartFile file = createImportTemplateExcel(rows);
+        MockMultipartFile file = fillTemplate(
+                materialIoExportService.exportImportTemplate(),
+                "material-io.xlsx",
+                Map.of(
+                        MaterialIoImportTemplateColumn.INDEX.getIndex(), "1",
+                        MaterialIoImportTemplateColumn.CATEGORY.getIndex(), "耗材",
+                        MaterialIoImportTemplateColumn.GENERIC_NAME.getIndex(), "测试物料",
+                        MaterialIoImportTemplateColumn.BRAND.getIndex(), "品牌A",
+                        MaterialIoImportTemplateColumn.NAME.getIndex(), "测试品",
+                        MaterialIoImportTemplateColumn.MODEL.getIndex(), "T-001",
+                        MaterialIoImportTemplateColumn.BIN_LOCATION.getIndex(), "1-1-1",
+                        MaterialIoImportTemplateColumn.QUANTITY.getIndex(), "5",
+                        MaterialIoImportTemplateColumn.IO_TYPE.getIndex(), "入库"
+                )
+        );
 
         ImportResultVO result = materialIoImportService.importExcel(file);
 
@@ -131,6 +147,25 @@ class MaterialIoImportServiceIntegrationTest {
         assertThat(ledgers).hasSize(1);
         assertThat(ledgers.get(0).getStockQuantity()).isEqualTo(5);
         assertThat(materialIoRecordMapper.selectCount(null)).isEqualTo(1);
+    }
+
+    @Test
+    void importExcel_inboundModelIsOptional() throws IOException {
+        materialIoRecordMapper.delete(null);
+        materialLedgerMapper.delete(null);
+
+        List<String[]> rows = new ArrayList<>();
+        rows.add(ioRow("耗材", "测试物料", "品牌A", "测试品", "", "1-1-1", "5", "", "入库"));
+        MockMultipartFile file = createImportTemplateExcel(rows);
+
+        ImportResultVO result = materialIoImportService.importExcel(file);
+
+        assertThat(result.getSuccessCount()).isEqualTo(1);
+        assertThat(result.getFailCount()).isZero();
+        assertThat(materialLedgerMapper.selectList(null)).singleElement().satisfies(record -> {
+            assertThat(record.getModel()).isEmpty();
+            assertThat(record.getStockQuantity()).isEqualTo(5);
+        });
     }
 
     @Test

@@ -19,6 +19,9 @@ public class MaterialIoBatchItemDTO {
     @Size(max = 32, message = "Bin位长度不能超过32")
     private String binLocation;
 
+    @Size(max = 64, message = "型号长度不能超过64")
+    private String model;
+
     @NotNull(message = "数量不能为空")
     @Min(value = 1, message = "数量必须大于 0")
     private Integer quantity;

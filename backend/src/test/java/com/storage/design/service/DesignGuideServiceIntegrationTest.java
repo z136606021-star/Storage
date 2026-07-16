@@ -23,7 +23,9 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.io.ByteArrayOutputStream;
+import java.util.Map;
 
+import static com.storage.common.excel.ExcelTemplateTestSupport.fillTemplate;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
@@ -124,6 +126,34 @@ class DesignGuideServiceIntegrationTest {
         assertThat(result.getFailCount()).isEqualTo(1);
         assertThat(result.getErrors()).hasSize(1);
         assertThat(result.getErrors().get(0).getMessage()).contains("未找到启用的产品类型");
+    }
+
+    @Test
+    void downloadedTemplate_canBeFilledAndImported() throws Exception {
+        productTypeService.create(productTypeDto("A01", "机器人", true));
+        stageService.create(stageDto(1, "设计", true));
+        MockMultipartFile file = fillTemplate(
+                designGuideService.exportTemplate(),
+                "design-guides.xlsx",
+                Map.of(
+                        0, "A01",
+                        1, "机器人",
+                        2, "设计",
+                        3, "Common",
+                        4, "线缆位置确认",
+                        5, "模板回填"
+                )
+        );
+
+        var result = designGuideService.importExcel(file);
+
+        assertThat(result.getSuccessCount()).isEqualTo(1);
+        assertThat(result.getFailCount()).isZero();
+        assertThat(designGuideMapper.selectList(null)).singleElement().satisfies(record -> {
+            assertThat(record.getProductTypeCode()).isEqualTo("A01");
+            assertThat(record.getStageName()).isEqualTo("设计");
+            assertThat(record.getCheckItem()).isEqualTo("线缆位置确认");
+        });
     }
 
     private DesignProductTypeSaveDTO productTypeDto(String code, String name, boolean enabled) {

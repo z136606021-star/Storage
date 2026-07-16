@@ -22,7 +22,9 @@ import org.springframework.test.context.ActiveProfiles;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
+import static com.storage.common.excel.ExcelTemplateTestSupport.fillTemplate;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -129,21 +131,29 @@ class ExperienceRecordServiceIntegrationTest {
 
     @Test
     void importExcel_withValidRow_succeeds() throws Exception {
-        ExperienceExportRow row = new ExperienceExportRow();
-        row.setTypeName("客户需求变更");
-        row.setDescription("导入经验描述");
-        row.setRecorderName("导入人");
-        byte[] content = AutoPoiExcelTemplate.exportBytes("经验库", ExperienceExportRow.class, new ArrayList<>(List.of(row)));
-
-        var result = experienceRecordImportService.importExcel(new MockMultipartFile(
-                "file",
+        MockMultipartFile file = fillTemplate(
+                experienceRecordService.exportTemplate(),
                 "experience.xlsx",
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                content
-        ));
+                Map.of(
+                        1, "客户需求变更",
+                        2, "导入经验描述",
+                        3, "影响交付",
+                        4, "提前评审",
+                        5, "建立变更流程",
+                        6, "项目A；项目B",
+                        7, "导入人",
+                        8, "2026-07-16 09:30:00"
+                )
+        );
+
+        var result = experienceRecordImportService.importExcel(file);
 
         assertThat(result.getSuccessCount()).isEqualTo(1);
         assertThat(result.getFailCount()).isZero();
+        assertThat(experienceRecordMapper.selectList(null)).singleElement().satisfies(record -> {
+            assertThat(record.getDescription()).isEqualTo("导入经验描述");
+            assertThat(record.getRecorderName()).isEqualTo("导入人");
+        });
     }
 
     @Test

@@ -213,7 +213,7 @@ CREATE TABLE experience_attachment (
 CREATE TABLE warehouse_bin (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     bin_code VARCHAR(32) NOT NULL,
-    row_no INT NOT NULL,
+    row_no VARCHAR(32) NOT NULL,
     col_no INT NULL,
     level_no INT NULL,
     remark VARCHAR(255) NULL,
@@ -231,7 +231,6 @@ CREATE TABLE warehouse_bom (
     generic_name VARCHAR(64) NOT NULL,
     brand VARCHAR(64) NULL,
     name VARCHAR(128) NOT NULL,
-    model VARCHAR(64) NULL,
     remark VARCHAR(999) NULL,
     image_object_key VARCHAR(512) NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

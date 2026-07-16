@@ -17,6 +17,7 @@ public interface WarehouseBinConverter {
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "binCode", source = "binCode")
+    @Mapping(target = "rowNo", source = "dto.rowNo", qualifiedByName = "trim")
     @Mapping(target = "remark", source = "dto.remark", qualifiedByName = "trimToNull")
     WarehouseBin toNewEntity(WarehouseBinSaveDTO dto, String binCode);
 

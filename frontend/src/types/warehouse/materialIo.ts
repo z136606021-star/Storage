@@ -49,6 +49,7 @@ export interface MaterialIoBatchItemPayload {
   materialLedgerId?: number
   bomId?: number
   binLocation?: string
+  model?: string | null
   quantity: number
   unitPrice?: number | null
   remark?: string | null

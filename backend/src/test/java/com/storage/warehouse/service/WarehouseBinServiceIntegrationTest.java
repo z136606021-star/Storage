@@ -45,31 +45,32 @@ class WarehouseBinServiceIntegrationTest {
 
     @Test
     void create_generatesFullBinCode() {
-        WarehouseBin created = warehouseBinService.create(binDto(1, 2, 3));
+        WarehouseBin created = warehouseBinService.create(binDto("A", 2, 3));
 
-        assertThat(created.getBinCode()).isEqualTo("1-2-3");
+        assertThat(created.getBinCode()).isEqualTo("A-2-3");
     }
 
     @Test
     void create_generatesRowOnlyBinCode() {
-        WarehouseBin created = warehouseBinService.create(binDto(5, null, null));
+        WarehouseBin created = warehouseBinService.create(binDto("  铁柜  ", null, null));
 
-        assertThat(created.getBinCode()).isEqualTo("5");
+        assertThat(created.getBinCode()).isEqualTo("铁柜");
+        assertThat(created.getRowNo()).isEqualTo("铁柜");
         assertThat(created.getColNo()).isNull();
         assertThat(created.getLevelNo()).isNull();
     }
 
     @Test
     void create_generatesRowColBinCode() {
-        WarehouseBin created = warehouseBinService.create(binDto(2, 4, null));
+        WarehouseBin created = warehouseBinService.create(binDto("B", 4, null));
 
-        assertThat(created.getBinCode()).isEqualTo("2-4");
+        assertThat(created.getBinCode()).isEqualTo("B-4");
         assertThat(created.getLevelNo()).isNull();
     }
 
     @Test
     void create_rejectsLevelWithoutColumn() {
-        WarehouseBinSaveDTO dto = binDto(1, null, 2);
+        WarehouseBinSaveDTO dto = binDto("A", null, 2);
 
         assertThatThrownBy(() -> warehouseBinService.create(dto))
                 .isInstanceOf(BusinessException.class)
@@ -78,16 +79,16 @@ class WarehouseBinServiceIntegrationTest {
 
     @Test
     void duplicateBinCode_rejects() {
-        warehouseBinService.create(binDto(1, null, null));
+        warehouseBinService.create(binDto("A", null, null));
 
-        assertThatThrownBy(() -> warehouseBinService.create(binDto(1, null, null)))
+        assertThatThrownBy(() -> warehouseBinService.create(binDto("A", null, null)))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("Bin位编号已存在");
     }
 
     @Test
     void create_recordsOperator() {
-        WarehouseBin created = warehouseBinService.create(binDto(1, null, null));
+        WarehouseBin created = warehouseBinService.create(binDto("A", null, null));
 
         assertThat(created.getOperatorUserId()).isEqualTo(1L);
         assertThat(created.getOperatorName()).isEqualTo("tester");
@@ -96,14 +97,14 @@ class WarehouseBinServiceIntegrationTest {
 
     @Test
     void update_recordsOperator() {
-        WarehouseBin created = warehouseBinService.create(binDto(1, null, null));
+        WarehouseBin created = warehouseBinService.create(binDto("A", null, null));
 
         OperatorInfo updater = new OperatorInfo();
         updater.setId(1L);
         updater.setUsername("editor");
         when(operatorResolver.requireCurrentOperator()).thenReturn(updater);
 
-        WarehouseBinSaveDTO dto = binDto(1, null, null);
+        WarehouseBinSaveDTO dto = binDto("A", null, null);
         dto.setRemark("updated");
 
         WarehouseBin updated = warehouseBinService.update(created.getId(), dto);
@@ -115,8 +116,8 @@ class WarehouseBinServiceIntegrationTest {
 
     @Test
     void page_sortsByUpdatedAtDescThenIdDesc() {
-        warehouseBinService.create(binDto(1, null, null));
-        WarehouseBin newer = warehouseBinService.create(binDto(2, null, null));
+        warehouseBinService.create(binDto("A", null, null));
+        WarehouseBin newer = warehouseBinService.create(binDto("B", null, null));
 
         newer.setUpdatedAt(java.time.LocalDateTime.now().plusMinutes(5));
         warehouseBinMapper.updateById(newer);
@@ -125,14 +126,14 @@ class WarehouseBinServiceIntegrationTest {
         List<WarehouseBin> records = page.getRecords();
 
         assertThat(records).hasSize(2);
-        assertThat(records.get(0).getBinCode()).isEqualTo("2");
-        assertThat(records.get(1).getBinCode()).isEqualTo("1");
+        assertThat(records.get(0).getBinCode()).isEqualTo("B");
+        assertThat(records.get(1).getBinCode()).isEqualTo("A");
     }
 
     @Test
     void page_tieBreaksEqualUpdatedAtByIdDesc() {
-        WarehouseBin first = warehouseBinService.create(binDto(1, null, null));
-        WarehouseBin second = warehouseBinService.create(binDto(2, null, null));
+        WarehouseBin first = warehouseBinService.create(binDto("A", null, null));
+        WarehouseBin second = warehouseBinService.create(binDto("B", null, null));
 
         java.time.LocalDateTime sameTime = java.time.LocalDateTime.now();
         first.setUpdatedAt(sameTime);
@@ -150,7 +151,7 @@ class WarehouseBinServiceIntegrationTest {
     @Test
     void page_returnsPaginationMetadata() {
         for (int i = 1; i <= 12; i++) {
-            warehouseBinService.create(binDto(i, null, null));
+            warehouseBinService.create(binDto(String.valueOf(i), null, null));
         }
 
         WarehouseBinQueryDTO query = new WarehouseBinQueryDTO();
@@ -167,31 +168,31 @@ class WarehouseBinServiceIntegrationTest {
 
     @Test
     void listByIds_returnsOnlySelectedRecords() {
-        WarehouseBin first = warehouseBinService.create(binDto(1, null, null));
-        warehouseBinService.create(binDto(2, null, null));
+        WarehouseBin first = warehouseBinService.create(binDto("A", null, null));
+        warehouseBinService.create(binDto("B", null, null));
 
         WarehouseBinQueryDTO query = new WarehouseBinQueryDTO();
         query.setIds(List.of(first.getId()));
 
         assertThat(warehouseBinService.listByQuery(query))
                 .extracting(WarehouseBin::getBinCode)
-                .containsExactly("1");
+                .containsExactly("A");
     }
 
     @Test
     void page_filtersByBinCodeKeyword() {
-        warehouseBinService.create(binDto(1, 2, null));
-        warehouseBinService.create(binDto(9, null, null));
+        warehouseBinService.create(binDto("A", 2, null));
+        warehouseBinService.create(binDto("Z", null, null));
 
         WarehouseBinQueryDTO query = new WarehouseBinQueryDTO();
-        query.setBinCode("1-2");
+        query.setBinCode("A-2");
 
         assertThat(warehouseBinService.page(query).getRecords())
                 .extracting(WarehouseBin::getBinCode)
-                .containsExactly("1-2");
+                .containsExactly("A-2");
     }
 
-    private WarehouseBinSaveDTO binDto(Integer row, Integer col, Integer level) {
+    private WarehouseBinSaveDTO binDto(String row, Integer col, Integer level) {
         WarehouseBinSaveDTO dto = new WarehouseBinSaveDTO();
         dto.setRowNo(row);
         dto.setColNo(col);

@@ -1,25 +1,32 @@
 package com.storage.warehouse.service;
 
 import com.storage.common.exception.BusinessException;
+import org.springframework.util.StringUtils;
 
 public final class WarehouseBinCodeSupport {
 
     private WarehouseBinCodeSupport() {
     }
 
-    public static String buildBinCode(Integer rowNo, Integer colNo, Integer levelNo) {
+    public static String buildBinCode(String rowNo, Integer colNo, Integer levelNo) {
         validateCoordinateCombination(rowNo, colNo, levelNo);
+        String normalizedRow = rowNo.trim();
+        String binCode;
         if (hasPositive(levelNo)) {
-            return rowNo + "-" + colNo + "-" + levelNo;
+            binCode = normalizedRow + "-" + colNo + "-" + levelNo;
+        } else if (hasPositive(colNo)) {
+            binCode = normalizedRow + "-" + colNo;
+        } else {
+            binCode = normalizedRow;
         }
-        if (hasPositive(colNo)) {
-            return rowNo + "-" + colNo;
+        if (binCode.length() > 32) {
+            throw new BusinessException("Bin位编号长度不能超过32");
         }
-        return String.valueOf(rowNo);
+        return binCode;
     }
 
-    public static void validateCoordinateCombination(Integer rowNo, Integer colNo, Integer levelNo) {
-        if (!hasPositive(rowNo)) {
+    public static void validateCoordinateCombination(String rowNo, Integer colNo, Integer levelNo) {
+        if (!StringUtils.hasText(rowNo)) {
             throw new BusinessException("排不能为空");
         }
         if (hasPositive(levelNo) && !hasPositive(colNo)) {

@@ -24,9 +24,6 @@ public class WarehouseBomSaveDTO {
     @Size(max = 128, message = "名称长度不能超过128")
     private String name;
 
-    @Size(max = 64, message = "规格长度不能超过64")
-    private String model;
-
     @Size(max = 999, message = "备注长度不能超过999")
     private String remark;
 

@@ -2,18 +2,17 @@ package com.storage.warehouse.excel;
 
 import java.util.Arrays;
 
-public enum WarehouseBomExcelColumn {
-    INDEX(0, "序号"),
-    CATEGORY(1, "品类"),
-    GENERIC_NAME(2, "统称"),
-    BRAND(3, "品牌"),
-    NAME(4, "名称"),
-    REMARK(5, "备注");
+public enum WarehouseBomImportTemplateColumn {
+    CATEGORY(0, "品类"),
+    GENERIC_NAME(1, "统称"),
+    BRAND(2, "品牌"),
+    NAME(3, "名称"),
+    REMARK(4, "备注");
 
     private final int index;
     private final String header;
 
-    WarehouseBomExcelColumn(int index, String header) {
+    WarehouseBomImportTemplateColumn(int index, String header) {
         this.index = index;
         this.header = header;
     }
@@ -28,7 +27,7 @@ public enum WarehouseBomExcelColumn {
 
     public static String[] headers() {
         return Arrays.stream(values())
-                .map(WarehouseBomExcelColumn::getHeader)
+                .map(WarehouseBomImportTemplateColumn::getHeader)
                 .toArray(String[]::new);
     }
 }

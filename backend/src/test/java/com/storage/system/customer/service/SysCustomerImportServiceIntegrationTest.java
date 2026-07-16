@@ -18,7 +18,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
+import static com.storage.common.excel.ExcelTemplateTestSupport.fillTemplate;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
@@ -27,6 +29,9 @@ class SysCustomerImportServiceIntegrationTest {
 
     @Autowired
     private SysCustomerImportService sysCustomerImportService;
+
+    @Autowired
+    private SysCustomerService sysCustomerService;
 
     @Autowired
     private SysCustomerMapper sysCustomerMapper;
@@ -38,9 +43,18 @@ class SysCustomerImportServiceIntegrationTest {
 
     @Test
     void importExcel_validRow_success() throws IOException {
-        List<String[]> rows = new ArrayList<>();
-        rows.add(customerRow("CUST-IMP-1", "导入客户", "张三", "13800000000", "imp@example.com"));
-        MockMultipartFile file = createCustomerExcel(rows);
+        MockMultipartFile file = fillTemplate(
+                sysCustomerService.exportTemplate(),
+                "customers.xlsx",
+                Map.of(
+                        SysCustomerExcelColumn.CUSTOMER_CODE.getIndex(), "CUST-IMP-1",
+                        SysCustomerExcelColumn.NAME.getIndex(), "导入客户",
+                        SysCustomerExcelColumn.CONTACT_NAME.getIndex(), "张三",
+                        SysCustomerExcelColumn.PHONE.getIndex(), "13800000000",
+                        SysCustomerExcelColumn.EMAIL.getIndex(), "imp@example.com",
+                        SysCustomerExcelColumn.STATUS.getIndex(), "启用"
+                )
+        );
 
         ImportResultVO result = sysCustomerImportService.importExcel(file);
 

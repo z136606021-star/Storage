@@ -1,15 +1,16 @@
 package com.storage.warehouse.dto;
 
 import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 @Data
 public class WarehouseBinSaveDTO {
 
-    @NotNull(message = "排不能为空")
-    @Min(value = 1, message = "排必须为正整数")
-    private Integer rowNo;
+    @NotBlank(message = "排不能为空")
+    @Size(max = 32, message = "排长度不能超过32")
+    private String rowNo;
 
     @Min(value = 1, message = "列必须为正整数")
     private Integer colNo;

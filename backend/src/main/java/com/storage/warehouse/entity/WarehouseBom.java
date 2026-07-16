@@ -24,8 +24,6 @@ public class WarehouseBom {
 
     private String name;
 
-    private String model;
-
     private String remark;
 
     private String imageObjectKey;

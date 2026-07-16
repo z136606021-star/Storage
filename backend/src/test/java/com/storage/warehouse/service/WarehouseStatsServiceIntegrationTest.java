@@ -78,13 +78,12 @@ class WarehouseStatsServiceIntegrationTest {
         bom.setGenericName("????");
         bom.setBrand("??A");
         bom.setName("???");
-        bom.setModel("S-001");
         warehouseBomMapper.insert(bom);
         bomId = bom.getId();
 
         WarehouseBin bin = new WarehouseBin();
         bin.setBinCode("1-1-1");
-        bin.setRowNo(1);
+        bin.setRowNo("1");
         bin.setColNo(1);
         bin.setLevelNo(1);
         warehouseBinMapper.insert(bin);
@@ -159,6 +158,7 @@ class WarehouseStatsServiceIntegrationTest {
         MaterialIoBatchItemDTO item = new MaterialIoBatchItemDTO();
         item.setBomId(bomId);
         item.setBinLocation(binLocation);
+        item.setModel("S-001");
         item.setQuantity(quantity);
         return item;
     }

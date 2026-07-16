@@ -19,9 +19,9 @@ public interface WarehouseBomService extends IService<WarehouseBom> {
 
     WarehouseBom getById(Long id);
 
-    boolean existsByCatalogKey(String category, String genericName, String brand, String name, String model);
+    boolean existsByCatalogKey(String category, String genericName, String brand, String name);
 
-    void assertCatalogExists(String category, String genericName, String brand, String name, String model);
+    void assertCatalogExists(String category, String genericName, String brand, String name);
 
     List<BomCatalogItemVO> listCatalogSummaries();
 

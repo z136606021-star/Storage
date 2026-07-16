@@ -23,6 +23,7 @@ class FlywayMigrationHistoryTest {
     private static final String V024 = "db/migration/V024__normalize_email_lowercase.sql";
     private static final String V025 = "db/migration/V025__sys_user_email_unique.sql";
     private static final String V026 = "db/migration/V026__registration_verification_code.sql";
+    private static final String V028 = "db/migration/V028__warehouse_bin_text_row_and_bom_model_cleanup.sql";
 
     @Test
     void publishedBaselineMigration_keepsOriginalFlywayChecksum() {
@@ -114,6 +115,18 @@ class FlywayMigrationHistoryTest {
         assertThat(migrationSql).contains("registration_verification_code");
         assertThat(migrationSql).contains("email VARCHAR(128) NOT NULL");
         assertThat(migrationSql).contains("code_hash");
+    }
+
+    @Test
+    void warehouseConfigCleanupMigration_isGuardedAndPreservesBusinessRows() {
+        String migrationSql = readResource(V028);
+
+        assertThat(migrationSql).contains("INFORMATION_SCHEMA.COLUMNS");
+        assertThat(migrationSql).contains("MODIFY row_no VARCHAR(32) NOT NULL");
+        assertThat(migrationSql).contains("ALTER TABLE warehouse_bom DROP COLUMN model");
+        assertThat(migrationSql).doesNotContain("DELETE FROM warehouse_bin");
+        assertThat(migrationSql).doesNotContain("DELETE FROM warehouse_bom");
+        assertThat(migrationSql).doesNotContain("USE storage");
     }
 
     private static String readResource(String path) {

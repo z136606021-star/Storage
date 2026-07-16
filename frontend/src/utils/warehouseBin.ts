@@ -1,21 +1,22 @@
 export function buildBinCodePreview(
-  rowNo?: number | null,
+  rowNo?: string | null,
   colNo?: number | null,
   levelNo?: number | null,
 ): string {
-  if (rowNo == null || rowNo < 1) {
+  const normalizedRow = rowNo?.trim()
+  if (!normalizedRow) {
     return ''
   }
   if (levelNo != null && levelNo >= 1) {
     if (colNo == null || colNo < 1) {
       return ''
     }
-    return `${rowNo}-${colNo}-${levelNo}`
+    return `${normalizedRow}-${colNo}-${levelNo}`
   }
   if (colNo != null && colNo >= 1) {
-    return `${rowNo}-${colNo}`
+    return `${normalizedRow}-${colNo}`
   }
-  return String(rowNo)
+  return normalizedRow
 }
 
 export function normalizeBinCoordinate(value?: number | null): number | null | undefined {

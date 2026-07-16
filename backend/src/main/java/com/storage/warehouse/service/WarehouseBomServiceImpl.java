@@ -34,7 +34,6 @@ import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -70,30 +69,20 @@ public class WarehouseBomServiceImpl extends ServiceImpl<WarehouseBomMapper, War
     }
 
     @Override
-    public boolean existsByCatalogKey(String category, String genericName, String brand, String name, String model) {
+    public boolean existsByCatalogKey(String category, String genericName, String brand, String name) {
         if (!StringUtils.hasText(category)
                 || !StringUtils.hasText(genericName)
                 || !StringUtils.hasText(name)) {
             return false;
         }
-        WarehouseBom bom = findByNaturalKey(category, genericName, brand, name);
-        if (bom == null) {
-            return false;
-        }
-        if (!StringUtils.hasText(model)) {
-            return true;
-        }
-        return Objects.equals(normalizeModel(bom.getModel()), normalizeModel(model));
+        return findByNaturalKey(category, genericName, brand, name) != null;
     }
 
     @Override
-    public void assertCatalogExists(String category, String genericName, String brand, String name, String model) {
+    public void assertCatalogExists(String category, String genericName, String brand, String name) {
         WarehouseBom bom = findByNaturalKey(category, genericName, brand, name);
         if (bom == null) {
-            throw new BusinessException("物料清单中不存在: " + formatCatalogLabel(category, genericName, brand, name, model));
-        }
-        if (StringUtils.hasText(model) && !Objects.equals(normalizeModel(bom.getModel()), normalizeModel(model))) {
-            throw new BusinessException("物料清单规格不匹配: " + formatCatalogLabel(category, genericName, brand, name, model));
+            throw new BusinessException("物料清单中不存在: " + formatCatalogLabel(category, genericName, brand, name));
         }
     }
 
@@ -185,15 +174,13 @@ public class WarehouseBomServiceImpl extends ServiceImpl<WarehouseBomMapper, War
                 bom.getGenericName(),
                 bom.getBrand(),
                 bom.getName(),
-                bom.getModel(),
-                formatCatalogLabel(bom.getCategory(), bom.getGenericName(), bom.getBrand(), bom.getName(), bom.getModel())
+                formatCatalogLabel(bom.getCategory(), bom.getGenericName(), bom.getBrand(), bom.getName())
         );
     }
 
-    private String formatCatalogLabel(String category, String genericName, String brand, String name, String model) {
+    private String formatCatalogLabel(String category, String genericName, String brand, String name) {
         String brandPart = StringUtils.hasText(brand) ? brand.trim() : "—";
-        String modelPart = StringUtils.hasText(model) ? model.trim() : "—";
-        return category.trim() + " / " + genericName.trim() + " / " + brandPart + " / " + name.trim() + " / " + modelPart;
+        return category.trim() + " / " + genericName.trim() + " / " + brandPart + " / " + name.trim();
     }
 
     private WarehouseBom findByNaturalKey(String category, String genericName, String brand, String name) {
@@ -230,9 +217,6 @@ public class WarehouseBomServiceImpl extends ServiceImpl<WarehouseBomMapper, War
                 .eq(MaterialLedger::getGenericName, bom.getGenericName())
                 .eq(MaterialLedger::getName, bom.getName());
 
-        if (StringUtils.hasText(bom.getModel())) {
-            wrapper.eq(MaterialLedger::getModel, bom.getModel());
-        }
         if (StringUtils.hasText(bom.getBrand())) {
             wrapper.eq(MaterialLedger::getBrand, bom.getBrand());
         } else {
@@ -345,7 +329,4 @@ public class WarehouseBomServiceImpl extends ServiceImpl<WarehouseBomMapper, War
         }
     }
 
-    private String normalizeModel(String model) {
-        return StringUtils.hasText(model) ? model.trim() : "";
-    }
 }

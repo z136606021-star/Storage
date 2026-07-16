@@ -35,7 +35,6 @@ const defaultQuery = {
   genericName: undefined as string | undefined,
   brand: undefined as string | undefined,
   name: '',
-  model: '',
 }
 
 const queryForm = reactive({ ...defaultQuery })
@@ -62,7 +61,6 @@ function buildQueryParams() {
     genericName: optionValue(queryForm.genericName),
     brand: optionValue(queryForm.brand),
     name: queryForm.name.trim() || undefined,
-    model: queryForm.model.trim() || undefined,
   }
 }
 
@@ -153,7 +151,6 @@ const columns = [
   { title: '统称', dataIndex: 'genericName', key: 'genericName', width: 100, ellipsis: true },
   { title: '品牌', dataIndex: 'brand', key: 'brand', width: 80, ellipsis: true },
   { title: '名称', dataIndex: 'name', key: 'name', width: 140, ellipsis: true },
-  { title: '规格', dataIndex: 'model', key: 'model', width: 120, ellipsis: true },
   { title: '备注', dataIndex: 'remark', key: 'remark', ellipsis: true, minWidth: 100 },
   { title: '图片', key: 'image', width: 72, align: 'center' as const },
   { title: '更新日期', dataIndex: 'updatedAt', key: 'updatedAt', width: 170 },
@@ -314,17 +311,6 @@ onMounted(async () => {
               />
             </a-form-item>
           </a-col>
-          <a-col :xs="24" :sm="12" :md="8" :lg="6">
-            <a-form-item label="规格" class="filter-item">
-              <a-input
-                v-model:value="queryForm.model"
-                placeholder="关键字查找"
-                allow-clear
-                class="filter-control"
-                @press-enter="handleSearch"
-              />
-            </a-form-item>
-          </a-col>
         </a-row>
       </a-form>
     </template>
@@ -383,7 +369,6 @@ onMounted(async () => {
       <a-descriptions-item label="统称">{{ detailRecord.genericName }}</a-descriptions-item>
       <a-descriptions-item label="品牌">{{ displayValue(detailRecord.brand) }}</a-descriptions-item>
       <a-descriptions-item label="名称">{{ detailRecord.name }}</a-descriptions-item>
-      <a-descriptions-item label="规格">{{ displayValue(detailRecord.model) }}</a-descriptions-item>
       <a-descriptions-item label="备注">{{ displayValue(detailRecord.remark) }}</a-descriptions-item>
       <a-descriptions-item label="图片">
         <a-image-preview-group v-if="detailRecord.imageUrls?.length">

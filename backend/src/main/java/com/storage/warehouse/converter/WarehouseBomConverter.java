@@ -21,7 +21,6 @@ public interface WarehouseBomConverter {
     @Mapping(target = "genericName", source = "genericName", qualifiedByName = "trim")
     @Mapping(target = "brand", source = "brand", qualifiedByName = "trimToNull")
     @Mapping(target = "name", source = "name", qualifiedByName = "trim")
-    @Mapping(target = "model", source = "model", qualifiedByName = "trim")
     @Mapping(target = "remark", source = "remark", qualifiedByName = "trimToNull")
     @Mapping(target = "imageObjectKey", source = "imageObjectKey", qualifiedByName = "trimToNull")
     WarehouseBom toNewEntity(WarehouseBomSaveDTO dto);

@@ -107,7 +107,7 @@ public final class MaterialLedgerQueryBuilder {
     wrapper.eq(MaterialLedger::getCategory, category.trim())
         .eq(MaterialLedger::getGenericName, genericName.trim())
         .eq(MaterialLedger::getName, name.trim())
-        .eq(MaterialLedger::getModel, model.trim())
+        .eq(MaterialLedger::getModel, StringUtils.hasText(model) ? model.trim() : "")
         .eq(MaterialLedger::getBinLocation, binLocation.trim());
     if (StringUtils.hasText(brand)) {
       wrapper.eq(MaterialLedger::getBrand, brand.trim());

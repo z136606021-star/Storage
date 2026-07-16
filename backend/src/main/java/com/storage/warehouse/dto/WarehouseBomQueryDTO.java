@@ -15,8 +15,6 @@ public class WarehouseBomQueryDTO {
 
     private String name;
 
-    private String model;
-
     private List<Long> ids;
 
     private Integer page = 1;

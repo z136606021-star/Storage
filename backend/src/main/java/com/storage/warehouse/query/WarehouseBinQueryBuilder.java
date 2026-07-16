@@ -23,8 +23,8 @@ public final class WarehouseBinQueryBuilder {
             wrapper.like(WarehouseBin::getBinCode, query.getBinCode().trim());
         }
 
-        if (query.getRowNo() != null) {
-            wrapper.eq(WarehouseBin::getRowNo, query.getRowNo());
+        if (StringUtils.hasText(query.getRowNo())) {
+            wrapper.eq(WarehouseBin::getRowNo, query.getRowNo().trim());
         }
 
         if (query.getColNo() != null) {

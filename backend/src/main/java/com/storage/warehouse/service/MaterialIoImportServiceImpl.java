@@ -158,7 +158,7 @@ public class MaterialIoImportServiceImpl implements MaterialIoImportService {
     private void assertInboundConfigExists(MaterialIoSaveDTO dto) {
         warehouseBinService.assertBinExists(dto.getBinLocation());
         warehouseBomService.assertCatalogExists(
-                dto.getCategory(), dto.getGenericName(), dto.getBrand(), dto.getName(), dto.getModel());
+                dto.getCategory(), dto.getGenericName(), dto.getBrand(), dto.getName());
     }
 
     private MaterialLedger findLedger(MaterialIoSaveDTO dto) {
@@ -218,9 +218,6 @@ public class MaterialIoImportServiceImpl implements MaterialIoImportService {
         }
         if (!StringUtils.hasText(dto.getName())) {
             throw new IllegalArgumentException("名称不能为空");
-        }
-        if (!StringUtils.hasText(dto.getModel())) {
-            throw new IllegalArgumentException("型号不能为空");
         }
         if (!StringUtils.hasText(dto.getBinLocation())) {
             throw new IllegalArgumentException("Bin位不能为空");

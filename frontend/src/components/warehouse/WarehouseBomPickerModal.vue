@@ -26,7 +26,6 @@ const queryForm = reactive({
   genericName: '',
   brand: '',
   name: '',
-  model: '',
 })
 const pagination = reactive<TablePaginationConfig>({
   ...defaultTablePagination,
@@ -38,7 +37,6 @@ const columns = [
   { title: '统称', dataIndex: 'genericName', key: 'genericName', width: 100, ellipsis: true },
   { title: '品牌', dataIndex: 'brand', key: 'brand', width: 90, ellipsis: true },
   { title: '名称', dataIndex: 'name', key: 'name', width: 140, ellipsis: true },
-  { title: '规格', dataIndex: 'model', key: 'model', width: 120, ellipsis: true },
 ]
 
 const rowSelection = computed(() => ({
@@ -55,7 +53,6 @@ function buildQueryParams() {
     genericName: queryForm.genericName.trim() || undefined,
     brand: queryForm.brand.trim() || undefined,
     name: queryForm.name.trim() || undefined,
-    model: queryForm.model.trim() || undefined,
     page: pagination.current,
     pageSize: pagination.pageSize,
   }
@@ -89,7 +86,6 @@ function handleReset() {
     genericName: '',
     brand: '',
     name: '',
-    model: '',
   })
   handleSearch()
 }
@@ -172,11 +168,6 @@ watch(
         <a-col :xs="24" :sm="12" :md="8">
           <a-form-item label="名称" class="filter-item">
             <a-input v-model:value="queryForm.name" allow-clear @press-enter="handleSearch" />
-          </a-form-item>
-        </a-col>
-        <a-col :xs="24" :sm="12" :md="8">
-          <a-form-item label="规格" class="filter-item">
-            <a-input v-model:value="queryForm.model" allow-clear @press-enter="handleSearch" />
           </a-form-item>
         </a-col>
         <a-col :xs="24" :sm="12" :md="8" class="filter-actions-col">

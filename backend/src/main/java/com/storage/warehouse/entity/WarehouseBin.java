@@ -16,7 +16,7 @@ public class WarehouseBin {
 
     private String binCode;
 
-    private Integer rowNo;
+    private String rowNo;
 
     private Integer colNo;
 
