@@ -211,11 +211,12 @@ public class WarehouseBomServiceImpl extends ServiceImpl<WarehouseBomMapper, War
         return wrapper;
     }
 
-    private long countLedgerUsage(WarehouseBom bom) {
+    private long countPositiveStockLedgerUsage(WarehouseBom bom) {
         LambdaQueryWrapper<MaterialLedger> wrapper = Wrappers.<MaterialLedger>lambdaQuery()
                 .eq(MaterialLedger::getCategory, bom.getCategory())
                 .eq(MaterialLedger::getGenericName, bom.getGenericName())
-                .eq(MaterialLedger::getName, bom.getName());
+                .eq(MaterialLedger::getName, bom.getName())
+                .gt(MaterialLedger::getStockQuantity, 0);
 
         if (StringUtils.hasText(bom.getBrand())) {
             wrapper.eq(MaterialLedger::getBrand, bom.getBrand());
@@ -227,9 +228,9 @@ public class WarehouseBomServiceImpl extends ServiceImpl<WarehouseBomMapper, War
     }
 
     private void assertNotInUse(WarehouseBom bom) {
-        long count = countLedgerUsage(bom);
+        long count = countPositiveStockLedgerUsage(bom);
         if (count > 0) {
-            throw new BusinessException("该物料清单项已被 " + count + " 条物料台账引用，无法删除");
+            throw new BusinessException("该物料清单项仍有 " + count + " 条物料台账存在库存，无法删除");
         }
     }
 
