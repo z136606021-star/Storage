@@ -31,6 +31,8 @@ public interface WarehouseBomService extends IService<WarehouseBom> {
 
     void delete(Long id);
 
+    void purge(Long id);
+
     void batchDelete(BatchDeleteDTO dto);
 
     List<WarehouseBom> listByQuery(WarehouseBomQueryDTO query);

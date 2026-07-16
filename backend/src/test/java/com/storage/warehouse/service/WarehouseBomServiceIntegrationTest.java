@@ -6,6 +6,7 @@ import com.storage.warehouse.dto.WarehouseBomQueryDTO;
 import com.storage.warehouse.dto.WarehouseBomSaveDTO;
 import com.storage.warehouse.entity.MaterialIoRecord;
 import com.storage.warehouse.entity.MaterialLedger;
+import com.storage.warehouse.entity.SafetyStock;
 import com.storage.warehouse.entity.WarehouseBom;
 import com.storage.warehouse.mapper.MaterialIoRecordMapper;
 import com.storage.warehouse.mapper.MaterialLedgerMapper;
@@ -143,22 +144,22 @@ class WarehouseBomServiceIntegrationTest {
     }
 
     @Test
-    void delete_rejectsMatchingLedgerWithPositiveStock() {
+    void delete_rejectsAnyMatchingLedger() {
         WarehouseBom bom = warehouseBomService.create(baseDto());
-        MaterialLedger ledger = insertMatchingLedger(1);
+        MaterialLedger ledger = insertMatchingLedger(0);
 
         assertThatThrownBy(() -> warehouseBomService.delete(bom.getId()))
                 .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("物料台账存在库存");
+                .hasMessageContaining("物料台账引用");
 
         assertThat(warehouseBomMapper.selectById(bom.getId())).isNotNull();
         assertThat(materialLedgerMapper.selectById(ledger.getId())).isNotNull();
     }
 
     @Test
-    void delete_allowsZeroStockAndPreservesLedgerAndIoHistory() {
+    void purge_removesBomLedgerIoHistoryAndSafetyStock() {
         WarehouseBom bom = warehouseBomService.create(baseDto());
-        MaterialLedger ledger = insertMatchingLedger(0);
+        MaterialLedger ledger = insertMatchingLedger(1);
         MaterialIoRecord ioRecord = new MaterialIoRecord();
         ioRecord.setMaterialLedgerId(ledger.getId());
         ioRecord.setIoType("IN");
@@ -166,12 +167,18 @@ class WarehouseBomServiceIntegrationTest {
         ioRecord.setOperatorUserId(1L);
         ioRecord.setOperatedAt(LocalDateTime.now());
         materialIoRecordMapper.insert(ioRecord);
+        SafetyStock safetyStock = new SafetyStock();
+        safetyStock.setMaterialLedgerId(ledger.getId());
+        safetyStock.setSafetyQuantity(10);
+        safetyStock.setWarningEnabled(true);
+        safetyStockMapper.insert(safetyStock);
 
-        warehouseBomService.delete(bom.getId());
+        warehouseBomService.purge(bom.getId());
 
         assertThat(warehouseBomMapper.selectById(bom.getId())).isNull();
-        assertThat(materialLedgerMapper.selectById(ledger.getId())).isNotNull();
-        assertThat(materialIoRecordMapper.selectById(ioRecord.getId())).isNotNull();
+        assertThat(materialLedgerMapper.selectById(ledger.getId())).isNull();
+        assertThat(materialIoRecordMapper.selectById(ioRecord.getId())).isNull();
+        assertThat(safetyStockMapper.selectById(safetyStock.getId())).isNull();
     }
 
     private MaterialLedger insertMatchingLedger(int stockQuantity) {

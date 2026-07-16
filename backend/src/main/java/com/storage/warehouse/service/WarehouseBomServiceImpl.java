@@ -14,11 +14,15 @@ import com.storage.warehouse.dto.BomFilterOptionsVO;
 import com.storage.warehouse.dto.FilterLinkageQueryDTO;
 import com.storage.warehouse.dto.WarehouseBomQueryDTO;
 import com.storage.warehouse.dto.WarehouseBomSaveDTO;
+import com.storage.warehouse.entity.MaterialIoRecord;
 import com.storage.warehouse.entity.MaterialLedger;
+import com.storage.warehouse.entity.SafetyStock;
 import com.storage.warehouse.entity.WarehouseBom;
 import com.storage.warehouse.entity.WarehouseBomImage;
 import com.storage.warehouse.exception.WarehouseBomNotFoundException;
+import com.storage.warehouse.mapper.MaterialIoRecordMapper;
 import com.storage.warehouse.mapper.MaterialLedgerMapper;
+import com.storage.warehouse.mapper.SafetyStockMapper;
 import com.storage.warehouse.mapper.WarehouseBomImageMapper;
 import com.storage.warehouse.mapper.WarehouseBomMapper;
 import com.storage.warehouse.query.WarehouseBomQueryBuilder;
@@ -43,6 +47,8 @@ public class WarehouseBomServiceImpl extends ServiceImpl<WarehouseBomMapper, War
         implements WarehouseBomService {
 
     private final MaterialLedgerMapper materialLedgerMapper;
+    private final MaterialIoRecordMapper materialIoRecordMapper;
+    private final SafetyStockMapper safetyStockMapper;
     private final WarehouseBomImageMapper warehouseBomImageMapper;
     private final WarehouseBomConverter warehouseBomConverter;
     private final WarehouseBomExportService warehouseBomExportService;
@@ -128,9 +134,25 @@ public class WarehouseBomServiceImpl extends ServiceImpl<WarehouseBomMapper, War
     public void delete(Long id) {
         WarehouseBom existing = getById(id);
         assertNotInUse(existing);
-        warehouseBomImageMapper.delete(Wrappers.<WarehouseBomImage>lambdaQuery()
-                .eq(WarehouseBomImage::getBomId, id));
-        removeById(id);
+        deleteBom(existing.getId());
+    }
+
+    @Override
+    @Transactional
+    public void purge(Long id) {
+        WarehouseBom existing = getById(id);
+        List<Long> ledgerIds = materialLedgerMapper.selectList(buildLedgerUsageQuery(existing)).stream()
+                .map(MaterialLedger::getId)
+                .toList();
+
+        if (!ledgerIds.isEmpty()) {
+            safetyStockMapper.delete(Wrappers.<SafetyStock>lambdaQuery()
+                    .in(SafetyStock::getMaterialLedgerId, ledgerIds));
+            materialIoRecordMapper.delete(Wrappers.<MaterialIoRecord>lambdaQuery()
+                    .in(MaterialIoRecord::getMaterialLedgerId, ledgerIds));
+            materialLedgerMapper.deleteBatchIds(ledgerIds);
+        }
+        deleteBom(existing.getId());
     }
 
     @Override
@@ -211,12 +233,11 @@ public class WarehouseBomServiceImpl extends ServiceImpl<WarehouseBomMapper, War
         return wrapper;
     }
 
-    private long countPositiveStockLedgerUsage(WarehouseBom bom) {
+    private LambdaQueryWrapper<MaterialLedger> buildLedgerUsageQuery(WarehouseBom bom) {
         LambdaQueryWrapper<MaterialLedger> wrapper = Wrappers.<MaterialLedger>lambdaQuery()
                 .eq(MaterialLedger::getCategory, bom.getCategory())
                 .eq(MaterialLedger::getGenericName, bom.getGenericName())
-                .eq(MaterialLedger::getName, bom.getName())
-                .gt(MaterialLedger::getStockQuantity, 0);
+                .eq(MaterialLedger::getName, bom.getName());
 
         if (StringUtils.hasText(bom.getBrand())) {
             wrapper.eq(MaterialLedger::getBrand, bom.getBrand());
@@ -224,14 +245,20 @@ public class WarehouseBomServiceImpl extends ServiceImpl<WarehouseBomMapper, War
             wrapper.and(w -> w.isNull(MaterialLedger::getBrand).or().eq(MaterialLedger::getBrand, ""));
         }
 
-        return materialLedgerMapper.selectCount(wrapper);
+        return wrapper;
     }
 
     private void assertNotInUse(WarehouseBom bom) {
-        long count = countPositiveStockLedgerUsage(bom);
+        long count = materialLedgerMapper.selectCount(buildLedgerUsageQuery(bom));
         if (count > 0) {
-            throw new BusinessException("该物料清单项仍有 " + count + " 条物料台账存在库存，无法删除");
+            throw new BusinessException("该物料清单项已被 " + count + " 条物料台账引用，无法删除");
         }
+    }
+
+    private void deleteBom(Long id) {
+        warehouseBomImageMapper.delete(Wrappers.<WarehouseBomImage>lambdaQuery()
+                .eq(WarehouseBomImage::getBomId, id));
+        removeById(id);
     }
 
     private List<String> distinctValues(

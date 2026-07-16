@@ -51,6 +51,10 @@ export async function deleteWarehouseBom(id: number): Promise<void> {
   await http.delete(`/warehouse-boms/${id}`)
 }
 
+export async function purgeWarehouseBom(id: number): Promise<void> {
+  await http.delete(`/warehouse-boms/${id}/purge`)
+}
+
 export async function batchDeleteWarehouseBoms(ids: number[]): Promise<void> {
   await http.delete('/warehouse-boms/batch', { data: { ids } })
 }

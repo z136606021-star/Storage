@@ -12,6 +12,7 @@ import {
   fetchWarehouseBomDetail,
   fetchWarehouseBomPage,
   importWarehouseBoms,
+  purgeWarehouseBom,
 } from '@/api/warehouse/warehouseBom'
 import CrudDetailDrawer from '@/components/common/CrudDetailDrawer.vue'
 import CrudListPage from '@/components/common/CrudListPage.vue'
@@ -22,6 +23,7 @@ import { useExcelImportExport } from '@/composables/useExcelImportExport'
 import { useLinkedFilterOptions } from '@/composables/useLinkedFilterOptions'
 import { usePaginatedCrudList } from '@/composables/usePaginatedCrudList'
 import { useWritePermission } from '@/composables/useWritePermission'
+import { useAuth } from '@/composables/useAuth'
 import type { WarehouseBom } from '@/types/warehouse/warehouseBom'
 import { confirmBatchDelete, confirmDelete } from '@/utils/confirmDelete'
 import { displayValue, formatDateTime } from '@/utils/format'
@@ -29,6 +31,8 @@ import { getTableRowIndex } from '@/utils/tableIndex'
 import { toSelectOptions } from '@/utils/selectOptions'
 
 const { canWrite } = useWritePermission('warehouse:bom:write')
+const { session } = useAuth()
+const isAdmin = computed(() => session.value?.roles.includes('ADMIN') ?? false)
 
 const defaultQuery = {
   category: undefined as string | undefined,
@@ -154,7 +158,7 @@ const columns = [
   { title: '备注', dataIndex: 'remark', key: 'remark', ellipsis: true, minWidth: 100 },
   { title: '图片', key: 'image', width: 72, align: 'center' as const },
   { title: '更新日期', dataIndex: 'updatedAt', key: 'updatedAt', width: 170 },
-  { title: '操作', key: 'action', width: 160, align: 'center' as const, fixed: 'right' as const },
+  { title: '操作', key: 'action', width: 200, align: 'center' as const, fixed: 'right' as const },
 ]
 
 function handleCreate() {
@@ -184,6 +188,21 @@ function handleDelete(record: WarehouseBom) {
     onDelete: async () => {
       await deleteWarehouseBom(record.id)
     },
+    onSuccess: async () => {
+      removeFromSelection(record.id)
+      await refreshAll()
+    },
+  })
+}
+
+function handlePurge(record: WarehouseBom) {
+  confirmDelete({
+    title: '管理员清理测试物料',
+    content: `将永久删除“${record.name}”及其安全库存配置、全部出入库流水和物料台账。此操作不可恢复。`,
+    okText: '彻底清理',
+    successMessage: '测试物料已清理',
+    errorMessage: '清理测试物料失败',
+    onDelete: () => purgeWarehouseBom(record.id),
     onSuccess: async () => {
       removeFromSelection(record.id)
       await refreshAll()
@@ -344,12 +363,24 @@ onMounted(async () => {
         {{ formatDateTime(record.updatedAt) }}
       </template>
       <template v-else-if="column.key === 'action'">
-        <CrudRowActions
-          :can-write="canWrite"
-          @view="openDetail(record)"
-          @edit="handleEdit(record)"
-          @delete="handleDelete(record)"
-        />
+        <a-space :size="0">
+          <CrudRowActions
+            :can-write="canWrite"
+            @view="openDetail(record)"
+            @edit="handleEdit(record)"
+            @delete="handleDelete(record)"
+          />
+          <a-button
+            v-if="isAdmin"
+            type="link"
+            size="small"
+            danger
+            class="action-link"
+            @click="handlePurge(record)"
+          >
+            清理
+          </a-button>
+        </a-space>
       </template>
     </template>
   </CrudListPage>

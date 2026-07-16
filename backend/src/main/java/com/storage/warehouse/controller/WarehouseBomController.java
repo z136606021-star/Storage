@@ -14,6 +14,7 @@ import com.storage.warehouse.service.WarehouseBomService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.apache.shiro.authz.annotation.RequiresPermissions;
+import org.apache.shiro.authz.annotation.RequiresRoles;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -93,6 +94,12 @@ public class WarehouseBomController {
     @RequiresPermissions("warehouse:bom:write")
     public void delete(@PathVariable Long id) {
         warehouseBomService.delete(id);
+    }
+
+    @DeleteMapping("/{id}/purge")
+    @RequiresRoles("ADMIN")
+    public void purge(@PathVariable Long id) {
+        warehouseBomService.purge(id);
     }
 
     @GetMapping("/{id}")
