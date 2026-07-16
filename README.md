@@ -183,6 +183,8 @@ docker compose --env-file .env -f docker-compose.yml up -d
 - `UPLOAD_MAX_REQUEST_SIZE_BYTES`：Spring、业务上传策略和 Nginx 共用的单请求上限。
 - `EXCEPTION_LOG_*`：异常日志保留期与字段截断上限。
 
+后端容器固定使用 `Asia/Shanghai` 时区，确保 `LocalDateTime` 业务时间与页面显示一致。修改后端镜像配置后需显式重新构建并重启后端容器。
+
 `.env` 不入库。连接串、密码、SMTP 密码和 JWT 密钥不得写入 Java、TypeScript、Vue 或已跟踪文档。
 
 本地 dev 固定使用 `storage-*` 容器以及 MySQL `3307`、MinIO `9000/9001`。多个 worktree 共用这套固定端口，不应并行启动冲突环境。

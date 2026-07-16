@@ -127,7 +127,8 @@ class MaterialIoExportServiceTest {
                 assertThat(ExcelCellUtils.getCellString(headerRow, i)).isEqualTo(templateHeaders[i]);
             }
             assertThat(Arrays.asList(templateHeaders)).doesNotContain("操作人");
-            assertThat(Arrays.asList(templateHeaders)).contains("单价", "用途", "项目编号", "物料类型");
+            assertThat(Arrays.asList(templateHeaders)).contains("单价", "用途", "项目编号", "操作类型");
+            assertThat(Arrays.asList(templateHeaders)).doesNotContain("物料类型");
         }
     }
 }

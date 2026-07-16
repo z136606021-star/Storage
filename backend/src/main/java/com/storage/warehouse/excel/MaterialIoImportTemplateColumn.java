@@ -18,7 +18,7 @@ public enum MaterialIoImportTemplateColumn {
     REMARK(9, "备注"),
     PURPOSE(10, "用途"),
     PROJECT_REF(11, "项目编号"),
-    IO_TYPE(12, "物料类型"),
+    IO_TYPE(12, "操作类型"),
     OPERATED_AT(13, "操作时间");
 
     private final int index;

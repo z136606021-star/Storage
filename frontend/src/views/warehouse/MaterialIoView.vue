@@ -172,7 +172,7 @@ const columns = [
   { title: '单价', dataIndex: 'unitPrice', key: 'unitPrice', width: 88, align: 'right' as const },
   { title: '项目编号', dataIndex: 'projectRef', key: 'projectRef', width: 100, ellipsis: true },
   { title: '备注', dataIndex: 'remark', key: 'remark', width: 140, ellipsis: true },
-  { title: '物料类型', dataIndex: 'ioType', key: 'ioType', width: 88, align: 'center' as const },
+  { title: '操作类型', dataIndex: 'ioType', key: 'ioType', width: 88, align: 'center' as const },
   { title: '操作人', dataIndex: 'operatorDisplayName', key: 'operator', width: 100, ellipsis: true },
   { title: '时间', dataIndex: 'operatedAt', key: 'operatedAt', width: 168 },
   { title: '操作', key: 'action', width: 160, align: 'center' as const, fixed: 'right' as const },

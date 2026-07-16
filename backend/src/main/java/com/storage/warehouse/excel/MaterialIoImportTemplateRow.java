@@ -45,7 +45,7 @@ public class MaterialIoImportTemplateRow {
     @Excel(name = "项目编号", orderNum = "11")
     private String projectRef;
 
-    @Excel(name = "物料类型", orderNum = "12")
+    @Excel(name = "操作类型", orderNum = "12")
     private String ioType;
 
     @Excel(name = "操作时间", orderNum = "13")

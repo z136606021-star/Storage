@@ -45,7 +45,7 @@ const IO_TYPE_OPTIONS = [
   >
     <template #first-row-trailing>
       <div class="filter-grid-cell">
-        <a-form-item label="物料类型" class="filter-item">
+        <a-form-item label="操作类型" class="filter-item">
           <a-select
             v-model:value="queryForm.ioType"
             :options="IO_TYPE_OPTIONS"

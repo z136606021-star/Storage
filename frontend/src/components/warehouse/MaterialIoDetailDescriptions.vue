@@ -35,7 +35,7 @@ async function handleCopyLink(record: MaterialIoRecord) {
 
 <template>
   <a-descriptions title="出入库信息" :column="1" bordered size="small" class="detail-block">
-    <a-descriptions-item label="物料类型">
+    <a-descriptions-item label="操作类型">
       <a-tag :color="getIoTypeTagColor(record.ioType)">
         {{ formatIoTypeLabel(record.ioType) }}
       </a-tag>

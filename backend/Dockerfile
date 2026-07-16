@@ -8,6 +8,7 @@ COPY backend/src ./src
 RUN mvn -q -DskipTests package
 
 FROM eclipse-temurin:17-jre
+ENV TZ=Asia/Shanghai
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
