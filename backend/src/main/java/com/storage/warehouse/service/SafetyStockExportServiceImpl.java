@@ -23,10 +23,10 @@ public class SafetyStockExportServiceImpl implements SafetyStockExportService {
             row.setGenericName(record.getGenericName());
             row.setBrand(record.getBrand());
             row.setName(record.getName());
-            row.setModel(record.getModel());
             row.setBinLocation(record.getBinLocation());
             row.setStockQuantity(record.getStockQuantity());
             row.setSafetyQuantity(record.getSafetyQuantity());
+            row.setRemark(record.getRemark());
             row.setWarningPeriod(
                     SafetyStockWarningStatus.formatWarningPeriod(Boolean.TRUE.equals(record.getInWarningPeriod()))
             );
@@ -51,12 +51,11 @@ public class SafetyStockExportServiceImpl implements SafetyStockExportService {
             row.setGenericName(record.getGenericName());
             row.setBrand(record.getBrand());
             row.setName(record.getName());
-            row.setModel(record.getModel());
             row.setBinLocation(record.getBinLocation());
             row.setStockQuantity(record.getStockQuantity());
             row.setSafetyQuantity(record.getSafetyQuantity());
             row.setSuggestedPurchaseQuantity(suggestedQuantity);
-            row.setRemark("库存低于安全库存，请采购补足");
+            row.setRemark(record.getRemark());
             rows.add(row);
         }
 

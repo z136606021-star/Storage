@@ -8,6 +8,7 @@ export interface SafetyStockRecord {
   brand?: string | null
   name: string
   model: string
+  remark?: string | null
   binLocation: string
   stockQuantity: number
   safetyQuantity: number

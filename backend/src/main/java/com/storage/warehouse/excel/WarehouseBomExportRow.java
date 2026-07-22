@@ -12,13 +12,13 @@ public class WarehouseBomExportRow {
     @Excel(name = "品类", orderNum = "1")
     private String category;
 
-    @Excel(name = "统称", orderNum = "2")
+    @Excel(name = "名称", orderNum = "2")
     private String genericName;
 
     @Excel(name = "品牌", orderNum = "3")
     private String brand;
 
-    @Excel(name = "名称", orderNum = "4")
+    @Excel(name = "型号", orderNum = "4")
     private String name;
 
     @Excel(name = "备注", orderNum = "5")

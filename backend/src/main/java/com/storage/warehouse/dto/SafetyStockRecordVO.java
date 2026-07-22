@@ -21,6 +21,8 @@ public class SafetyStockRecordVO {
 
     private String model;
 
+    private String remark;
+
     private String binLocation;
 
     private Integer stockQuantity;

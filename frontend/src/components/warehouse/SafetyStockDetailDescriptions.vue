@@ -45,6 +45,9 @@ function formatWarningPeriod(inWarningPeriod: boolean) {
 
 <template>
   <a-descriptions title="库存预警" :column="1" bordered size="small" class="detail-block">
+    <a-descriptions-item label="备注">
+      {{ displayValue(record.remark) }}
+    </a-descriptions-item>
     <a-descriptions-item label="库存总数">
       {{ displayValue(record.stockQuantity) }}
     </a-descriptions-item>

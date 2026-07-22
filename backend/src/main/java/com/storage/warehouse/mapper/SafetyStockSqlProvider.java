@@ -29,6 +29,7 @@ public class SafetyStockSqlProvider {
                     ml.brand,
                     ml.name,
                     ml.model,
+                    ml.remark,
                     ml.bin_location,
                     ml.stock_quantity,
                     COALESCE(ss.safety_quantity, 0) AS safety_quantity,

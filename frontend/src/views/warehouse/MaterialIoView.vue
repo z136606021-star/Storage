@@ -194,9 +194,6 @@ function handleCreateWithType(type: IoType) {
   formOpen.value = true
 }
 
-function handleCreateMenuClick({ key }: { key: string }) {
-  handleCreateWithType(key === 'OUT' ? 'OUT' : 'IN')
-}
 
 function handleEdit(record: MaterialIoRecord) {
   editingRecord.value = record
@@ -315,19 +312,16 @@ setupIoRouteWatch()
         @clear="clearMaterialLedgerFilter"
         @create="handleCreateWithType"
       />
-      <a-dropdown v-if="canWrite">
-        <a-button type="primary" class="btn-add-io">
+      <a-space v-if="canWrite" :size="8">
+        <a-button type="primary" class="btn-add-io btn-add-in" @click="handleCreateWithType('IN')">
           <template #icon><PlusOutlined /></template>
-          新增
-          <DownOutlined />
+          新增入库
         </a-button>
-        <template #overlay>
-          <a-menu @click="handleCreateMenuClick">
-            <a-menu-item key="IN">新增入库</a-menu-item>
-            <a-menu-item key="OUT">新增出库</a-menu-item>
-          </a-menu>
-        </template>
-      </a-dropdown>
+        <a-button class="btn-add-io btn-add-out" @click="handleCreateWithType('OUT')">
+          <template #icon><PlusOutlined /></template>
+          新增出库
+        </a-button>
+      </a-space>
     </template>
 
     <template #toolbarAppend>
@@ -432,8 +426,14 @@ setupIoRouteWatch()
 @import '@/styles/variables.less';
 @import '@/styles/mixins.less';
 
-.btn-add-io {
+.btn-add-in {
   .btn-success-primary();
+}
+
+.btn-add-out {
+  color: #ad6800;
+  border-color: #d89614;
+  background: #fffbe6;
 }
 
 :deep(.io-row-highlight) td {
