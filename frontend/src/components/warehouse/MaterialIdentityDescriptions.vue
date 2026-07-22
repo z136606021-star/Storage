@@ -18,17 +18,14 @@ defineProps<{
     <a-descriptions-item label="品类">
       {{ displayValue(record.category) }}
     </a-descriptions-item>
-    <a-descriptions-item label="统称">
+    <a-descriptions-item label="名称">
       {{ displayValue(record.genericName) }}
     </a-descriptions-item>
     <a-descriptions-item label="品牌">
       {{ displayValue(record.brand) }}
     </a-descriptions-item>
-    <a-descriptions-item label="名称">
-      {{ displayValue(record.name) }}
-    </a-descriptions-item>
     <a-descriptions-item label="型号">
-      {{ displayValue(record.model) }}
+      {{ displayValue(record.name) }}
     </a-descriptions-item>
     <a-descriptions-item label="Bin位">
       {{ displayValue(record.binLocation) }}

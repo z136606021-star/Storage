@@ -14,42 +14,39 @@ public class MaterialIoExportRow {
     @Excel(name = "品类", orderNum = "1")
     private String category;
 
-    @Excel(name = "统称", orderNum = "2")
+    @Excel(name = "名称", orderNum = "2")
     private String genericName;
 
     @Excel(name = "品牌", orderNum = "3")
     private String brand;
 
-    @Excel(name = "名称", orderNum = "4")
+    @Excel(name = "型号", orderNum = "4")
     private String name;
 
-    @Excel(name = "型号", orderNum = "5")
-    private String model;
-
-    @Excel(name = "Bin位", orderNum = "6")
+    @Excel(name = "Bin位", orderNum = "5")
     private String binLocation;
 
-    @Excel(name = "数量", orderNum = "7")
+    @Excel(name = "数量", orderNum = "6")
     private Integer quantity;
 
-    @Excel(name = "单价", orderNum = "8")
+    @Excel(name = "单价", orderNum = "7")
     private BigDecimal unitPrice;
 
-    @Excel(name = "备注", orderNum = "9")
+    @Excel(name = "备注", orderNum = "8")
     private String remark;
 
-    @Excel(name = "用途", orderNum = "10")
+    @Excel(name = "用途", orderNum = "9")
     private String purpose;
 
-    @Excel(name = "项目编号", orderNum = "11")
+    @Excel(name = "项目编号", orderNum = "10")
     private String projectRef;
 
-    @Excel(name = "操作类型", orderNum = "12")
+    @Excel(name = "操作类型", orderNum = "11")
     private String ioType;
 
-    @Excel(name = "操作人", orderNum = "13")
+    @Excel(name = "操作人", orderNum = "12")
     private String operator;
 
-    @Excel(name = "操作时间", orderNum = "14")
+    @Excel(name = "操作时间", orderNum = "13")
     private String operatedAt;
 }

@@ -11,10 +11,9 @@ export interface MaterialQueryParams {
 
 const IDENTITY_FIELD_META = [
   { key: 'category', title: '品类' },
-  { key: 'genericName', title: '统称' },
+  { key: 'genericName', title: '名称' },
   { key: 'brand', title: '品牌' },
-  { key: 'name', title: '名称' },
-  { key: 'model', title: '型号' },
+  { key: 'name', title: '型号' },
   { key: 'binLocation', title: 'Bin位' },
 ] as const
 
@@ -26,7 +25,6 @@ const IDENTITY_WIDTHS: Record<IdentityPreset, Record<string, number>> = {
     genericName: 100,
     brand: 80,
     name: 140,
-    model: 100,
     binLocation: 80,
   },
   ioList: {
@@ -34,7 +32,6 @@ const IDENTITY_WIDTHS: Record<IdentityPreset, Record<string, number>> = {
     genericName: 100,
     brand: 80,
     name: 140,
-    model: 100,
     binLocation: 80,
   },
   picker: {
@@ -42,7 +39,6 @@ const IDENTITY_WIDTHS: Record<IdentityPreset, Record<string, number>> = {
     genericName: 90,
     brand: 80,
     name: 120,
-    model: 90,
     binLocation: 80,
   },
   batchForm: {
@@ -50,7 +46,6 @@ const IDENTITY_WIDTHS: Record<IdentityPreset, Record<string, number>> = {
     genericName: 90,
     brand: 80,
     name: 120,
-    model: 90,
     binLocation: 80,
   },
   statsWarning: {
@@ -58,7 +53,6 @@ const IDENTITY_WIDTHS: Record<IdentityPreset, Record<string, number>> = {
     genericName: 90,
     brand: 80,
     name: 120,
-    model: 90,
     binLocation: 80,
   },
 }

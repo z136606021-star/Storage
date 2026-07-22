@@ -54,8 +54,6 @@ class MaterialLedgerExportTest {
                     .isEqualTo("YAGEO");
             assertThat(ExcelCellUtils.getCellString(dataRow, MaterialLedgerExcelColumn.NAME.getIndex()))
                     .isEqualTo("贴片电阻");
-            assertThat(ExcelCellUtils.getCellString(dataRow, MaterialLedgerExcelColumn.MODEL.getIndex()))
-                    .isEqualTo("0805-10K");
             assertThat(ExcelCellUtils.getCellString(dataRow, MaterialLedgerExcelColumn.BIN_LOCATION.getIndex()))
                     .isEqualTo("A-01");
             assertThat(ExcelCellUtils.getCellString(dataRow, MaterialLedgerExcelColumn.STOCK_QUANTITY.getIndex()))

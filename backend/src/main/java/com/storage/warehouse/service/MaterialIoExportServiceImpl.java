@@ -27,7 +27,6 @@ public class MaterialIoExportServiceImpl implements MaterialIoExportService {
             row.setGenericName(record.getGenericName());
             row.setBrand(record.getBrand());
             row.setName(record.getName());
-            row.setModel(record.getModel());
             row.setBinLocation(record.getBinLocation());
             row.setQuantity(record.getQuantity());
             row.setUnitPrice(record.getUnitPrice());

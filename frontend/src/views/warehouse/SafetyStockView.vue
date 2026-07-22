@@ -127,6 +127,7 @@ const columns = [
     width: 110,
     align: 'center' as const,
   },
+  { title: '备注', dataIndex: 'remark', key: 'remark', width: 140, ellipsis: true },
   {
     title: '库存预警',
     dataIndex: 'inWarningPeriod',
@@ -280,6 +281,9 @@ onMounted(async () => {
         <a-tag :color="record.inWarningPeriod ? 'warning' : 'default'">
           {{ formatWarningPeriod(record.inWarningPeriod) }}
         </a-tag>
+      </template>
+      <template v-else-if="column.key === 'remark'">
+        {{ displayValue(record.remark) }}
       </template>
       <template v-else-if="column.key === 'brand'">
         {{ displayValue(record.brand) }}

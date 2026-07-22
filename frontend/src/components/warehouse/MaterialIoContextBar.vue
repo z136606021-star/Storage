@@ -22,7 +22,6 @@ const emit = defineEmits<{
       <a-tag>{{ displayValue(material.genericName) }}</a-tag>
       <a-tag v-if="material.brand">{{ displayValue(material.brand) }}</a-tag>
       <a-tag color="blue">{{ displayValue(material.name) }}</a-tag>
-      <a-tag>{{ displayValue(material.model) }}</a-tag>
       <a-tag>Bin {{ displayValue(material.binLocation) }}</a-tag>
       <a-tag color="processing">库存 {{ displayValue(material.stockQuantity) }}</a-tag>
     </a-space>
@@ -31,10 +30,10 @@ const emit = defineEmits<{
         清除物料筛选
       </a-button>
       <template v-if="canWrite">
-        <a-button size="small" type="primary" @click="emit('create', 'IN')">
+        <a-button size="small" type="primary" class="btn-add-in" @click="emit('create', 'IN')">
           新增入库
         </a-button>
-        <a-button size="small" @click="emit('create', 'OUT')">
+        <a-button size="small" class="btn-add-out" @click="emit('create', 'OUT')">
           新增出库
         </a-button>
       </template>
@@ -44,6 +43,17 @@ const emit = defineEmits<{
 
 <style scoped lang="less">
 @import '@/styles/variables.less';
+@import '@/styles/mixins.less';
+
+.btn-add-in {
+  .btn-success-primary();
+}
+
+.btn-add-out {
+  color: #ad6800;
+  border-color: #d89614;
+  background: #fffbe6;
+}
 
 .material-io-context-bar {
   display: flex;

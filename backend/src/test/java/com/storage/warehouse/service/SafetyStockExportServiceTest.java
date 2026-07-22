@@ -57,14 +57,14 @@ class SafetyStockExportServiceTest {
           .isEqualTo("YAGEO");
       assertThat(ExcelCellUtils.getCellString(firstDataRow, SafetyStockExcelColumn.NAME.getIndex()))
           .isEqualTo("贴片电阻");
-      assertThat(ExcelCellUtils.getCellString(firstDataRow, SafetyStockExcelColumn.MODEL.getIndex()))
-          .isEqualTo("0805-10K");
       assertThat(ExcelCellUtils.getCellString(firstDataRow, SafetyStockExcelColumn.BIN_LOCATION.getIndex()))
           .isEqualTo("A-01");
       assertThat(ExcelCellUtils.getCellString(firstDataRow, SafetyStockExcelColumn.STOCK_QUANTITY.getIndex()))
           .isEqualTo("5");
       assertThat(ExcelCellUtils.getCellString(firstDataRow, SafetyStockExcelColumn.SAFETY_QUANTITY.getIndex()))
           .isEqualTo("10");
+      assertThat(ExcelCellUtils.getCellString(firstDataRow, SafetyStockExcelColumn.REMARK.getIndex()))
+          .isEqualTo("通用备件");
       assertThat(ExcelCellUtils.getCellString(firstDataRow, SafetyStockExcelColumn.WARNING_PERIOD.getIndex()))
           .isEqualTo("是");
 
@@ -113,6 +113,10 @@ class SafetyStockExportServiceTest {
           firstDataRow,
           SafetyStockPurchaseListExcelColumn.SUGGESTED_PURCHASE_QUANTITY.getIndex()
       )).isEqualTo("5");
+      assertThat(ExcelCellUtils.getCellString(
+          firstDataRow,
+          SafetyStockPurchaseListExcelColumn.REMARK.getIndex()
+      )).isEqualTo("通用备件");
       assertThat(sheet.getRow(2)).isNull();
     }
   }
@@ -127,6 +131,7 @@ class SafetyStockExportServiceTest {
     record.setBinLocation("A-01");
     record.setStockQuantity(5);
     record.setSafetyQuantity(10);
+    record.setRemark("通用备件");
     record.setInWarningPeriod(inWarningPeriod);
     return record;
   }

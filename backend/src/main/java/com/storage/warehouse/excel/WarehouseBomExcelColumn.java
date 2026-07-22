@@ -5,9 +5,9 @@ import java.util.Arrays;
 public enum WarehouseBomExcelColumn {
     INDEX(0, "序号"),
     CATEGORY(1, "品类"),
-    GENERIC_NAME(2, "统称"),
+    GENERIC_NAME(2, "名称"),
     BRAND(3, "品牌"),
-    NAME(4, "名称"),
+    NAME(4, "型号"),
     REMARK(5, "备注");
 
     private final int index;

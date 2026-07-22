@@ -136,7 +136,6 @@ public class MaterialLedgerServiceImpl extends ServiceImpl<MaterialLedgerMapper,
             row.setGenericName(record.getGenericName());
             row.setBrand(record.getBrand());
             row.setName(record.getName());
-            row.setModel(record.getModel());
             row.setBinLocation(record.getBinLocation());
             row.setStockQuantity(record.getStockQuantity());
             row.setUnitPrice(formatUnitPrice(record.getUnitPrice()));
