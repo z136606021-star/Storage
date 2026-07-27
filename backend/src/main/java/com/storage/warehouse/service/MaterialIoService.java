@@ -5,6 +5,7 @@ import com.storage.common.dto.BatchDeleteDTO;
 import com.storage.common.dto.FilterOptionsVO;
 import com.storage.common.dto.PageResult;
 import com.storage.warehouse.dto.MaterialIoBatchSaveDTO;
+import com.storage.warehouse.dto.MaterialIoInboundStockOptionVO;
 import com.storage.warehouse.dto.MaterialIoQueryDTO;
 import com.storage.warehouse.dto.MaterialIoRecordVO;
 import com.storage.warehouse.dto.MaterialIoSafetyHintVO;
@@ -25,6 +26,8 @@ public interface MaterialIoService extends IService<MaterialIoRecord> {
 
     FilterOptionsVO filterOptions(FilterLinkageQueryDTO query);
 
+    List<MaterialIoInboundStockOptionVO> inboundStockOptions(Long bomId);
+
     List<MaterialIoSafetyHintVO> safetyHints(List<Long> materialLedgerIds);
 
     int importBatch(List<MaterialIoSaveDTO> dtos);
@@ -36,4 +39,6 @@ public interface MaterialIoService extends IService<MaterialIoRecord> {
     void delete(Long id);
 
     void batchDelete(BatchDeleteDTO dto);
+
+    long deleteAll();
 }

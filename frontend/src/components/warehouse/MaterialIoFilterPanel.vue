@@ -38,6 +38,7 @@ const IO_TYPE_OPTIONS = [
     :query-form="queryForm"
     :filter-options="filterOptions"
     variant="split"
+    :show-legacy-model="false"
     @category-change="emit('categoryChange')"
     @generic-name-change="emit('genericNameChange')"
     @brand-change="emit('brandChange')"
@@ -70,7 +71,7 @@ const IO_TYPE_OPTIONS = [
         </a-form-item>
       </div>
       <div class="filter-grid-cell">
-        <a-form-item label="操作时间" class="filter-item">
+        <a-form-item label="时间" class="filter-item">
           <a-range-picker v-model:value="operatedAtRange" class="filter-control" />
         </a-form-item>
       </div>

@@ -97,7 +97,7 @@ class MaterialIoImportServiceIntegrationTest {
         ledger.setGenericName("测试物料");
         ledger.setBrand("品牌A");
         ledger.setName("测试品");
-        ledger.setModel("T-001");
+        ledger.setModel("");
         ledger.setBinLocation("1-1-1");
         ledger.setStockQuantity(10);
         LocalDateTime seededAt = LocalDateTime.now().minusMinutes(10).withNano(0);
@@ -116,9 +116,7 @@ class MaterialIoImportServiceIntegrationTest {
                         MaterialIoImportTemplateColumn.CATEGORY.getIndex(), "耗材",
                         MaterialIoImportTemplateColumn.GENERIC_NAME.getIndex(), "测试物料",
                         MaterialIoImportTemplateColumn.BRAND.getIndex(), "品牌A",
-                        MaterialIoImportTemplateColumn.NAME.getIndex(), "测试品",
-                        MaterialIoImportTemplateColumn.MODEL.getIndex(), "T-001",
-                        MaterialIoImportTemplateColumn.BIN_LOCATION.getIndex(), "1-1-1",
+                        MaterialIoImportTemplateColumn.NAME.getIndex(), "测试品",                        MaterialIoImportTemplateColumn.BIN_LOCATION.getIndex(), "1-1-1",
                         MaterialIoImportTemplateColumn.QUANTITY.getIndex(), "5",
                         MaterialIoImportTemplateColumn.IO_TYPE.getIndex(), "入库"
                 )
@@ -131,6 +129,35 @@ class MaterialIoImportServiceIntegrationTest {
         assertThat(currentStock()).isEqualTo(15);
     }
 
+    @Test
+    void importExcel_recentLegacyHeaders_mapsNameAndIgnoresLegacyModel() throws IOException {
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet("sheet1");
+            String[] headers = {"序号", "品类", "统称", "品牌", "名称", "型号", "Bin位", "数量", "单价", "备注", "用途", "项目编号", "操作类型", "操作时间"};
+            Row header = sheet.createRow(0);
+            for (int i = 0; i < headers.length; i++) {
+                header.createCell(i).setCellValue(headers[i]);
+            }
+            String[] values = {"1", "耗材", "测试物料", "品牌A", "测试品", "应忽略", "1-1-1", "2", "", "旧模板", "", "", "入库", ""};
+            Row row = sheet.createRow(1);
+            for (int i = 0; i < values.length; i++) {
+                row.createCell(i).setCellValue(values[i]);
+            }
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            workbook.write(out);
+            MockMultipartFile file = new MockMultipartFile("file", "legacy.xlsx",
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", out.toByteArray());
+
+            ImportResultVO result = materialIoImportService.importExcel(file);
+
+            assertThat(result.getSuccessCount()).as(String.valueOf(result.getErrors())).isEqualTo(1);
+            assertThat(materialLedgerMapper.selectList(null)).singleElement().satisfies(record -> {
+                assertThat(record.getName()).isEqualTo("测试品");
+                assertThat(record.getModel()).isEmpty();
+                assertThat(record.getStockQuantity()).isEqualTo(12);
+            });
+        }
+    }
     @Test
     void importExcel_inboundFromBomAndBin_createsLedgerWhenMissing() throws IOException {
         materialIoRecordMapper.delete(null);
@@ -319,7 +346,6 @@ class MaterialIoImportServiceIntegrationTest {
                 genericName,
                 brand,
                 name,
-                model,
                 binLocation,
                 quantity,
                 "",

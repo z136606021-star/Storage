@@ -3,16 +3,19 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { DownOutlined, PlusOutlined } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
+import { getErrorMessage } from '@/api/http'
 import dayjs from 'dayjs'
 import {
   batchDeleteMaterialIo,
   deleteMaterialIo,
+  deleteAllMaterialIo,
   downloadMaterialIoImportTemplate,
   exportMaterialIo,
   fetchMaterialIoDetail,
   importMaterialIo,
 } from '@/api/warehouse/materialIo'
 import CrudDetailDrawer from '@/components/common/CrudDetailDrawer.vue'
+import DangerConfirmModal from '@/components/common/DangerConfirmModal.vue'
 import CrudListPage from '@/components/common/CrudListPage.vue'
 import CrudRowActions from '@/components/common/CrudRowActions.vue'
 import MaterialIoBatchFormModal from '@/components/warehouse/MaterialIoBatchFormModal.vue'
@@ -26,7 +29,6 @@ import { useMaterialLedgerDeepLink } from '@/composables/useMaterialLedgerDeepLi
 import { useMaterialIoList } from '@/composables/useMaterialIoList'
 import { useMaterialIoRouteDetail } from '@/composables/useMaterialIoRouteDetail'
 import { markMaterialLedgerDirty } from '@/composables/useWarehouseDataInvalidation'
-import { useWritePermission } from '@/composables/useWritePermission'
 import { useAuth } from '@/composables/useAuth'
 import { useMenuStore } from '@/stores/menu'
 import type { IoType, MaterialIoRecord } from '@/types/warehouse/materialIo'
@@ -41,10 +43,19 @@ import { parseIoRecordIdFromQuery } from '@/utils/materialIoRouteQuery'
 import { getTableRowIndex } from '@/utils/tableIndex'
 import { materialIdentityColumns } from '@/utils/warehouseMaterialTable'
 
-const { canWrite } = useWritePermission('warehouse:material-io:write')
 const { hasPermission } = useAuth()
 const menu = useMenuStore()
 const canViewMaterialLedger = computed(() => hasPermission('warehouse:material-ledger:read'))
+const canCreate = computed(() => hasPermission('warehouse:material-io:create'))
+const canUpdate = computed(() => hasPermission('warehouse:material-io:update'))
+const canDelete = computed(() => hasPermission('warehouse:material-io:delete'))
+const canDeleteAll = computed(() => hasPermission('warehouse:material-io:delete-all'))
+const canImport = computed(() => hasPermission('warehouse:material-io:import'))
+const canExport = computed(() => hasPermission('warehouse:material-io:export'))
+const canSelect = computed(() => canDelete.value || canExport.value)
+const hasMoreActions = computed(
+  () => canImport.value || canExport.value || canDelete.value || canDeleteAll.value,
+)
 
 const route = useRoute()
 const router = useRouter()
@@ -52,6 +63,8 @@ const router = useRouter()
 const formOpen = ref(false)
 const editingRecord = ref<MaterialIoRecord | null>(null)
 const pendingInitialIoType = ref<IoType>('IN')
+const deleteAllOpen = ref(false)
+const deletingAll = ref(false)
 
 const {
   queryForm,
@@ -63,13 +76,12 @@ const {
   handleBrandChange,
   buildQueryParams,
   refreshAll,
-  resetQueryForm,
+  resetAndReload,
   loading,
   dataSource,
   pagination,
   loadData,
   handleSearch,
-  handleResetQuery,
   handleTableChange,
   selectedRowKeys,
   rowSelection,
@@ -134,12 +146,29 @@ async function refreshIoAndInvalidateLedger() {
   await refreshAll()
 }
 
-function handleReset() {
-  resetQueryForm()
-  clearDeepLinkOnReset()
-  handleResetQuery()
-  clearSelection()
-  refreshAll()
+async function handleReset() {
+  await resetAndReload(async () => {
+    await clearDeepLinkOnReset()
+  })
+}
+
+async function handleDeleteAll() {
+  if (deletingAll.value) {
+    return
+  }
+  deletingAll.value = true
+  try {
+    const deletedCount = await deleteAllMaterialIo()
+    deleteAllOpen.value = false
+    clearSelection()
+    markMaterialLedgerDirty()
+    await refreshAll()
+    message.success(`已删除 ${deletedCount} 条出入库记录并回滚台账库存`)
+  } catch (error) {
+    message.error(getErrorMessage(error, '全部删除失败，请检查历史流水与台账库存'))
+  } finally {
+    deletingAll.value = false
+  }
 }
 
 const {
@@ -185,6 +214,8 @@ function handleMoreMenuClick({ key }: { key: string }) {
     onBatchExport()
   } else if (key === 'batch-delete') {
     handleBatchDelete()
+  } else if (key === 'delete-all') {
+    deleteAllOpen.value = true
   }
 }
 
@@ -288,14 +319,16 @@ setupIoRouteWatch()
     :data-source="dataSource"
     :pagination="pagination"
     :row-key="(record: MaterialIoRecord) => record.id"
-    :row-selection="canWrite ? rowSelection : undefined"
+    :row-selection="canSelect ? rowSelection : undefined"
     :custom-row="customRow"
     :scroll="{ x: 1470 }"
     :toolbar-show-create="false"
+    :toolbar-show-import="canImport"
+    :toolbar-show-export="canExport"
     :toolbar-show-batch-export="false"
     :toolbar-show-template="false"
     :toolbar-show-batch-delete="false"
-    :toolbar-can-write="canWrite"
+    :toolbar-can-write="canImport"
     :toolbar-importing="importing"
     :toolbar-exporting="exporting"
     :toolbar-batch-exporting="batchExporting"
@@ -308,11 +341,11 @@ setupIoRouteWatch()
       <MaterialIoContextBar
         v-if="materialContext"
         :material="materialContext"
-        :can-write="canWrite"
+        :can-write="canCreate"
         @clear="clearMaterialLedgerFilter"
         @create="handleCreateWithType"
       />
-      <a-space v-if="canWrite" :size="8">
+      <a-space v-if="canCreate" :size="8">
         <a-button type="primary" class="btn-add-io btn-add-in" @click="handleCreateWithType('IN')">
           <template #icon><PlusOutlined /></template>
           新增入库
@@ -324,7 +357,7 @@ setupIoRouteWatch()
       </a-space>
     </template>
 
-    <template #toolbarAppend>
+    <template v-if="hasMoreActions" #toolbarAppend>
       <a-dropdown>
         <a-button>
           更多
@@ -332,11 +365,13 @@ setupIoRouteWatch()
         </a-button>
         <template #overlay>
           <a-menu @click="handleMoreMenuClick">
-            <a-menu-item key="template">下载模板</a-menu-item>
-            <a-menu-item key="batch-export" :disabled="!hasSelection">批量导出</a-menu-item>
-            <a-menu-item v-if="canWrite" key="batch-delete" :disabled="!hasSelection">
+            <a-menu-item v-if="canImport" key="template">下载模板</a-menu-item>
+            <a-menu-item v-if="canExport" key="batch-export" :disabled="!hasSelection">批量导出</a-menu-item>
+            <a-menu-item v-if="canDelete" key="batch-delete" :disabled="!hasSelection">
               批量删除
             </a-menu-item>
+            <a-menu-divider v-if="canDeleteAll" />
+            <a-menu-item v-if="canDeleteAll" key="delete-all" danger>全部删除</a-menu-item>
           </a-menu>
         </template>
       </a-dropdown>
@@ -384,7 +419,9 @@ setupIoRouteWatch()
       </template>
       <template v-else-if="column.key === 'action'">
         <CrudRowActions
-          :can-write="canWrite"
+          :can-edit="canUpdate"
+          :can-delete="canDelete"
+          :show-delete="canDelete"
           @view="handleViewDetail(record)"
           @edit="handleEdit(record)"
           @delete="handleDelete(record)"
@@ -406,7 +443,7 @@ setupIoRouteWatch()
     title="出入库详情"
     :width="520"
     :loading="detailLoading"
-    :show-edit="canWrite"
+    :show-edit="canUpdate"
     @close="handleCloseDetail"
     @edit="handleEditFromDrawer"
   >
@@ -420,6 +457,14 @@ setupIoRouteWatch()
       />
     </template>
   </CrudDetailDrawer>
+  <DangerConfirmModal
+    v-model:open="deleteAllOpen"
+    title="全部删除物料出入库流水"
+    description="删除后出入库数据将为空且台账库存回滚。历史孤儿流水会一并删除；任一台账回滚异常时整次操作失败。"
+    confirm-text="全部删除"
+    :loading="deletingAll"
+    @confirm="handleDeleteAll"
+  />
 </template>
 
 <style scoped lang="less">

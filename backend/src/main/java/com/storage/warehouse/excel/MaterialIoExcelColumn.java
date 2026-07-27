@@ -41,9 +41,6 @@ public enum MaterialIoExcelColumn {
     }
 
     public static String[] importTemplateHeaders() {
-        return new String[] {
-                "序号", "品类", "统称", "品牌", "名称", "型号", "Bin位", "数量",
-                "单价", "备注", "用途", "项目编号", "操作类型", "操作时间"
-        };
+        return MaterialIoImportTemplateColumn.headers();
     }
 }

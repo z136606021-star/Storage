@@ -8,6 +8,7 @@ export function useLinkedFilterOptions<TQuery extends Record<string, string | un
   config: LinkedFilterOptionsConfig<TQuery>,
 ) {
   const filterOptionsRaw = ref<Record<string, string[]>>({})
+  let latestRequestId = 0
 
   function ensureOptionValue(field: keyof TQuery, options: string[]) {
     const value = config.queryForm[field]
@@ -22,12 +23,17 @@ export function useLinkedFilterOptions<TQuery extends Record<string, string | un
     ensureFields: Array<{ field: keyof TQuery; optionsKey: keyof TOptions }>,
     pickList: (raw: TOptions, key: keyof TOptions) => string[],
   ) {
+    const requestId = ++latestRequestId
     const raw = await fetchFn(linkageParams)
+    if (requestId !== latestRequestId) {
+      return false
+    }
     filterOptionsRaw.value = raw as Record<string, string[]>
     for (const { field, optionsKey } of ensureFields) {
       const options = pickList(raw, optionsKey)
       ensureOptionValue(field, options)
     }
+    return true
   }
 
   function createCascadeResetHandler(

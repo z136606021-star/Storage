@@ -6,6 +6,7 @@ import com.storage.common.dto.ImportResultVO;
 import com.storage.common.dto.PageResult;
 import com.storage.common.web.ExcelResponseBuilder;
 import com.storage.warehouse.dto.MaterialIoBatchSaveDTO;
+import com.storage.warehouse.dto.MaterialIoInboundStockOptionVO;
 import com.storage.warehouse.dto.MaterialIoQueryDTO;
 import com.storage.warehouse.dto.MaterialIoRecordVO;
 import com.storage.warehouse.dto.MaterialIoSafetyHintVO;
@@ -54,6 +55,12 @@ public class MaterialIoController {
         return materialIoService.filterOptions(query);
     }
 
+    @GetMapping("/inbound-stock-options")
+    @RequiresPermissions("warehouse:material-io:read")
+    public List<MaterialIoInboundStockOptionVO> inboundStockOptions(@RequestParam Long bomId) {
+        return materialIoService.inboundStockOptions(bomId);
+    }
+
     @GetMapping("/safety-hints")
     @RequiresPermissions("warehouse:material-io:read")
     public List<MaterialIoSafetyHintVO> safetyHints(@RequestParam List<Long> materialLedgerIds) {
@@ -67,31 +74,36 @@ public class MaterialIoController {
     }
 
     @PostMapping("/batch")
-    @RequiresPermissions("warehouse:material-io:write")
+    @RequiresPermissions("warehouse:material-io:create")
     public List<MaterialIoRecordVO> batchCreate(@Valid @RequestBody MaterialIoBatchSaveDTO dto) {
         return materialIoService.batchCreate(dto);
     }
 
     @PutMapping("/{id}")
-    @RequiresPermissions("warehouse:material-io:write")
+    @RequiresPermissions("warehouse:material-io:update")
     public MaterialIoRecordVO update(@PathVariable Long id, @Valid @RequestBody MaterialIoUpdateDTO dto) {
         return materialIoService.update(id, dto);
     }
 
     @DeleteMapping("/{id}")
-    @RequiresPermissions("warehouse:material-io:write")
+    @RequiresPermissions("warehouse:material-io:delete")
     public void delete(@PathVariable Long id) {
         materialIoService.delete(id);
     }
 
     @DeleteMapping("/batch")
-    @RequiresPermissions("warehouse:material-io:write")
+    @RequiresPermissions("warehouse:material-io:delete")
     public void batchDelete(@Valid @RequestBody BatchDeleteDTO dto) {
         materialIoService.batchDelete(dto);
     }
 
+    @DeleteMapping("/all")
+    @RequiresPermissions("warehouse:material-io:delete-all")
+    public long deleteAll() {
+        return materialIoService.deleteAll();
+    }
     @GetMapping("/export")
-    @RequiresPermissions("warehouse:material-io:read")
+    @RequiresPermissions("warehouse:material-io:export")
     public ResponseEntity<byte[]> export(MaterialIoQueryDTO query) throws IOException {
         byte[] content = materialIoExportService.export(materialIoService.listByQuery(query));
         String filename = "物料出入库-" + LocalDate.now() + ".xlsx";
@@ -99,7 +111,7 @@ public class MaterialIoController {
     }
 
     @GetMapping("/import-template")
-    @RequiresPermissions("warehouse:material-io:read")
+    @RequiresPermissions("warehouse:material-io:import")
     public ResponseEntity<byte[]> importTemplate() throws IOException {
         byte[] content = materialIoExportService.exportImportTemplate();
         String filename = "物料出入库导入模板.xlsx";
@@ -107,7 +119,7 @@ public class MaterialIoController {
     }
 
     @PostMapping("/import")
-    @RequiresPermissions("warehouse:material-io:write")
+    @RequiresPermissions("warehouse:material-io:import")
     public ImportResultVO importExcel(@RequestParam("file") MultipartFile file) throws IOException {
         return materialIoImportService.importExcel(file);
     }

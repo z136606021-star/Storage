@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Arrays;
 import java.util.Objects;
 
 @Service
@@ -47,7 +48,11 @@ public class MaterialIoImportServiceImpl implements MaterialIoImportService {
                 file,
                 MaterialIoImportTemplateRow.class,
                 this::isEmptyRow,
-                this::parseValidRow
+                this::parseValidRow,
+                Map.of(
+                        Arrays.asList("序号", "品类", "统称", "品牌", "名称", "型号", "Bin位", "数量", "单价", "备注", "用途", "项目编号", "操作类型", "操作时间"),
+                        Arrays.asList("序号", "品类", "名称", "品牌", "型号", "Bin位", "数量", "单价", "备注", "用途", "项目编号", "操作类型", "操作时间")
+                )
         );
         List<ImportResultVO.ImportErrorVO> errors = new ArrayList<>(parsedRows.errors());
         List<ValidImportRow> validRows = parsedRows.rows().stream()
@@ -197,7 +202,7 @@ public class MaterialIoImportServiceImpl implements MaterialIoImportService {
         dto.setGenericName(row.getGenericName());
         dto.setBrand(row.getBrand());
         dto.setName(row.getName());
-        dto.setModel(row.getModel());
+        dto.setModel(null);
         dto.setBinLocation(row.getBinLocation());
         dto.setQuantity(parseQuantity(row.getQuantity()));
         dto.setUnitPrice(parseUnitPrice(row.getUnitPrice()));
@@ -214,10 +219,10 @@ public class MaterialIoImportServiceImpl implements MaterialIoImportService {
             throw new IllegalArgumentException("品类不能为空");
         }
         if (!StringUtils.hasText(dto.getGenericName())) {
-            throw new IllegalArgumentException("统称不能为空");
+            throw new IllegalArgumentException("名称不能为空");
         }
         if (!StringUtils.hasText(dto.getName())) {
-            throw new IllegalArgumentException("名称不能为空");
+            throw new IllegalArgumentException("型号不能为空");
         }
         if (!StringUtils.hasText(dto.getBinLocation())) {
             throw new IllegalArgumentException("Bin位不能为空");
@@ -275,7 +280,6 @@ public class MaterialIoImportServiceImpl implements MaterialIoImportService {
                 && !StringUtils.hasText(row.getGenericName())
                 && !StringUtils.hasText(row.getBrand())
                 && !StringUtils.hasText(row.getName())
-                && !StringUtils.hasText(row.getModel())
                 && !StringUtils.hasText(row.getBinLocation())
                 && !StringUtils.hasText(row.getQuantity())
                 && !StringUtils.hasText(row.getUnitPrice())

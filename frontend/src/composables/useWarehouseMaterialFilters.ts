@@ -54,10 +54,10 @@ export function useWarehouseMaterialFilters<T extends WarehouseMaterialQuery>(
     binLocation: filterOptionsRaw.value.binLocations ?? [],
   }))
 
-  async function reloadFilterOptions() {
+  async function reloadFilterOptions(linkageParams?: Record<string, string | undefined>) {
     await loadFilterOptions(
       fetchOptionsFn,
-      buildLinkageParams(linkageFields),
+      linkageParams ?? buildLinkageParams(linkageFields),
       ensureFields,
       (raw, key) => raw[key] ?? [],
     )

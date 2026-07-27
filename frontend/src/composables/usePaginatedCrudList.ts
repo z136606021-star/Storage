@@ -19,6 +19,7 @@ export function usePaginatedCrudList<T, Q>(options: PaginatedCrudListOptions<T, 
   const loading = ref(false)
   const dataSource = ref<T[]>([])
   const selectedRowKeys = ref<Key[]>([])
+  let latestRequestId = 0
 
   const pagination = reactive<TablePaginationConfig>({
     ...defaultTablePagination,
@@ -37,6 +38,7 @@ export function usePaginatedCrudList<T, Q>(options: PaginatedCrudListOptions<T, 
     : undefined
 
   async function loadData() {
+    const requestId = ++latestRequestId
     loading.value = true
     try {
       const result = await options.fetchPage({
@@ -44,21 +46,23 @@ export function usePaginatedCrudList<T, Q>(options: PaginatedCrudListOptions<T, 
         page: pagination.current ?? 1,
         pageSize: pagination.pageSize ?? DEFAULT_PAGE_SIZE,
       })
+      if (requestId !== latestRequestId) return
       dataSource.value = result.records
       pagination.total = result.total
       pagination.current = result.current
       pagination.pageSize = result.size
       await options.onAfterLoad?.(result.records)
     } catch (error) {
+      if (requestId !== latestRequestId) return
       message.error(getErrorMessage(error, options.loadErrorMessage ?? '加载列表失败'))
     } finally {
-      loading.value = false
+      if (requestId === latestRequestId) loading.value = false
     }
   }
 
   function handleSearch() {
     pagination.current = 1
-    loadData()
+    return loadData()
   }
 
   function handleResetQuery() {

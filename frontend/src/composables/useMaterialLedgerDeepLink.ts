@@ -66,11 +66,11 @@ export function useMaterialLedgerDeepLink(config: MaterialLedgerDeepLinkConfig) 
     config.loadData()
   }
 
-  function clearDeepLinkOnReset() {
+  async function clearDeepLinkOnReset() {
     materialLedgerIdFilter.value = null
     materialContext.value = null
     if (config.router && config.route.query.materialLedgerId) {
-      config.router.replace({ path: config.route.path })
+      await config.router.replace({ path: config.route.path })
     }
   }
 

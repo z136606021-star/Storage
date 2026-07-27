@@ -3,7 +3,7 @@ import { computed, ref, toRef, watch } from 'vue'
 import { PlusOutlined } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
 import type { TableProps } from 'ant-design-vue'
-import { batchCreateMaterialIo, updateMaterialIo } from '@/api/warehouse/materialIo'
+import { batchCreateMaterialIo, fetchInboundStockOptions, updateMaterialIo } from '@/api/warehouse/materialIo'
 import { fetchMaterialLedgerDetail } from '@/api/warehouse/materialLedger'
 import { getErrorMessage } from '@/api/http'
 import MaterialLedgerPickerModal from '@/components/warehouse/MaterialLedgerPickerModal.vue'
@@ -20,11 +20,12 @@ import {
 } from '@/composables/useMaterialIoFormValidation'
 import { useMaterialIoStock } from '@/composables/useMaterialIoStock'
 import type { MaterialLedger } from '@/types/warehouse/materialLedger'
-import type { IoType, MaterialIoFormRow, MaterialIoRecord } from '@/types/warehouse/materialIo'
+import type { IoType, MaterialIoFormRow, MaterialIoInboundStockOption, MaterialIoRecord } from '@/types/warehouse/materialIo'
 import type { WarehouseBin } from '@/types/warehouse/warehouseBin'
 import type { WarehouseBom } from '@/types/warehouse/warehouseBom'
 import { displayValue } from '@/utils/format'
 import { materialIdentityColumns } from '@/utils/warehouseMaterialTable'
+import { applyInboundStockOption, findInboundStockOption } from '@/utils/materialIoInboundStock'
 
 const IDENTITY_KEYS = ['category', 'genericName', 'brand', 'name', 'model', 'binLocation'] as const
 type TableColumn = NonNullable<TableProps['columns']>[number]
@@ -52,7 +53,7 @@ const pickingRowKey = ref<string | null>(null)
 
 const isEdit = computed(() => !!props.record)
 const editingRecord = toRef(props, 'record')
-const showStockColumn = computed(() => ioType.value === 'OUT')
+const showStockColumn = computed(() => true)
 const showProjectRefColumn = computed(() => ioType.value === 'OUT')
 const showWarningColumn = computed(() => !isEdit.value && ioType.value === 'OUT')
 
@@ -81,10 +82,13 @@ const tableColumns = computed(() => {
     { title: '序号', key: 'index', width: 64, align: 'center' as const },
     ...materialIdentityColumns('batchForm'),
   ]
-  if (showStockColumn.value) {
-    cols.push({ title: '可用库存', key: 'stockQuantity', width: 80, align: 'center' as const })
+  if (!isEdit.value && ioType.value === 'IN') {
+    cols.push({ title: '已有 Bin/型号', key: 'inboundOption', width: 190 })
   }
-  cols.push({ title: '数量', key: 'quantity', width: 100, align: 'center' as const })
+  if (showStockColumn.value) {
+    cols.push({ title: ioType.value === 'IN' ? '已有库存' : '可用库存', key: 'stockQuantity', width: 90, align: 'center' as const })
+  }
+  cols.push({ title: ioType.value === 'IN' ? '数量(+)' : '数量(-)', key: 'quantity', width: 100, align: 'center' as const })
   cols.push({ title: '单价', key: 'unitPrice', width: 110, align: 'center' as const })
   if (showProjectRefColumn.value) {
     cols.push({ title: '项目编号', key: 'projectRef', width: 120 })
@@ -292,7 +296,7 @@ function hasInboundDuplicate(
   )
 }
 
-function handleBomSelect(material: WarehouseBom) {
+async function handleBomSelect(material: WarehouseBom) {
   if (!pickingRowKey.value) {
     return
   }
@@ -311,8 +315,22 @@ function handleBomSelect(material: WarehouseBom) {
   row.brand = material.brand
   row.name = material.name
   row.model = ''
-  row.stockQuantity = undefined
+  row.stockQuantity = 0
+  row.inboundStockOptions = []
   pickingRowKey.value = null
+  try {
+    const options = await fetchInboundStockOptions(material.id)
+    row.inboundStockOptions = options
+    const preferred = options[0]
+    if (preferred) {
+      row.materialLedgerId = preferred.materialLedgerId
+      row.binLocation = preferred.binLocation
+      row.model = preferred.model
+      row.stockQuantity = preferred.stockQuantity
+    }
+  } catch {
+    message.warning('已有库存候选加载失败')
+  }
 }
 
 function handleBinSelect(bin: WarehouseBin) {
@@ -328,6 +346,7 @@ function handleBinSelect(bin: WarehouseBin) {
     return
   }
   row.binLocation = bin.binCode
+  Object.assign(row, applyInboundStockOption(findInboundStockOption(row.inboundStockOptions, row.binLocation, row.model)))
   pickingRowKey.value = null
 }
 
@@ -491,7 +510,7 @@ watch(ioType, (newType, oldType) => {
         </template>
         <template v-else-if="column.key === 'model' && !isEdit && ioType === 'IN'">
           <a-input
-            v-model:value="record.model"
+            :value="record.model"
             :maxlength="64"
             allow-clear
             placeholder="选填"
@@ -517,8 +536,27 @@ watch(ioType, (newType, oldType) => {
             <span v-else>-</span>
           </div>
         </template>
-        <template v-else-if="column.key === 'stockQuantity'">
-          <span v-if="record.materialLedgerId != null">
+        <template v-else-if="column.key === 'inboundOption'">
+          <a-select
+            :value="record.materialLedgerId != null ? String(record.materialLedgerId) : undefined"
+            :options="record.inboundStockOptions?.map((option: MaterialIoInboundStockOption) => ({
+              label: `${option.binLocation} / ${option.model || '—'}`,
+              value: String(option.materialLedgerId),
+            }))"
+            allow-clear
+            placeholder="无已有组合"
+            style="width: 100%"
+            @change="(value: string) => {
+              const option = record.inboundStockOptions?.find((item: MaterialIoInboundStockOption) => String(item.materialLedgerId) === value)
+              if (option) {
+                record.model = option.model
+                record.binLocation = option.binLocation
+              }
+              Object.assign(record, applyInboundStockOption(option))
+            }"
+          />
+        </template>        <template v-else-if="column.key === 'stockQuantity'">
+          <span v-if="ioType === 'IN' || record.materialLedgerId != null">
             {{ displayValue(getDisplayStock(record, index)) }}
           </span>
           <span v-else>-</span>

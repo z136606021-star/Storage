@@ -15,6 +15,7 @@ import com.storage.warehouse.mapper.WarehouseBomMapper;
 import com.storage.warehouse.converter.MaterialIoConverter;
 import com.storage.warehouse.dto.MaterialIoBatchItemDTO;
 import com.storage.warehouse.dto.MaterialIoBatchSaveDTO;
+import com.storage.warehouse.dto.MaterialIoInboundStockOptionVO;
 import com.storage.warehouse.dto.MaterialIoQueryDTO;
 import com.storage.warehouse.dto.MaterialIoRecordVO;
 import com.storage.warehouse.dto.MaterialIoSafetyHintVO;
@@ -38,6 +39,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -77,6 +79,28 @@ public class MaterialIoServiceImpl extends ServiceImpl<MaterialIoRecordMapper, M
         return materialIoReadService.filterOptions(query);
     }
 
+    @Override
+    public List<MaterialIoInboundStockOptionVO> inboundStockOptions(Long bomId) {
+        WarehouseBom bom = warehouseBomMapper.selectById(bomId);
+        if (bom == null) {
+            throw new BusinessException("物料清单不存在");
+        }
+        return materialLedgerMapper.selectList(
+                        Wrappers.<MaterialLedger>lambdaQuery()
+                                .eq(MaterialLedger::getCategory, bom.getCategory())
+                                .eq(MaterialLedger::getGenericName, bom.getGenericName())
+                                .eq(MaterialLedger::getBrand, normalizeNaturalKeyPart(bom.getBrand()))
+                                .eq(MaterialLedger::getName, bom.getName())
+                                .orderByDesc(MaterialLedger::getStockQuantity)
+                                .orderByDesc(MaterialLedger::getLastOperatedAt)
+                                .orderByDesc(MaterialLedger::getId)
+                ).stream()
+                .map(ledger -> new MaterialIoInboundStockOptionVO(
+                        ledger.getId(), ledger.getBinLocation(),
+                        normalizeNaturalKeyPart(ledger.getModel()),
+                        ledger.getStockQuantity() == null ? 0 : ledger.getStockQuantity()))
+                .toList();
+    }
     @Override
     public List<MaterialIoSafetyHintVO> safetyHints(List<Long> materialLedgerIds) {
         return materialIoReadService.safetyHints(materialLedgerIds);
@@ -219,6 +243,62 @@ public class MaterialIoServiceImpl extends ServiceImpl<MaterialIoRecordMapper, M
         }
     }
 
+    @Override
+    @Transactional
+    public long deleteAll() {
+        Map<Long, MaterialLedger> existingLedgers = materialLedgerMapper.selectAllForUpdate().stream()
+                .collect(java.util.stream.Collectors.toMap(MaterialLedger::getId, ledger -> ledger));
+
+        List<MaterialIoRecord> records = materialIoRecordMapper.selectAllForUpdate();
+        if (records.isEmpty()) {
+            return 0L;
+        }
+
+        Map<Long, Long> netEffects = new HashMap<>();
+        for (MaterialIoRecord record : records) {
+            if (record.getMaterialLedgerId() == null || record.getQuantity() == null || record.getQuantity() <= 0) {
+                throw new BusinessException("出入库历史数据异常，无法全部删除");
+            }
+            long effect;
+            if (MaterialIoQueryBuilder.isInbound(record.getIoType())) {
+                effect = record.getQuantity();
+            } else if (MaterialIoQueryBuilder.isOutbound(record.getIoType())) {
+                effect = -record.getQuantity();
+            } else {
+                throw new BusinessException("出入库历史数据操作类型异常，无法全部删除");
+            }
+            netEffects.merge(record.getMaterialLedgerId(), effect, Math::addExact);
+        }
+
+        for (Map.Entry<Long, Long> effectEntry : netEffects.entrySet()) {
+            MaterialLedger ledger = existingLedgers.get(effectEntry.getKey());
+            if (ledger == null) {
+                continue;
+            }
+            if (ledger.getStockQuantity() == null || ledger.getStockQuantity() < 0) {
+                throw new BusinessException("物料台账库存数据异常，无法全部删除: " + effectEntry.getKey());
+            }
+            long rolledBackStock = Math.subtractExact((long) ledger.getStockQuantity(), effectEntry.getValue());
+            if (rolledBackStock < 0 || rolledBackStock > Integer.MAX_VALUE) {
+                throw new BusinessException("全部删除将导致台账库存异常，操作已取消: " + effectEntry.getKey());
+            }
+            ledger.setStockQuantity((int) rolledBackStock);
+            ledger.setLastOperatedAt(null);
+        }
+
+        for (Long ledgerId : netEffects.keySet().stream().sorted().toList()) {
+            MaterialLedger ledger = existingLedgers.get(ledgerId);
+            if (ledger == null) {
+                continue;
+            }
+            materialLedgerMapper.update(null, Wrappers.<MaterialLedger>lambdaUpdate()
+                    .eq(MaterialLedger::getId, ledger.getId())
+                    .set(MaterialLedger::getStockQuantity, ledger.getStockQuantity())
+                    .set(MaterialLedger::getLastOperatedAt, null));
+        }
+        materialIoRecordMapper.delete(null);
+        return records.size();
+    }
     private MaterialIoRecord createRecord(
             MaterialIoSaveDTO dto,
             Long operatorUserId,
@@ -363,5 +443,8 @@ public class MaterialIoServiceImpl extends ServiceImpl<MaterialIoRecordMapper, M
                         .last("LIMIT 1")
         );
         ledger.setLastOperatedAt(latest != null ? latest.getOperatedAt() : null);
+    }
+    private String normalizeNaturalKeyPart(String value) {
+        return StringUtils.hasText(value) ? value.trim() : "";
     }
 }

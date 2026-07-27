@@ -2,11 +2,15 @@
 withDefaults(
   defineProps<{
     canWrite?: boolean
+    canEdit?: boolean
+    canDelete?: boolean
     showDelete?: boolean
     showView?: boolean
   }>(),
   {
     canWrite: false,
+    canEdit: undefined,
+    canDelete: undefined,
     showDelete: true,
     showView: true,
   },
@@ -30,11 +34,11 @@ const emit = defineEmits<{
     >
       查看
     </a-button>
-    <a-button v-if="canWrite" type="link" size="small" class="action-link" @click="emit('edit')">
+    <a-button v-if="canEdit ?? canWrite" type="link" size="small" class="action-link" @click="emit('edit')">
       编辑
     </a-button>
     <a-button
-      v-if="canWrite && showDelete"
+      v-if="(canDelete ?? canWrite) && showDelete"
       type="link"
       size="small"
       danger

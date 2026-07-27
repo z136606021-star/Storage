@@ -4,6 +4,7 @@ import type { FilterLinkageQuery, FilterOptions } from '@/types/warehouse/materi
 import type {
   MaterialIoBatchSavePayload,
   MaterialIoExportQuery,
+  MaterialIoInboundStockOption,
   MaterialIoQuery,
   MaterialIoRecord,
   MaterialIoSafetyHint,
@@ -28,6 +29,14 @@ export async function fetchMaterialIoFilterOptions(
   return data
 }
 
+export async function fetchInboundStockOptions(
+  bomId: number,
+): Promise<MaterialIoInboundStockOption[]> {
+  const { data } = await http.get<MaterialIoInboundStockOption[]>('/material-io/inbound-stock-options', {
+    params: { bomId },
+  })
+  return data
+}
 export async function fetchMaterialIoDetail(id: number): Promise<MaterialIoRecord> {
   const { data } = await http.get<MaterialIoRecord>(`/material-io/${id}`)
   return data
@@ -69,6 +78,11 @@ export async function deleteMaterialIo(id: number): Promise<void> {
 
 export async function batchDeleteMaterialIo(ids: number[]): Promise<void> {
   await http.delete('/material-io/batch', { data: { ids } })
+}
+
+export async function deleteAllMaterialIo(): Promise<number> {
+  const { data } = await http.delete<number>('/material-io/all')
+  return data
 }
 
 export async function exportMaterialIo(query: MaterialIoExportQuery): Promise<Blob> {

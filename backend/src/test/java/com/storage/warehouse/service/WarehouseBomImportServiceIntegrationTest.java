@@ -81,4 +81,32 @@ class WarehouseBomImportServiceIntegrationTest {
             assertThat(record.getRemark()).isEqualTo("批量导入");
         });
     }
+    @Test
+    void recentLegacyTemplate_importsWithCurrentIdentityMapping() throws IOException {
+        MockMultipartFile file;
+        try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Sheet sheet = workbook.createSheet("sheet1");
+            String[] headers = {"品类", "统称", "品牌", "名称", "备注"};
+            Row header = sheet.createRow(0);
+            for (int i = 0; i < headers.length; i++) {
+                header.createCell(i).setCellValue(headers[i]);
+            }
+            Row row = sheet.createRow(1);
+            String[] values = {"耗材", "密封圈", "三环", "O型", "旧模板"};
+            for (int i = 0; i < values.length; i++) {
+                row.createCell(i).setCellValue(values[i]);
+            }
+            workbook.write(out);
+            file = new MockMultipartFile("file", "legacy-bom.xlsx",
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", out.toByteArray());
+        }
+
+        ImportResultVO result = warehouseBomImportService.importExcel(file);
+
+        assertThat(result.getSuccessCount()).isEqualTo(1);
+        assertThat(warehouseBomMapper.selectList(null)).singleElement().satisfies(record -> {
+            assertThat(record.getGenericName()).isEqualTo("密封圈");
+            assertThat(record.getName()).isEqualTo("O型");
+        });
+    }
 }

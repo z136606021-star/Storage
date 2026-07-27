@@ -8,18 +8,17 @@ import java.util.Arrays;
 public enum MaterialIoImportTemplateColumn {
     INDEX(0, "序号"),
     CATEGORY(1, "品类"),
-    GENERIC_NAME(2, "统称"),
+    GENERIC_NAME(2, "名称"),
     BRAND(3, "品牌"),
-    NAME(4, "名称"),
-    MODEL(5, "型号"),
-    BIN_LOCATION(6, "Bin位"),
-    QUANTITY(7, "数量"),
-    UNIT_PRICE(8, "单价"),
-    REMARK(9, "备注"),
-    PURPOSE(10, "用途"),
-    PROJECT_REF(11, "项目编号"),
-    IO_TYPE(12, "操作类型"),
-    OPERATED_AT(13, "操作时间");
+    NAME(4, "型号"),
+    BIN_LOCATION(5, "Bin位"),
+    QUANTITY(6, "数量"),
+    UNIT_PRICE(7, "单价"),
+    REMARK(8, "备注"),
+    PURPOSE(9, "用途"),
+    PROJECT_REF(10, "项目编号"),
+    IO_TYPE(11, "操作类型"),
+    OPERATED_AT(12, "操作时间");
 
     private final int index;
     private final String header;

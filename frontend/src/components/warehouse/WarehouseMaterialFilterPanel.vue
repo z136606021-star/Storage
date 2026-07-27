@@ -14,8 +14,9 @@ withDefaults(
       binLocation: string[]
     }
     variant?: 'split' | 'compact'
+    showLegacyModel?: boolean
   }>(),
-  { variant: 'split' },
+  { variant: 'split', showLegacyModel: true },
 )
 
 const emit = defineEmits<{
@@ -48,7 +49,7 @@ const hasSecondRowTrailing = computed(() => !!slots['second-row-trailing'])
         </a-form-item>
       </div>
       <div class="filter-grid-cell filter-grid-cell--generic">
-        <a-form-item label="统称" class="filter-item">
+        <a-form-item label="名称" class="filter-item">
           <a-select
             v-model:value="queryForm.genericName"
             :options="toSelectOptions(filterOptions.genericName)"
@@ -72,7 +73,7 @@ const hasSecondRowTrailing = computed(() => !!slots['second-row-trailing'])
         </a-form-item>
       </div>
       <div class="filter-grid-cell filter-grid-cell--name">
-        <a-form-item label="名称" class="filter-item">
+        <a-form-item label="型号" class="filter-item">
           <a-input
             v-model:value="queryForm.name"
             placeholder="关键字"
@@ -82,7 +83,7 @@ const hasSecondRowTrailing = computed(() => !!slots['second-row-trailing'])
           />
         </a-form-item>
       </div>
-      <div class="filter-grid-cell filter-grid-cell--model">
+      <div v-if="showLegacyModel" class="filter-grid-cell filter-grid-cell--model">
         <a-form-item label="型号" class="filter-item">
           <a-select
             v-model:value="queryForm.model"
@@ -127,7 +128,7 @@ const hasSecondRowTrailing = computed(() => !!slots['second-row-trailing'])
         </a-form-item>
       </div>
       <div class="filter-grid-cell">
-        <a-form-item label="统称" class="filter-item">
+        <a-form-item label="名称" class="filter-item">
           <a-select
             v-model:value="queryForm.genericName"
             :options="toSelectOptions(filterOptions.genericName)"
@@ -151,7 +152,7 @@ const hasSecondRowTrailing = computed(() => !!slots['second-row-trailing'])
         </a-form-item>
       </div>
       <div class="filter-grid-cell">
-        <a-form-item label="名称" class="filter-item">
+        <a-form-item label="型号" class="filter-item">
           <a-input
             v-model:value="queryForm.name"
             placeholder="关键字查找"
@@ -166,8 +167,8 @@ const hasSecondRowTrailing = computed(() => !!slots['second-row-trailing'])
         <slot name="first-row-trailing" />
       </div>
 
-      <div class="filter-grid-cell">
-        <a-form-item label="型号" class="filter-item">
+      <div v-if="showLegacyModel" class="filter-grid-cell">
+        <a-form-item label="旧型号" class="filter-item">
           <a-select
             v-model:value="queryForm.model"
             :options="toSelectOptions(filterOptions.model)"

@@ -331,6 +331,39 @@ class MaterialIoServiceIntegrationTest {
     }
 
     @Test
+    void inboundStockOptions_includeSameBomAcrossBinsIncludingZeroStock() {
+        MaterialLedger zeroStock = new MaterialLedger();
+        zeroStock.setCategory("耗材");
+        zeroStock.setGenericName("测试物料");
+        zeroStock.setBrand("品牌A");
+        zeroStock.setName("测试品");
+        zeroStock.setModel("T-002");
+        zeroStock.setBinLocation("2-3-4");
+        zeroStock.setStockQuantity(0);
+        materialLedgerMapper.insert(zeroStock);
+
+        var options = materialIoService.inboundStockOptions(bomId);
+
+        assertThat(options).extracting(option -> option.getBinLocation())
+                .containsExactly("1-1-1", "2-3-4");
+        assertThat(options).extracting(option -> option.getStockQuantity())
+                .containsExactly(10, 0);
+    }
+
+    @Test
+    void inbound_savesRemarkAndIncreasesExistingStock() {
+        MaterialIoBatchItemDTO item = inboundItem(bomId, "1-1-1", 4);
+        item.setRemark("到货批次 A");
+        MaterialIoBatchSaveDTO batch = new MaterialIoBatchSaveDTO();
+        batch.setIoType("IN");
+        batch.setItems(List.of(item));
+
+        var created = materialIoService.batchCreate(batch).get(0);
+
+        assertThat(created.getRemark()).isEqualTo("到货批次 A");
+        assertThat(currentStock()).isEqualTo(14);
+    }
+    @Test
     void inbound_increasesStock() {
         MaterialIoBatchSaveDTO batch = new MaterialIoBatchSaveDTO();
         batch.setIoType("IN");
@@ -508,6 +541,62 @@ class MaterialIoServiceIntegrationTest {
         assertThat(created.getProjectRef()).isNull();
     }
 
+    @Test
+    void deleteAll_rollsBackNetStockAndClearsRecords() {
+        materialIoService.batchCreate(outboundBatch(ledgerId, 3));
+        MaterialIoBatchSaveDTO inbound = new MaterialIoBatchSaveDTO();
+        inbound.setIoType("IN");
+        inbound.setItems(List.of(inboundItem(bomId, "1-1-1", 2)));
+        materialIoService.batchCreate(inbound);
+        assertThat(currentStock()).isEqualTo(9);
+
+        long deleted = materialIoService.deleteAll();
+
+        assertThat(deleted).isEqualTo(2);
+        assertThat(materialIoRecordMapper.selectCount(null)).isZero();
+        MaterialLedger ledger = materialLedgerMapper.selectById(ledgerId);
+        assertThat(ledger.getStockQuantity()).isEqualTo(10);
+        assertThat(ledger.getLastOperatedAt()).isNull();
+    }
+
+    @Test
+    void deleteAll_doesNotChangeLedgerWithoutIoRecords() {
+        MaterialLedger untouched = new MaterialLedger();
+        untouched.setCategory("耗材");
+        untouched.setGenericName("未发生流水物料");
+        untouched.setBrand("品牌C");
+        untouched.setName("未操作台账");
+        untouched.setModel("U-001");
+        untouched.setBinLocation("2-3-4");
+        untouched.setStockQuantity(7);
+        LocalDateTime previousOperation = LocalDateTime.now().minusDays(1).withNano(0);
+        untouched.setLastOperatedAt(previousOperation);
+        materialLedgerMapper.insert(untouched);
+        materialIoService.batchCreate(outboundBatch(ledgerId, 2));
+
+        materialIoService.deleteAll();
+
+        MaterialLedger unchanged = materialLedgerMapper.selectById(untouched.getId());
+        assertThat(unchanged.getStockQuantity()).isEqualTo(7);
+        assertThat(unchanged.getLastOperatedAt()).isEqualTo(previousOperation);
+    }
+    @Test
+    void deleteAll_invalidRollbackRollsBackEntireTransaction() {
+        MaterialIoBatchSaveDTO inbound = new MaterialIoBatchSaveDTO();
+        inbound.setIoType("IN");
+        inbound.setItems(List.of(inboundItem(bomId, "1-1-1", 3)));
+        materialIoService.batchCreate(inbound);
+        MaterialLedger corrupted = materialLedgerMapper.selectById(ledgerId);
+        corrupted.setStockQuantity(0);
+        materialLedgerMapper.updateById(corrupted);
+
+        assertThatThrownBy(() -> materialIoService.deleteAll())
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("库存异常");
+
+        assertThat(materialIoRecordMapper.selectCount(null)).isEqualTo(1);
+        assertThat(currentStock()).isZero();
+    }
     private int currentStock() {
         return materialLedgerMapper.selectById(ledgerId).getStockQuantity();
     }

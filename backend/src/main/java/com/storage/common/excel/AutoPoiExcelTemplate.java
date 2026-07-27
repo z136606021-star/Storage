@@ -15,8 +15,10 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Predicate;
 
 public final class AutoPoiExcelTemplate {
@@ -58,6 +60,16 @@ public final class AutoPoiExcelTemplate {
         return result;
     }
 
+    public static <T> ImportResultVO importRows(
+            MultipartFile file,
+            Class<T> rowClass,
+            Predicate<T> emptyChecker,
+            RowImporter<T> importer,
+            Map<List<String>, List<String>> headerMappings
+    ) throws IOException {
+        MultipartFile normalized = normalizeHeaders(file, headerMappings);
+        return importRows(normalized, rowClass, emptyChecker, importer);
+    }
     public static <T, R> ParsedRows<R> parseRows(
             MultipartFile file,
             Class<T> rowClass,
@@ -81,6 +93,76 @@ public final class AutoPoiExcelTemplate {
         return new ParsedRows<>(parsedRows, errors);
     }
 
+    public static <T, R> ParsedRows<R> parseRows(
+            MultipartFile file,
+            Class<T> rowClass,
+            Predicate<T> emptyChecker,
+            RowParser<T, R> parser,
+            Map<List<String>, List<String>> headerMappings
+    ) throws IOException {
+        MultipartFile normalized = normalizeHeaders(file, headerMappings);
+        return parseRows(normalized, rowClass, emptyChecker, parser);
+    }
+
+    private static MultipartFile normalizeHeaders(
+            MultipartFile file,
+            Map<List<String>, List<String>> headerMappings
+    ) throws IOException {
+        validateFile(file);
+        try (Workbook workbook = WorkbookFactory.create(file.getInputStream());
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            org.apache.poi.ss.usermodel.Sheet sheet = workbook.getNumberOfSheets() > 0 ? workbook.getSheetAt(0) : null;
+            if (sheet == null || sheet.getRow(0) == null) {
+                throw new ImportFormatException("Excel 文件中没有表头");
+            }
+            DataFormatter formatter = new DataFormatter();
+            Row header = sheet.getRow(0);
+            List<String> actual = new ArrayList<>();
+            for (int i = 0; i < header.getLastCellNum(); i++) {
+                actual.add(formatter.formatCellValue(header.getCell(i)).trim());
+            }
+            List<String> normalizedHeaders = headerMappings.get(actual);
+            if (normalizedHeaders != null) {
+                while (actual.size() > normalizedHeaders.size()) {
+                    int removeIndex = actual.size() - 1;
+                    if (actual.contains("统称")) {
+                        removeIndex = 5;
+                    }
+                    for (int candidate = actual.contains("统称") ? actual.size() : 0; candidate < actual.size(); candidate++) {
+                        if (candidate < normalizedHeaders.size()
+                                && !actual.get(candidate).equals(normalizedHeaders.get(candidate))
+                                && candidate + 1 < actual.size()
+                                && actual.get(candidate + 1).equals(normalizedHeaders.get(candidate))) {
+                            removeIndex = candidate;
+                            break;
+                        }
+                    }
+                    for (int rowIndex = 0; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
+                        Row row = sheet.getRow(rowIndex);
+                        if (row == null) {
+                            continue;
+                        }
+                        for (int column = removeIndex; column < row.getLastCellNum() - 1; column++) {
+                            row.getCell(column, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK)
+                                    .setCellValue(formatter.formatCellValue(row.getCell(column + 1)));
+                        }
+                        row.removeCell(row.getCell(row.getLastCellNum() - 1));
+                    }
+                    actual.remove(removeIndex);
+                }
+                for (int i = 0; i < normalizedHeaders.size(); i++) {
+                    header.getCell(i, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).setCellValue(normalizedHeaders.get(i));
+                }
+            }
+            workbook.write(out);
+            byte[] bytes = out.toByteArray();
+            return new InMemoryMultipartFile(file, bytes);
+        } catch (ImportFormatException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw new ImportFormatException("Excel 解析失败: " + ex.getMessage());
+        }
+    }
     private static <T> List<ExcelRow<T>> readRowsWithNumbers(MultipartFile file, Class<T> rowClass) throws IOException {
         List<T> rows = readRows(file, rowClass);
         List<Integer> rowNumbers = readDataRowNumbers(file);
@@ -166,6 +248,16 @@ public final class AutoPoiExcelTemplate {
     public record ParsedRows<T>(List<ParsedRow<T>> rows, List<ImportResultVO.ImportErrorVO> errors) {
     }
 
+    private record InMemoryMultipartFile(MultipartFile source, byte[] content) implements MultipartFile {
+        @Override public String getName() { return source.getName(); }
+        @Override public String getOriginalFilename() { return source.getOriginalFilename(); }
+        @Override public String getContentType() { return source.getContentType(); }
+        @Override public boolean isEmpty() { return content.length == 0; }
+        @Override public long getSize() { return content.length; }
+        @Override public byte[] getBytes() { return content; }
+        @Override public java.io.InputStream getInputStream() { return new ByteArrayInputStream(content); }
+        @Override public void transferTo(java.io.File dest) throws IOException { java.nio.file.Files.write(dest.toPath(), content); }
+    }
     private record ExcelRow<T>(int excelRow, T value) {
     }
 }

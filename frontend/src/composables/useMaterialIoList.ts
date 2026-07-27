@@ -85,6 +85,15 @@ export function useMaterialIoList(options: UseMaterialIoListOptions = {}) {
     await loadData()
   }
 
+  async function resetAndReload(beforeLoad?: () => void | Promise<void>) {
+    resetQueryForm()
+    handleResetQuery()
+    clearSelection()
+    await beforeLoad?.()
+    await reloadFilterOptions({})
+    await loadData()
+  }
+
   function resetQueryForm() {
     assignDefaultMaterialFields(queryForm)
     queryForm.ioType = undefined
@@ -92,12 +101,7 @@ export function useMaterialIoList(options: UseMaterialIoListOptions = {}) {
     operatedAtRange.value = null
   }
 
-  function handleReset() {
-    resetQueryForm()
-    handleResetQuery()
-    clearSelection()
-    refreshAll()
-  }
+
 
   return {
     queryForm,
@@ -110,7 +114,7 @@ export function useMaterialIoList(options: UseMaterialIoListOptions = {}) {
     buildQueryParams,
     refreshAll,
     resetQueryForm,
-    handleReset,
+    resetAndReload,
     loading,
     dataSource,
     pagination,

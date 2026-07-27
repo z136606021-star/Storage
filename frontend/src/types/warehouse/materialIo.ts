@@ -71,6 +71,12 @@ export interface MaterialIoUpdatePayload {
   projectRef?: string | null
 }
 
+export interface MaterialIoInboundStockOption {
+  materialLedgerId: number
+  binLocation: string
+  model: string
+  stockQuantity: number
+}
 export interface MaterialIoSafetyHint {
   materialLedgerId: number
   currentStock: number | null
@@ -101,6 +107,7 @@ export interface MaterialIoFormRow {
   model?: string
   binLocation?: string
   stockQuantity?: number
+  inboundStockOptions?: MaterialIoInboundStockOption[]
   quantity?: number
   unitPrice?: number | null
   purpose?: string
