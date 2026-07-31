@@ -184,7 +184,6 @@ setupRouteWatch()
       <WarehouseMaterialFilterPanel
         :query-form="queryForm"
         :filter-options="filterOptions"
-        :show-legacy-model="false"
         @category-change="handleCategoryChange"
         @generic-name-change="handleGenericNameChange"
         @brand-change="handleBrandChange"

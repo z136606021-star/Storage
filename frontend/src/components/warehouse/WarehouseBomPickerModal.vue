@@ -3,10 +3,12 @@ import { computed, reactive, ref, watch } from 'vue'
 import { ReloadOutlined, SearchOutlined } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
 import type { TablePaginationConfig } from 'ant-design-vue'
-import { fetchWarehouseBomPage } from '@/api/warehouse/warehouseBom'
+import { fetchBomFilterOptions, fetchWarehouseBomPage } from '@/api/warehouse/warehouseBom'
+import { useLinkedFilterOptions } from '@/composables/useLinkedFilterOptions'
 import { defaultTablePagination } from '@/constants/pagination'
 import type { WarehouseBom } from '@/types/warehouse/warehouseBom'
 import { displayValue } from '@/utils/format'
+import { toSelectOptions } from '@/utils/selectOptions'
 import { getTableRowIndex } from '@/utils/tableIndex'
 
 const props = defineProps<{
@@ -18,18 +20,54 @@ const emit = defineEmits<{
   select: [record: WarehouseBom]
 }>()
 
+const defaultQuery = {
+  category: undefined as string | undefined,
+  genericName: undefined as string | undefined,
+  brand: undefined as string | undefined,
+  name: '',
+}
+
 const loading = ref(false)
 const dataSource = ref<WarehouseBom[]>([])
 const selectedRowKeys = ref<number[]>([])
-const queryForm = reactive({
-  category: '',
-  genericName: '',
-  brand: '',
-  name: '',
-})
+const queryForm = reactive({ ...defaultQuery })
 const pagination = reactive<TablePaginationConfig>({
   ...defaultTablePagination,
 })
+
+const { filterOptionsRaw, loadFilterOptions, createCascadeResetHandler, buildLinkageParams } =
+  useLinkedFilterOptions({ queryForm })
+
+const filterOptions = computed(() => ({
+  category: filterOptionsRaw.value.categories ?? [],
+  genericName: filterOptionsRaw.value.genericNames ?? [],
+  brand: filterOptionsRaw.value.brands ?? [],
+}))
+
+const linkageFields = [
+  { formKey: 'category' as const, paramKey: 'category' },
+  { formKey: 'genericName' as const, paramKey: 'genericName' },
+  { formKey: 'brand' as const, paramKey: 'brand' },
+]
+
+const ensureFields = [
+  { field: 'genericName' as const, optionsKey: 'genericNames' as const },
+  { field: 'brand' as const, optionsKey: 'brands' as const },
+]
+
+async function reloadFilterOptions(linkageParams?: Record<string, string | undefined>) {
+  await loadFilterOptions(
+    fetchBomFilterOptions,
+    linkageParams ?? buildLinkageParams(linkageFields),
+    ensureFields,
+    (raw, key) => raw[key] ?? [],
+  )
+}
+
+const handleCategoryChange = createCascadeResetHandler(['genericName', 'brand'], () =>
+  reloadFilterOptions(),
+)
+const handleGenericNameChange = createCascadeResetHandler(['brand'], () => reloadFilterOptions())
 
 const columns = [
   { title: '序号', key: 'index', width: 64, align: 'center' as const },
@@ -48,10 +86,15 @@ const rowSelection = computed(() => ({
 }))
 
 function buildQueryParams() {
+  const optionValue = (value?: string) => {
+    const trimmed = value?.trim()
+    return trimmed || undefined
+  }
+
   return {
-    category: queryForm.category.trim() || undefined,
-    genericName: queryForm.genericName.trim() || undefined,
-    brand: queryForm.brand.trim() || undefined,
+    category: optionValue(queryForm.category),
+    genericName: optionValue(queryForm.genericName),
+    brand: optionValue(queryForm.brand),
     name: queryForm.name.trim() || undefined,
     page: pagination.current,
     pageSize: pagination.pageSize,
@@ -80,14 +123,16 @@ function handleSearch() {
   void loadData()
 }
 
+async function refreshAll() {
+  await reloadFilterOptions({})
+  await loadData()
+}
+
 function handleReset() {
-  Object.assign(queryForm, {
-    category: '',
-    genericName: '',
-    brand: '',
-    name: '',
-  })
-  handleSearch()
+  Object.assign(queryForm, defaultQuery)
+  pagination.current = 1
+  selectedRowKeys.value = []
+  void refreshAll()
 }
 
 function handleTableChange(page: TablePaginationConfig) {
@@ -129,13 +174,19 @@ function customRow(record: WarehouseBom) {
 
 watch(
   () => props.open,
-  (open) => {
+  async (open) => {
     if (!open) {
       return
     }
     selectedRowKeys.value = []
+    Object.assign(queryForm, defaultQuery)
     pagination.current = 1
-    void loadData()
+    try {
+      await reloadFilterOptions({})
+    } catch {
+      message.warning('筛选选项加载失败')
+    }
+    await loadData()
   },
 )
 </script>
@@ -152,22 +203,48 @@ watch(
       <a-row :gutter="[12, 8]" class="filter-row">
         <a-col :xs="24" :sm="12" :md="8">
           <a-form-item label="品类" class="filter-item">
-            <a-input v-model:value="queryForm.category" allow-clear @press-enter="handleSearch" />
+            <a-select
+              v-model:value="queryForm.category"
+              :options="toSelectOptions(filterOptions.category)"
+              allow-clear
+              placeholder="全部"
+              class="filter-control"
+              @change="handleCategoryChange"
+            />
           </a-form-item>
         </a-col>
         <a-col :xs="24" :sm="12" :md="8">
           <a-form-item label="统称" class="filter-item">
-            <a-input v-model:value="queryForm.genericName" allow-clear @press-enter="handleSearch" />
+            <a-select
+              v-model:value="queryForm.genericName"
+              :options="toSelectOptions(filterOptions.genericName)"
+              allow-clear
+              placeholder="全部"
+              class="filter-control"
+              @change="handleGenericNameChange"
+            />
           </a-form-item>
         </a-col>
         <a-col :xs="24" :sm="12" :md="8">
           <a-form-item label="品牌" class="filter-item">
-            <a-input v-model:value="queryForm.brand" allow-clear @press-enter="handleSearch" />
+            <a-select
+              v-model:value="queryForm.brand"
+              :options="toSelectOptions(filterOptions.brand)"
+              allow-clear
+              placeholder="全部"
+              class="filter-control"
+            />
           </a-form-item>
         </a-col>
         <a-col :xs="24" :sm="12" :md="8">
           <a-form-item label="名称" class="filter-item">
-            <a-input v-model:value="queryForm.name" allow-clear @press-enter="handleSearch" />
+            <a-input
+              v-model:value="queryForm.name"
+              placeholder="关键字查找"
+              allow-clear
+              class="filter-control"
+              @press-enter="handleSearch"
+            />
           </a-form-item>
         </a-col>
         <a-col :xs="24" :sm="12" :md="8" class="filter-actions-col">
@@ -231,6 +308,11 @@ watch(
 
 .filter-item {
   margin-bottom: 0;
+  width: 100%;
+}
+
+.filter-control {
+  width: 100%;
 }
 
 .filter-actions-col {

@@ -38,7 +38,6 @@ const IO_TYPE_OPTIONS = [
     :query-form="queryForm"
     :filter-options="filterOptions"
     variant="split"
-    :show-legacy-model="false"
     @category-change="emit('categoryChange')"
     @generic-name-change="emit('genericNameChange')"
     @brand-change="emit('brandChange')"

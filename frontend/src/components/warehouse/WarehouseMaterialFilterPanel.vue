@@ -14,9 +14,8 @@ withDefaults(
       binLocation: string[]
     }
     variant?: 'split' | 'compact'
-    showLegacyModel?: boolean
   }>(),
-  { variant: 'split', showLegacyModel: true },
+  { variant: 'split' },
 )
 
 const emit = defineEmits<{
@@ -80,17 +79,6 @@ const hasSecondRowTrailing = computed(() => !!slots['second-row-trailing'])
             allow-clear
             class="filter-control"
             @press-enter="emit('search')"
-          />
-        </a-form-item>
-      </div>
-      <div v-if="showLegacyModel" class="filter-grid-cell filter-grid-cell--model">
-        <a-form-item label="型号" class="filter-item">
-          <a-select
-            v-model:value="queryForm.model"
-            :options="toSelectOptions(filterOptions.model)"
-            allow-clear
-            placeholder="全部"
-            class="filter-control"
           />
         </a-form-item>
       </div>
@@ -167,17 +155,6 @@ const hasSecondRowTrailing = computed(() => !!slots['second-row-trailing'])
         <slot name="first-row-trailing" />
       </div>
 
-      <div v-if="showLegacyModel" class="filter-grid-cell">
-        <a-form-item label="旧型号" class="filter-item">
-          <a-select
-            v-model:value="queryForm.model"
-            :options="toSelectOptions(filterOptions.model)"
-            allow-clear
-            placeholder="全部"
-            class="filter-control"
-          />
-        </a-form-item>
-      </div>
       <div class="filter-grid-cell">
         <a-form-item label="Bin位" class="filter-item">
           <a-select
@@ -249,11 +226,6 @@ const hasSecondRowTrailing = computed(() => !!slots['second-row-trailing'])
 
 .filter-grid-split:not(.filter-grid-split--extended) .filter-grid-cell--name {
   grid-column: 1;
-  grid-row: 2;
-}
-
-.filter-grid-split:not(.filter-grid-split--extended) .filter-grid-cell--model {
-  grid-column: 2;
   grid-row: 2;
 }
 
@@ -367,7 +339,6 @@ const hasSecondRowTrailing = computed(() => !!slots['second-row-trailing'])
   .filter-grid-split:not(.filter-grid-split--extended) .filter-grid-cell--generic,
   .filter-grid-split:not(.filter-grid-split--extended) .filter-grid-cell--brand,
   .filter-grid-split:not(.filter-grid-split--extended) .filter-grid-cell--name,
-  .filter-grid-split:not(.filter-grid-split--extended) .filter-grid-cell--model,
   .filter-grid-split:not(.filter-grid-split--extended) .filter-grid-cell--bin {
     grid-column: auto;
     grid-row: auto;

@@ -77,6 +77,7 @@ export function useSafetyStockList(options: UseSafetyStockListOptions = {}) {
     Object.assign(queryForm, defaultSafetyStockQuery())
     handleResetQuery()
     clearSelection()
+    void refreshAll()
   }
 
   return {
